@@ -1,0 +1,27 @@
+{
+  "name": "@graphql-microservices/products",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@apollo/server": "5.0.0",
+    "@apollo/subgraph": "^2.11.2",
+    "@graphql-microservices/shared-auth": "workspace:*",
+    "@graphql-microservices/shared-cache": "workspace:*",
+    "@graphql-microservices/shared-config": "workspace:*",
+    "@prisma/client": "^6.13.0",
+    "dataloader": "^2.2.3",
+    "graphql": "^16.11.0",
+    "graphql-tag": "^2.12.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "prisma": "^6.13.0"
+  }
+}

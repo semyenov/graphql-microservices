@@ -1,0 +1,20 @@
+{
+  "name": "@graphql-microservices/gateway",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@apollo/gateway": "^2.11.2",
+    "@apollo/server": "^5.0.0",
+    "@apollo/subgraph": "^2.11.2",
+    "@graphql-microservices/shared-cache": "workspace:*",
+    "@graphql-microservices/shared-config": "workspace:*",
+    "graphql": "^16.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.1.0"
+  }
+}

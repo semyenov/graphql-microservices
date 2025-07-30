@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: graphql_microservices
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - graphql-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - graphql-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      users:
+        condition: service_started
+      products:
+        condition: service_started
+      orders:
+        condition: service_started
+    networks:
+      - graphql-network
+
+  users:
+    build:
+      context: .
+      dockerfile: services/users/Dockerfile
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=production
+      - PORT=4001
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/users_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - graphql-network
+
+  products:
+    build:
+      context: .
+      dockerfile: services/products/Dockerfile
+    ports:
+      - "4002:4002"
+    environment:
+      - NODE_ENV=production
+      - PORT=4002
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/products_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - graphql-network
+
+  orders:
+    build:
+      context: .
+      dockerfile: services/orders/Dockerfile
+    ports:
+      - "4003:4003"
+    environment:
+      - NODE_ENV=production
+      - PORT=4003
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/orders_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - graphql-network
+
+volumes:
+  postgres_data:
+
+networks:
+  graphql-network:
+    driver: bridge

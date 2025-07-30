@@ -1,0 +1,31 @@
+{
+  "$schema": "https://gql-tada.0no.co/config.schema.json",
+  "schema": "../introspection.json",
+  "output": "./src/graphql-env.d.ts",
+  "tsconfig": "../tsconfig.json",
+  "scalars": {
+    "DateTime": {
+      "type": "string",
+      "description": "ISO 8601 date-time string"
+    },
+    "Decimal": {
+      "type": "number",
+      "description": "Decimal number represented as float"
+    },
+    "JSON": {
+      "type": "any",
+      "description": "Arbitrary JSON value"
+    },
+    "OrderStatus": {
+      "type": "'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED'",
+      "description": "Order status enum"
+    },
+    "Role": {
+      "type": "'USER' | 'ADMIN' | 'MODERATOR'",
+      "description": "User role enum"
+    }
+  },
+  "documentOptimization": true,
+  "trackFieldUsage": true,
+  "shouldCheckForColocatedFragments": true
+}

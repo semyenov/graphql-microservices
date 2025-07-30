@@ -1,0 +1,80 @@
+extend schema @link(
+    url: "https://specs.apollo.dev/federation/v2.0",
+    import: ["@key", "@shareable"]
+  )
+  type Product @key(fields: "id") {
+    id: ID!
+    name: String!
+    description: String!
+    price: Float!
+    stock: Int!
+    sku: String!
+    category: String!
+    tags: [String!]!
+    imageUrl: String
+    isActive: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+  type ProductsPage {
+    products: [Product!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
+  }
+  type PageInfo @shareable {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+  }
+  type Query {
+    product(id: ID!): Product
+    productBySku(sku: String!): Product
+    products(
+      first: Int
+      after: String
+      category: String
+      tags: [String!]
+      isActive: Boolean
+      search: String
+    ): ProductsPage!
+    categories: [String!]!
+    searchProducts(query: String!, limit: Int = 10): [Product!]!
+  }
+  type Mutation {
+    createProduct(input: CreateProductInput!): Product!
+    updateProduct(id: ID!, input: UpdateProductInput!): Product!
+    updateStock(id: ID!, quantity: Int!): Product!
+    deactivateProduct(id: ID!): Product!
+    activateProduct(id: ID!): Product!
+    bulkUpdateStock(updates: [StockUpdate!]!): [Product!]!
+  }
+  type Subscription {
+    productCreated: Product!
+    productUpdated(productId: ID): Product!
+    productStockChanged(productId: ID): Product!
+    productDeactivated: Product!
+  }
+  input CreateProductInput {
+    name: String!
+    description: String!
+    price: Float!
+    stock: Int!
+    sku: String!
+    category: String!
+    tags: [String!]
+    imageUrl: String
+  }
+  input UpdateProductInput {
+    name: String
+    description: String
+    price: Float
+    stock: Int
+    category: String
+    tags: [String!]
+    imageUrl: String
+  }
+  input StockUpdate {
+    productId: ID!
+    quantity: Int!
+  }

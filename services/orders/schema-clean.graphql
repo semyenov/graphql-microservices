@@ -1,0 +1,114 @@
+extend schema
+  @link(
+    url: "https://specs.apollo.dev/federation/v2.0"
+    import: ["@key", "@shareable", "@external"]
+  )
+type Order @key(fields: "id") {
+  id: ID!
+  userId: ID!
+  user: User
+  orderNumber: String!
+  items: [OrderItem!]!
+  subtotal: Float!
+  tax: Float!
+  shipping: Float!
+  total: Float!
+  status: OrderStatus!
+  shippingInfo: ShippingInfo
+  paymentInfo: PaymentInfo
+  notes: String
+  createdAt: String!
+  updatedAt: String!
+}
+type OrderItem {
+  id: ID!
+  productId: ID!
+  product: Product
+  quantity: Int!
+  price: Float!
+  total: Float!
+}
+type ShippingInfo {
+  address: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  country: String!
+  phone: String
+}
+type PaymentInfo {
+  method: String!
+  transactionId: String
+  paidAt: String
+}
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+extend type User @key(fields: "id") {
+  id: ID! @external
+  orders: [Order!]!
+}
+extend type Product @key(fields: "id") {
+  id: ID! @external
+}
+type OrdersPage {
+  orders: [Order!]!
+  totalCount: Int!
+  pageInfo: PageInfo!
+}
+type PageInfo @shareable {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+type Query {
+  order(id: ID!): Order
+  orderByNumber(orderNumber: String!): Order
+  orders(
+    first: Int
+    after: String
+    userId: ID
+    status: OrderStatus
+    dateFrom: String
+    dateTo: String
+  ): OrdersPage!
+  myOrders(first: Int, after: String, status: OrderStatus): OrdersPage!
+}
+type Mutation {
+  createOrder(input: CreateOrderInput!): Order!
+  updateOrderStatus(id: ID!, status: OrderStatus!): Order!
+  updateOrderNotes(id: ID!, notes: String!): Order!
+  cancelOrder(id: ID!, reason: String): Order!
+  refundOrder(id: ID!, reason: String!): Order!
+  updateShippingInfo(id: ID!, shippingInfo: ShippingInfoInput!): Order!
+}
+type Subscription {
+  orderCreated(userId: ID): Order!
+  orderStatusChanged(userId: ID): Order!
+  orderCancelled: Order!
+  orderRefunded: Order!
+}
+input CreateOrderInput {
+  items: [OrderItemInput!]!
+  shippingInfo: ShippingInfoInput!
+  notes: String
+}
+input OrderItemInput {
+  productId: ID!
+  quantity: Int!
+  price: Float!
+}
+input ShippingInfoInput {
+  address: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  country: String!
+  phone: String
+}

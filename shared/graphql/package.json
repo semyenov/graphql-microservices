@@ -1,0 +1,9 @@
+{
+  "name": "@graphql-microservices/shared-graphql",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.ts",
+  "dependencies": {
+    "graphql": "^16.11.0"
+  }
+}

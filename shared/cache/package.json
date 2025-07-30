@@ -1,0 +1,9 @@
+{
+  "name": "@graphql-microservices/shared-cache",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.ts",
+  "dependencies": {
+    "ioredis": "^5.6.1"
+  }
+}

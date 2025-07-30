@@ -1,0 +1,39 @@
+{
+  "info": {
+    "name": "GraphQL Microservices",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Sign Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation SignUp($input: SignUpInput!) {\n  signUp(input: $input) {\n    accessToken\n    refreshToken\n    user {\n      id\n      username\n      email\n    }\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"name\": \"Test User\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "http://localhost:4000/graphql",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4000",
+              "path": ["graphql"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+extend schema @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key", "@shareable"])
+# Auth directive imported from shared module
+type User @key(fields: "id") {
+  id: ID!
+  username: String!
+  email: String!
+  name: String!
+  phoneNumber: String
+  role: Role!
+  isActive: Boolean!
+  createdAt: String!
+  updatedAt: String!
+}
+type AuthPayload {
+  user: User!
+  accessToken: String!
+  refreshToken: String!
+}
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+type Query {
+  user(id: ID!): User
+  users: [User!]!
+  me: User
+  userByUsername(username: String!): User
+  userByEmail(email: String!): User
+}
+type Mutation {
+  signUp(input: SignUpInput!): AuthPayload!
+  signIn(input: SignInInput!): AuthPayload!
+  refreshToken(refreshToken: String!): AuthPayload!
+  signOut: Boolean!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  updateProfile(input: UpdateProfileInput!): User!
+  changePassword(input: ChangePasswordInput!): Boolean!
+  deactivateUser(id: ID!): User!
+}
+input SignUpInput {
+  username: String!
+  email: String!
+  password: String!
+  name: String!
+  phoneNumber: String
+}
+input SignInInput {
+  username: String!
+  password: String!
+}
+input UpdateUserInput {
+  username: String
+  email: String
+  name: String
+  phoneNumber: String
+  role: Role
+}
+input UpdateProfileInput {
+  name: String
+  phoneNumber: String
+}
+input ChangePasswordInput {
+  currentPassword: String!
+  newPassword: String!
+}
+type Subscription {
+  userCreated: User!
+  userUpdated(userId: ID): User!
+  userDeactivated: User!
+}
