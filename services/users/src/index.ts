@@ -39,8 +39,14 @@ const env = parseEnv(userServiceEnvSchema);
 const prisma = new PrismaClient();
 
 // Load JWT key pairs from environment or use generated ones for development
-const jwtKeyPair = AuthService.loadKeyPairFromEnv('JWT_ACCESS_PRIVATE_KEY', 'JWT_ACCESS_PUBLIC_KEY');
-const refreshKeyPair = AuthService.loadKeyPairFromEnv('JWT_REFRESH_PRIVATE_KEY', 'JWT_REFRESH_PUBLIC_KEY');
+const jwtKeyPair = AuthService.loadKeyPairFromEnv(
+  'JWT_ACCESS_PRIVATE_KEY',
+  'JWT_ACCESS_PUBLIC_KEY'
+);
+const refreshKeyPair = AuthService.loadKeyPairFromEnv(
+  'JWT_REFRESH_PRIVATE_KEY',
+  'JWT_REFRESH_PUBLIC_KEY'
+);
 
 const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
   algorithm: 'RS256' as const,
@@ -615,7 +621,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
   } as GraphQLResolvers<Context>['User'],
 
-  ...subscriptionResolvers.Subscription,
+  ...subscriptionResolvers,
 };
 
 // Create Apollo Server with error formatting

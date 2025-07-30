@@ -1,7 +1,11 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
-import { AuthService, extractAndVerifyUser, type AuthContext } from '@graphql-microservices/shared-auth';
+import {
+  AuthService,
+  extractAndVerifyUser,
+  type AuthContext,
+} from '@graphql-microservices/shared-auth';
 import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
 import { orderServiceEnvSchema, parseEnv } from '@graphql-microservices/shared-config';
 import {
@@ -56,8 +60,14 @@ const pubSubService = new PubSubService({ redisUrl: env.REDIS_URL });
 const pubsub = pubSubService.getPubSub();
 
 // Initialize auth service with same keys as users service
-const jwtKeyPair = AuthService.loadKeyPairFromEnv('JWT_ACCESS_PRIVATE_KEY', 'JWT_ACCESS_PUBLIC_KEY');
-const refreshKeyPair = AuthService.loadKeyPairFromEnv('JWT_REFRESH_PRIVATE_KEY', 'JWT_REFRESH_PUBLIC_KEY');
+const jwtKeyPair = AuthService.loadKeyPairFromEnv(
+  'JWT_ACCESS_PRIVATE_KEY',
+  'JWT_ACCESS_PUBLIC_KEY'
+);
+const refreshKeyPair = AuthService.loadKeyPairFromEnv(
+  'JWT_REFRESH_PRIVATE_KEY',
+  'JWT_REFRESH_PUBLIC_KEY'
+);
 
 const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
   algorithm: 'RS256' as const,
@@ -578,7 +588,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
   },
 
-  ...subscriptionResolvers.Subscription,
+  ...subscriptionResolvers,
 };
 
 // Create Apollo Server with error formatting

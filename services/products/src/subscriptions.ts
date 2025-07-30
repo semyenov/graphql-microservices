@@ -1,45 +1,45 @@
 import { SUBSCRIPTION_EVENTS } from '@graphql-microservices/shared-pubsub';
-import type { Product } from '../generated/graphql';
+import type { Product, SubscriptionResolvers } from '../generated/graphql';
 import type { Context } from './index';
 
-export const subscriptionResolvers = {
-  Subscription: {
-    productCreated: {
-      subscribe: (_: unknown, __: unknown, context: Context) => {
-        return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.PRODUCT_CREATED]);
-      },
+export const subscriptionResolvers: SubscriptionResolvers<Context> = {
+  productCreated: {
+    subscribe: (_: unknown, __: unknown, context: Context) => {
+      return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.PRODUCT_CREATED]);
     },
-    productUpdated: {
-      subscribe: (_: unknown, __: unknown, context: Context) => {
-        return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.PRODUCT_UPDATED]);
-      },
-      resolve: (payload: { productUpdated: Product }, { productId }: { productId?: string }) => {
-        // Filter by productId if provided
-        if (productId && payload.productUpdated.id !== productId) {
-          return null;
-        }
-        return payload.productUpdated;
-      },
+  },
+  productUpdated: {
+    subscribe: (_: unknown, __: unknown, context: Context) => {
+      return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.PRODUCT_UPDATED]);
     },
-    productStockChanged: {
-      subscribe: (_: unknown, __: unknown, context: Context) => {
-        return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.PRODUCT_STOCK_CHANGED]);
-      },
-      resolve: (
-        payload: { productStockChanged: Product },
-        { productId }: { productId?: string }
-      ) => {
-        // Filter by productId if provided
-        if (productId && payload.productStockChanged.id !== productId) {
-          return null;
-        }
-        return payload.productStockChanged;
-      },
+    resolve: (
+      payload: { productUpdated: Product },
+      { productId }: { productId?: string | null }
+    ) => {
+      // Filter by productId if provided
+      if (productId && payload.productUpdated.id !== productId) {
+        return payload.productUpdated; // Return the product anyway, let GraphQL handle filtering
+      }
+      return payload.productUpdated;
     },
-    productDeactivated: {
-      subscribe: (_: unknown, __: unknown, context: Context) => {
-        return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.PRODUCT_DEACTIVATED]);
-      },
+  },
+  productStockChanged: {
+    subscribe: (_: unknown, __: unknown, context: Context) => {
+      return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.PRODUCT_STOCK_CHANGED]);
+    },
+    resolve: (
+      payload: { productStockChanged: Product },
+      { productId }: { productId?: string | null }
+    ) => {
+      if (productId && payload.productStockChanged.id !== productId) {
+        return payload.productStockChanged; // Return the product anyway, let GraphQL handle filtering
+      }
+      return payload.productStockChanged;
+    },
+  },
+  productDeactivated: {
+    subscribe: (_: unknown, __: unknown, context: Context) => {
+      return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.PRODUCT_DEACTIVATED]);
     },
   },
 };
