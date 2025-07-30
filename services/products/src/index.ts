@@ -1,11 +1,18 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
-import type { AuthContext } from '@graphql-microservices/shared-auth';
+import { AuthService, extractAndVerifyUser, type AuthContext } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
 import { parseEnv, productServiceEnvSchema } from '@graphql-microservices/shared-config';
+import {
+  AuthenticationError,
+  InternalServerError,
+  createErrorLogger,
+  formatError,
+} from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
 import DataLoader from 'dataloader';
+import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
 import { type Prisma, PrismaClient, type Product } from '../generated/prisma';
 import type {
@@ -38,6 +45,17 @@ const prisma = new PrismaClient();
 const cacheService = new CacheService(env.REDIS_URL || 'redis://localhost:6379');
 const pubSubService = new PubSubService({ redisUrl: env.REDIS_URL });
 const pubsub = pubSubService.getPubSub();
+
+// Initialize auth service with same keys as users service
+const jwtKeyPair = AuthService.loadKeyPairFromEnv('JWT_ACCESS_PRIVATE_KEY', 'JWT_ACCESS_PUBLIC_KEY');
+const refreshKeyPair = AuthService.loadKeyPairFromEnv('JWT_REFRESH_PRIVATE_KEY', 'JWT_REFRESH_PUBLIC_KEY');
+
+const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
+  algorithm: 'RS256' as const,
+});
+
+// Create error logger for this service
+const logError = createErrorLogger('products-service');
 
 // GraphQL schema
 const typeDefs = gql`
@@ -279,7 +297,7 @@ const resolvers: Resolvers<Context> = {
 
   Mutation: {
     createProduct: async (_, { input }: MutationCreateProductArgs, context: Context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const createData: Prisma.ProductCreateInput = {
         name: input.name,
@@ -306,7 +324,7 @@ const resolvers: Resolvers<Context> = {
     },
 
     updateProduct: async (_, { id, input }: MutationUpdateProductArgs, context: Context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       // Handle InputMaybe fields properly
       const updateData: Prisma.ProductUpdateInput = {};
@@ -336,7 +354,7 @@ const resolvers: Resolvers<Context> = {
     },
 
     updateStock: async (_, { id, quantity }: MutationUpdateStockArgs, context: Context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const product = await context.prisma.product.update({
         where: { id },
@@ -354,7 +372,7 @@ const resolvers: Resolvers<Context> = {
     },
 
     deactivateProduct: async (_, { id }: MutationDeactivateProductArgs, context: Context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const product = await context.prisma.product.update({
         where: { id },
@@ -372,7 +390,7 @@ const resolvers: Resolvers<Context> = {
     },
 
     activateProduct: async (_, { id }: MutationActivateProductArgs, context: Context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const product = await context.prisma.product.update({
         where: { id },
@@ -390,7 +408,7 @@ const resolvers: Resolvers<Context> = {
     },
 
     bulkUpdateStock: async (_, { updates }: MutationBulkUpdateStockArgs, context: Context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const results = await Promise.all(
         updates.map(({ productId, quantity }) =>
@@ -419,9 +437,16 @@ const resolvers: Resolvers<Context> = {
   ...subscriptionResolvers.Subscription,
 };
 
-// Create Apollo Server
+// Create Apollo Server with error formatting
 const server = new ApolloServer({
   schema: buildSubgraphSchema([{ typeDefs, resolvers }]),
+  formatError: (formattedError) => {
+    return formatError(
+      formattedError as GraphQLError,
+      env.NODE_ENV === 'development',
+      'products-service'
+    );
+  },
 });
 
 // Start server
@@ -430,20 +455,16 @@ const { url } = await startStandaloneServer(server, {
   context: async ({ req }) => {
     const productLoader = createProductLoader();
 
-    // Extract user from authorization header (forwarded by gateway)
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      // In production, verify the token here
-      // For now, we'll trust the gateway's authentication
-      // const user = { isAuthenticated: true };
-    }
+    // Extract and verify user from authorization header
+    const user = await extractAndVerifyUser(authService, req.headers.authorization);
 
     return {
       prisma,
       cacheService,
+      pubsub,
       productLoader,
-      user: { isAuthenticated: true },
-      isAuthenticated: true,
+      user,
+      isAuthenticated: !!user,
     };
   },
 });

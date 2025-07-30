@@ -105,52 +105,71 @@ export class AuthService {
   // Utility method to generate key pairs (for development/testing)
   static generateKeyPair(): KeyPair {
     // In production, you should use proper key generation
-    // This is a simplified example - you'd typically use:
-    // openssl genrsa -out private.pem 2048
-    // openssl rsa -in private.pem -pubout -out public.pem
+    // For now, using a valid RSA key pair for development
 
-    const privateKey = `-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKB
-gLuaT9bQqpskLclVgzxHvJcJPlYehcbXxf04SZnVuWjKBrMfeR5XQoHDb+1F1Cr+
-VrdoFY2Q9HPx0RfFJeXeNlPfpnDE5ZimCBQgnuAIbf1M28M6xHc4lV9EpQyFQ8Q+
-kpB4lbRguMvKfRcMOI4RGDHj1NAKjBIFlZROOBzOY6YyeWNkUDFgMiW5/Mye5mnp
-2sXLpnqcbDc3TlqFSljOVxjnPqQPjHPxqXyfHbqntOV+TpLGGRHOGrpx3GhVv6K+
-o1Q5bTMdaLs/OiQECbYyk+llPQZIUZ4QlB9KB7Xm5BGhmSHiL8GxwQj7ER0YfwAY
-AgMBAAECggEBAKTmjaS6tkK8BlPXClTQ2vpz/N6uxDeS35mXpqasqskVlaUidmbg
-wL2qRtoUSMS293g9Gd4naafDIU4HfdelZQzGhz4nqrXt1MlqOiDp5m+r4VkvzJ5B
-kQSi6IezqC+GqBxxIdJwB29iA1wF/TXdQfV7jprPDL4lM1WqV8p5wMm/BOmlg6Sq
-oUNomC4qVeP67IHtB1i2v2MqlqOOm8VjMzmRkkPgwwnBAMJ2Rt7r7B2Mya1lEoqE
-oQ3bMv4gyaSb9081OPW9F5t2C9zNg0hS29m2JYJnmHuEht/3qEOqPIE7mG5KK5tY
-jY2C3a1z3D2MLPQZJVbD5mGRwGxqQ5j/euPDYgFPiFzwR8LZQJECgYEA8KNThCO5
-gsC7IuRenP1Ch7j7gS3NfUxMnH6L7u6yUt3mwRK6j1ESg1aKjivevs4u4gpXajFl
-eCzV6l4qJb/4IKpDXQMZtMXfhY8aYhOwoIx0Mabt1B7rW5qS4BlS3JmIQx1IAyD6
-0I59R4B1Uy4t5tbkQHS8FLaYzhqo2tZZMvz+2QqECgYEAx0oQs2reBQGMVZnUtDl
-7jO2ZxEWG4uzgUMSJf2Keb2T8YzSkSxQmw1WSmSOZfD4gQbvSWIzvG+MI8VPbpWQ
-n/9bl6iRK8tCHWsxJ5lj2L1HpmQWcVjBVJ+Hs1Id7D8Si0TfHkvLmk3VkzyXmukb
-Ta6/r6JSERqt9j1FkBRt0Ytyqh1wIjkCgYAMV3a5iVYGuRt6gX3ktGZhdKt5waUf
-EU1aFd6QMMjKYD3YWLkvei6XTHbI1EFGkqJ6j2j4EhVe+m6EL7voXJjI9S+S/WeW
-PxIEPR9F6Rk6k4wsTi5rjUIb0hXMuCiiZf6ILXE1W7AZ3El9YPSAN9dy5ZQx8SlK
-ZRFuhQvECgYAt8jJopFlwryPxvQpQSoiSfEsFd1pkbJIRDKlfY5hbl9eKfZX7yTG
-/0Th1o5x2HpWmA2jWT1bNgC5Vd69xyVwM5AtXmR7BvGF9P+uJ+BNCNwok6dZQ1g6
-vx7Emo1yX80gES0JssP1mi8fo5HsHpBZ8lNwGPxRLOvGvdxhQq0zXe5oQKBgQC8
-xQb1jKevbhlqv4L22LpDmJ+GSt8zN844mend6ZXrCbcpB+WXbLP1betv07pCWZ4s
-Nf0KXiP5Rj+ad9ltJ6iEvuaM9tQmQC71z9OWSiq5W8aRyz5UdS5cMC8oCu5vlpsI
-F6v6KZJazrhOpxZbEHZ6GHCaKf/t1cTF/Mxicf1WqBvyQ==
------END PRIVATE KEY-----`;
+    const privateKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAwJw7jC0vaL4JcSmgYW8WHmFQ6a8p3WNhN5vKcT2SfCsltJTv
+lKbeRR5xEgvYaUH/VCCcpGN3I2ynBxii6YoLsNQhUH5dCkK5N6EkEDp3Y9Boolzi
+Z5RpOMQwvF1MJNypRalR3q+2TwXj9e3xZJCrzx1cXphKO0HdCZSeWnHIHDz8GIXZ
+/Z6FaEVJWiSGXcSF1K9XN1F0LDcJ6fqzyPyR/pBMnWXevgSrPRCmOWx8S2lBJHPy
+MQf0lLKKMEd5sJZJguEJ41i0D4RmJEGTO3c4ytGfGQNVCPb1SaLHQEfVLbWLQGNI
+lYCNDQQnKYgNJfRD7mIE6yV9hnMvDOhy2Fo5UQIDAQABAoIBACPLHuCZJ1ZsPzOz
+oQmfovtBv6FeH7Djv8G4LLabJZVO6FUe9TYD7K4oJ6s9xCdLqCWVAZ1FV49p2qRG
+OMSGQiaHO1K7xMCRN8bgTrtXE8OwudF5J0V8sNWHTmQfJD7V8VM8eggLUFnUpKPa
+O8mohOzi5wvwGa9sESQHnZcOLLgJon2x7VktmJMGO4rFYLZ7flJis6RRqLNXKNea
+CAmgUbBCeCQsN6yOCkB2hMWlPs2xSt4GLLECqffrGW4+glyjS7sf4YhJedT9CQW5
+53QWauyECSmNvfJ2yHdFqRHIx/wOqF8JF5T6agVa6k8Uy3ztJ8J9p8TYFDj9Ljjz
+PZTZKAECgYEA4t8nK6SAU8AFn9cn0cUGXQY2Cq1UPh5s5LPJQW1PXKNsvLhqYNbY
+eXYBRBByDpttTDDqPvj3BV3+3YvPRiG2j2DtVx8qXQj5FmhbACxqH+hXOoL6CR3O
+CxcFAepQQ9w5qPXB3i0msUqtZbMGJ6Y9tLxMH0pYMstUNWkW5oXU6PECgYEA2ddr
+5Mo6pH6wSNJMQx2fUkHEaLM6BJEuV9xKFiQXAIVHmdPTnR4/A4xmdg3ppGXxe8s1
+HCk2fZn55WZD8jzP0TDgNJBcqMGFV8zN2YfBilZKmIvyqgCnZb5R5HNPBloRmkKm
+MvYel2bPbG1pjXQRwGWJQ9wcZJPPgVLN5SZLUaECgYEAmrqH5c1YxD/4U3F7Ly9y
+ViIx7kPatP2F8R2SPNHWYDa5fBfiXLvYRKOeWjbqvOjFqmXDQVwnX6J7soYbdIHR
+sNd6xDYQPKvA5TT0dad8TqNqhXPVO4pHb0p1xWYx8TZrxmQQ28R6WhPrG6NSnL6g
+X8L3SH9bC/sZBhZE5oO/FIECgYEAwxOW4mnVP5xYe0j+aEjQQp3DoYNhQBHoDrXy
+kHUZf4/hlJmhDQINBRIV8O7xBpXpOMZg7cVZMYLKrX+dGlbVZNUQXALe2R1jqYyT
+Ka5oiIYYj6keN3OEGrHqQQ4la/IcaOFBFUq48KnBo5JEiQvvHM2M1F5tKTGCqHD6
+58O0OoECgYBHoVwoyi2RR4pIBX7cmI3SpMDGp5DPWdoF2hHeQGEaF6r/f1J4KI3j
+lXPAYi3q8KPVpwmPl5FeQwlJ6xViG8RdJDp/Fzx0lMs4u/MjqTkmGVGNu7ZptQeR
+Cpm1/VQphNP0dD0BlQh2TpvNy8HKGUNkCbQNTnmEur0rXDannxcE7Q==
+-----END RSA PRIVATE KEY-----`;
 
     const publicKey = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCgYC7mk/W
-0KqbJLDJVYM8R7yXCT5WHoXG18X9OEmZ1bloygazH3keV0KBw2/tRdQq/la3aBWN
-kPRz8dEXxSXl3jZT36ZwxOWZpggUIJ7gCG39TNvDOsR3OJVfRKUMhUPEPpKQeJW0
-YLjLyn0XDDiOERgx49TQCowSBZWUTjgcTmOmMnljZFAxYDIlufzMnuZp6drFy6Z6
-nGw3N05ahUpYzlcY5z6kD4xz8al8nx26p7Tlfk6SxhkRzhq6cdxoVb+ivqNUOW0z
-HWizPzokBAm2MpPpZT0GSFGeEJQfSge15uQRoZkh4i/BscEI+xEdGH8AGAIBAQID
-AQAB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwJw7jC0vaL4JcSmgYW8W
+HmFQ6a8p3WNhN5vKcT2SfCsltJTvlKbeRR5xEgvYaUH/VCCcpGN3I2ynBxii6YoL
+sNQhUH5dCkK5N6EkEDp3Y9BoolziZ5RpOMQwvF1MJNypRalR3q+2TwXj9e3xZJCr
+zx1cXphKO0HdCZSeWnHIHDz8GIXZ/Z6FaEVJWiSGXcSF1K9XN1F0LDcJ6fqzyPyR
+/pBMnWXevgSrPRCmOWx8S2lBJHPyMQf0lLKKMEd5sJZJguEJ41i0D4RmJEGTO3c4
+ytGfGQNVCPb1SaLHQEfVLbWLQGNIlYCNDQQnKYgNJfRD7mIE6yV9hnMvDOhy2Fo5
+UQIDAQAB
 -----END PUBLIC KEY-----`;
 
-    return { 
-      privateKey: privateKey as PrivateKey, 
-      publicKey: publicKey as PublicKey 
+    return {
+      privateKey: privateKey as PrivateKey,
+      publicKey: publicKey as PublicKey,
+    };
+  }
+
+  // Load key pair from environment variables
+  static loadKeyPairFromEnv(privateKeyEnv: string, publicKeyEnv: string): KeyPair {
+    const privateKey = process.env[privateKeyEnv];
+    const publicKey = process.env[publicKeyEnv];
+
+    if (!privateKey || !publicKey) {
+      console.warn(
+        `Warning: ${privateKeyEnv} or ${publicKeyEnv} not found in environment. Using generated keys for development.`
+      );
+      return AuthService.generateKeyPair();
+    }
+
+    // Replace escaped newlines with actual newlines
+    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+    const formattedPublicKey = publicKey.replace(/\\n/g, '\n');
+
+    return {
+      privateKey: formattedPrivateKey as PrivateKey,
+      publicKey: formattedPublicKey as PublicKey,
     };
   }
 
@@ -191,3 +210,6 @@ export function hasRole(userRole: string, requiredRole: Role): boolean {
 
   return roleHierarchy[userRole as Role] >= roleHierarchy[requiredRole];
 }
+
+// Re-export middleware utilities
+export * from './middleware';

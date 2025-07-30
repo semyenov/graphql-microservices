@@ -20,19 +20,12 @@ const redisEnvSchema = z.object({
 
 // JWT configuration schema
 const jwtEnvSchema = z.object({
-  JWT_SECRET: z.string().min(32).default('your-super-secret-jwt-key-change-this-in-production'),
-  JWT_EXPIRES_IN: z
-    .string()
-    .default('7d')
-    .transform((val) => ms(val as StringValue)),
-  JWT_REFRESH_SECRET: z
-    .string()
-    .min(32)
-    .default('your-super-secret-refresh-key-change-this-in-production'),
-  JWT_REFRESH_EXPIRES_IN: z
-    .string()
-    .default('30d')
-    .transform((val) => ms(val as StringValue)),
+  JWT_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  JWT_ACCESS_PRIVATE_KEY: z.string().optional(),
+  JWT_ACCESS_PUBLIC_KEY: z.string().optional(),
+  JWT_REFRESH_PRIVATE_KEY: z.string().optional(),
+  JWT_REFRESH_PUBLIC_KEY: z.string().optional(),
 });
 
 // Service-specific schemas

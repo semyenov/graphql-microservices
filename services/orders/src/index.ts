@@ -1,11 +1,18 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
-import type { AuthContext } from '@graphql-microservices/shared-auth';
+import { AuthService, extractAndVerifyUser, type AuthContext } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
 import { orderServiceEnvSchema, parseEnv } from '@graphql-microservices/shared-config';
+import {
+  AuthenticationError,
+  InternalServerError,
+  createErrorLogger,
+  formatError,
+} from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
 import DataLoader from 'dataloader';
+import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
 import type {
   Order as GraphQLOrder,
@@ -47,6 +54,17 @@ const prisma = new PrismaClient();
 const cacheService = new CacheService(env.REDIS_URL || 'redis://localhost:6379');
 const pubSubService = new PubSubService({ redisUrl: env.REDIS_URL });
 const pubsub = pubSubService.getPubSub();
+
+// Initialize auth service with same keys as users service
+const jwtKeyPair = AuthService.loadKeyPairFromEnv('JWT_ACCESS_PRIVATE_KEY', 'JWT_ACCESS_PUBLIC_KEY');
+const refreshKeyPair = AuthService.loadKeyPairFromEnv('JWT_REFRESH_PRIVATE_KEY', 'JWT_REFRESH_PUBLIC_KEY');
+
+const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
+  algorithm: 'RS256' as const,
+});
+
+// Create error logger for this service
+const logError = createErrorLogger('orders-service');
 
 // Context type for orders service
 export interface Context extends AuthContext {
@@ -262,9 +280,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     orderByNumber: async (_, { orderNumber }: QueryOrderByNumberArgs, context) => {
-      const cached = await context.cacheService.get<GraphQLOrder>(
-        `order:number:${orderNumber}`
-      );
+      const cached = await context.cacheService.get<GraphQLOrder>(`order:number:${orderNumber}`);
       if (cached) return cached;
 
       const order = await context.prisma.order.findUnique({
@@ -329,7 +345,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     myOrders: async (_, args: QueryMyOrdersArgs, context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const { first = 20, after, status } = args;
 
@@ -371,7 +387,7 @@ const resolvers: GraphQLResolvers<Context> = {
   },
   Mutation: {
     createOrder: async (_, { input }: MutationCreateOrderArgs, context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       // Calculate totals
       let subtotal = 0;
@@ -419,7 +435,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     updateOrderStatus: async (_, { id, status }: MutationUpdateOrderStatusArgs, context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const order = await context.prisma.order.update({
         where: { id },
@@ -438,7 +454,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     updateOrderNotes: async (_, { id, notes }: MutationUpdateOrderNotesArgs, context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const order = await context.prisma.order.update({
         where: { id },
@@ -452,7 +468,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     cancelOrder: async (_, { id, reason }: MutationCancelOrderArgs, context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const order = await context.prisma.order.update({
         where: { id },
@@ -474,7 +490,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     refundOrder: async (_, { id, reason }: MutationRefundOrderArgs, context) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const order = await context.prisma.order.update({
         where: { id },
@@ -500,7 +516,7 @@ const resolvers: GraphQLResolvers<Context> = {
       { id, shippingInfo }: MutationUpdateShippingInfoArgs,
       context
     ) => {
-      if (!context.user) throw new Error('Authentication required');
+      if (!context.user) throw new AuthenticationError();
 
       const order = await context.prisma.order.update({
         where: { id },
@@ -565,9 +581,16 @@ const resolvers: GraphQLResolvers<Context> = {
   ...subscriptionResolvers.Subscription,
 };
 
-// Create Apollo Server
+// Create Apollo Server with error formatting
 const server = new ApolloServer({
   schema: buildSubgraphSchema([{ typeDefs, resolvers }]),
+  formatError: (formattedError) => {
+    return formatError(
+      formattedError as GraphQLError,
+      env.NODE_ENV === 'development',
+      'orders-service'
+    );
+  },
 });
 
 // Start server
@@ -576,14 +599,8 @@ const { url } = await startStandaloneServer(server, {
   context: async ({ req }) => {
     const orderLoader = createOrderLoader();
 
-    // Extract user from authorization header (forwarded by gateway)
-    const authHeader = req.headers.authorization;
-    let user = null;
-    if (authHeader?.startsWith('Bearer ')) {
-      // In production, verify the token here
-      // For now, we'll trust the gateway's authentication
-      user = { userId: '1', isAuthenticated: true };
-    }
+    // Extract and verify user from authorization header
+    const user = await extractAndVerifyUser(authService, req.headers.authorization);
 
     return {
       prisma,

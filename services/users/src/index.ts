@@ -4,8 +4,20 @@ import { buildSubgraphSchema } from '@apollo/subgraph';
 import { AuthService, authDirective, type JWTPayload } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
 import { parseEnv, userServiceEnvSchema } from '@graphql-microservices/shared-config';
+import {
+  AlreadyExistsError,
+  AuthenticationError,
+  AuthorizationError,
+  BusinessRuleError,
+  createErrorLogger,
+  formatError,
+  InternalServerError,
+  NotFoundError,
+  ValidationError,
+} from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
 import DataLoader from 'dataloader';
+import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
 import type {
   Resolvers as GraphQLResolvers,
@@ -25,18 +37,22 @@ const env = parseEnv(userServiceEnvSchema);
 
 // Initialize services
 const prisma = new PrismaClient();
-const authService = new AuthService(
-  AuthService.generateKeyPair(),
-  AuthService.generateKeyPair(),
-  {
-    algorithm: 'RS256' as const,
-    expiresIn: env.JWT_EXPIRES_IN,
-  }
-);
+
+// Load JWT key pairs from environment or use generated ones for development
+const jwtKeyPair = AuthService.loadKeyPairFromEnv('JWT_ACCESS_PRIVATE_KEY', 'JWT_ACCESS_PUBLIC_KEY');
+const refreshKeyPair = AuthService.loadKeyPairFromEnv('JWT_REFRESH_PRIVATE_KEY', 'JWT_REFRESH_PUBLIC_KEY');
+
+const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
+  algorithm: 'RS256' as const,
+  expiresIn: env.JWT_EXPIRES_IN,
+});
 
 const cacheService = new CacheService(env.REDIS_URL as string);
 const pubSubService = new PubSubService({ redisUrl: env.REDIS_URL });
 const pubsub = pubSubService.getPubSub();
+
+// Create error logger for this service
+const logError = createErrorLogger('users-service');
 
 // GraphQL schema
 const typeDefs = gql`
@@ -235,45 +251,94 @@ const resolvers: GraphQLResolvers<Context> = {
 
   Mutation: {
     signUp: async (_, { input }, context) => {
-      const hashedPassword = await context.authService.hashPassword(input.password);
+      try {
+        // Validate input
+        if (!input.email || !input.username || !input.password || !input.name) {
+          throw new ValidationError(
+            'Missing required fields',
+            [
+              input.email && { field: 'email', message: 'Email is required' },
+              input.username && { field: 'username', message: 'Username is required' },
+              input.password && { field: 'password', message: 'Password is required' },
+              input.name && { field: 'name', message: 'Name is required' },
+            ].filter(Boolean)
+          );
+        }
 
-      const user = await context.prisma.user.create({
-        data: {
-          username: input.username,
-          email: input.email,
-          password: hashedPassword,
-          name: input.name,
-          phoneNumber: input.phoneNumber || null,
-        },
-      });
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(input.email)) {
+          throw new ValidationError('Invalid email format', [
+            { field: 'email', message: 'Please provide a valid email address' },
+          ]);
+        }
 
-      const accessToken = context.authService.generateAccessToken({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-      });
+        // Validate password strength
+        if (input.password.length < 8) {
+          throw new ValidationError('Password too weak', [
+            { field: 'password', message: 'Password must be at least 8 characters long' },
+          ]);
+        }
 
-      const refreshToken = context.authService.generateRefreshToken({
-        userId: user.id,
-        tokenId: user.id, // In production, use a separate token ID
-      });
+        const hashedPassword = await context.authService.hashPassword(input.password);
 
-      // Update user with refresh token
-      await context.prisma.user.update({
-        where: { id: user.id },
-        data: { refreshToken },
-      });
+        const user = await context.prisma.user.create({
+          data: {
+            username: input.username,
+            email: input.email,
+            password: hashedPassword,
+            name: input.name,
+            phoneNumber: input.phoneNumber || null,
+          },
+        });
 
-      const transformedUser = transformUser(user);
+        const accessToken = context.authService.generateAccessToken({
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+        });
 
-      // Publish event
-      await publishUserCreated(context, transformedUser);
+        const refreshToken = context.authService.generateRefreshToken({
+          userId: user.id,
+          tokenId: user.id, // In production, use a separate token ID
+        });
 
-      return {
-        user: transformedUser,
-        accessToken,
-        refreshToken,
-      };
+        // Update user with refresh token
+        await context.prisma.user.update({
+          where: { id: user.id },
+          data: { refreshToken },
+        });
+
+        const transformedUser = transformUser(user);
+
+        // Publish event
+        await publishUserCreated(context, transformedUser);
+
+        return {
+          user: transformedUser,
+          accessToken,
+          refreshToken,
+        };
+      } catch (error) {
+        // Handle Prisma unique constraint errors
+        if (error instanceof Error && error.message.includes('Unique constraint failed')) {
+          if (error.message.includes('username')) {
+            throw new AlreadyExistsError('User', 'username', input.username);
+          }
+          if (error.message.includes('email')) {
+            throw new AlreadyExistsError('User', 'email', input.email);
+          }
+        }
+
+        // Re-throw GraphQL errors
+        if (error instanceof GraphQLError) {
+          throw error;
+        }
+
+        // Log and throw generic error for unexpected issues
+        logError(error, { operation: 'signUp', userId: 'anonymous' });
+        throw new InternalServerError('Failed to create user account');
+      }
     },
 
     signIn: async (_, { input }, context) => {
@@ -282,11 +347,11 @@ const resolvers: GraphQLResolvers<Context> = {
       });
 
       if (!user || !(await context.authService.verifyPassword(input.password, user.password))) {
-        throw new Error('Invalid credentials');
+        throw new AuthenticationError('Invalid credentials');
       }
 
       if (!user.isActive) {
-        throw new Error('Account is deactivated');
+        throw new BusinessRuleError('Account is deactivated');
       }
 
       const accessToken = context.authService.generateAccessToken({
@@ -317,8 +382,12 @@ const resolvers: GraphQLResolvers<Context> = {
           where: { id: payload.userId },
         });
 
-        if (!user || user.refreshToken !== refreshToken || !user.isActive) {
-          throw new Error('Invalid refresh token');
+        if (!user || user.refreshToken !== refreshToken) {
+          throw new AuthenticationError('Invalid refresh token');
+        }
+
+        if (!user.isActive) {
+          throw new BusinessRuleError('Account is deactivated');
         }
 
         const newAccessToken = context.authService.generateAccessToken({
@@ -343,10 +412,13 @@ const resolvers: GraphQLResolvers<Context> = {
           refreshToken: newRefreshToken,
         };
       } catch (error) {
-        if (error instanceof Error) {
-          throw new Error(error.message);
+        // Re-throw GraphQL errors
+        if (error instanceof AuthenticationError || error instanceof BusinessRuleError) {
+          throw error;
         }
-        throw new Error('Invalid refresh token');
+        // Log and convert other errors
+        logError(error, { operation: 'refreshToken' });
+        throw new AuthenticationError('Invalid refresh token');
       }
     },
 
@@ -364,39 +436,83 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     updateUser: async (_, { id, input }, context) => {
-      // Convert InputMaybe fields to Prisma-compatible format
-      const updateData: Prisma.UserUpdateInput = {};
-      if (input.username !== undefined && input.username !== null)
-        updateData.username = input.username;
-      if (input.email !== undefined && input.email !== null) updateData.email = input.email;
-      if (input.name !== undefined && input.name !== null) updateData.name = input.name;
-      if (input.phoneNumber !== undefined) updateData.phoneNumber = input.phoneNumber;
-      if (input.role !== undefined && input.role !== null) updateData.role = input.role;
+      if (!context.user) throw new AuthenticationError();
 
-      const user = await context.prisma.user.update({
-        where: { id },
-        data: updateData,
-      });
+      try {
+        // Check if user exists
+        const existingUser = await context.prisma.user.findUnique({ where: { id } });
+        if (!existingUser) {
+          throw new NotFoundError('User', id);
+        }
 
-      // Invalidate cache
-      await context.cacheService.delete(cacheKeys.user(id));
-      if (user.username) {
-        await context.cacheService.delete(cacheKeys.userByUsername(user.username));
+        // Authorization check - only admins or the user themselves can update
+        if (context.user.role !== 'ADMIN' && context.user.userId !== id) {
+          throw new AuthorizationError('You can only update your own profile');
+        }
+
+        // Validate email if provided
+        if (input.email) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(input.email)) {
+            throw new ValidationError('Invalid email format', [
+              { field: 'email', message: 'Please provide a valid email address' },
+            ]);
+          }
+        }
+
+        // Convert InputMaybe fields to Prisma-compatible format
+        const updateData: Prisma.UserUpdateInput = {};
+        if (input.username !== undefined && input.username !== null)
+          updateData.username = input.username;
+        if (input.email !== undefined && input.email !== null) updateData.email = input.email;
+        if (input.name !== undefined && input.name !== null) updateData.name = input.name;
+        if (input.phoneNumber !== undefined) updateData.phoneNumber = input.phoneNumber;
+        if (input.role !== undefined && input.role !== null) updateData.role = input.role;
+
+        const user = await context.prisma.user.update({
+          where: { id },
+          data: updateData,
+        });
+
+        // Invalidate cache
+        await context.cacheService.delete(cacheKeys.user(id));
+        if (user.username) {
+          await context.cacheService.delete(cacheKeys.userByUsername(user.username));
+        }
+        if (user.email) {
+          await context.cacheService.delete(cacheKeys.userByEmail(user.email));
+        }
+
+        const transformedUser = transformUser(user);
+
+        // Publish event
+        await publishUserUpdated(context, transformedUser);
+
+        return transformedUser;
+      } catch (error) {
+        // Handle Prisma unique constraint errors
+        if (error instanceof Error && error.message.includes('Unique constraint failed')) {
+          if (error.message.includes('username')) {
+            throw new AlreadyExistsError('User', 'username', input.username || undefined);
+          }
+          if (error.message.includes('email')) {
+            throw new AlreadyExistsError('User', 'email', input.email || undefined);
+          }
+        }
+
+        // Re-throw GraphQL errors
+        if (error instanceof GraphQLError) {
+          throw error;
+        }
+
+        // Log and throw generic error
+        logError(error, { operation: 'updateUser', userId: context.user?.userId });
+        throw new InternalServerError('Failed to update user');
       }
-      if (user.email) {
-        await context.cacheService.delete(cacheKeys.userByEmail(user.email));
-      }
-
-      const transformedUser = transformUser(user);
-
-      // Publish event
-      await publishUserUpdated(context, transformedUser);
-
-      return transformedUser;
     },
 
     updateProfile: async (_, { input }, context) => {
-      if (!context.user) throw new Error('Not authenticated');
+      if (!context.user) throw new AuthenticationError();
 
       // Convert InputMaybe fields to Prisma-compatible format
       const updateData: Prisma.UserUpdateInput = {};
@@ -420,17 +536,20 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     changePassword: async (_, { input }, context) => {
-      if (!context.user) throw new Error('Not authenticated');
+      if (!context.user) throw new AuthenticationError();
 
       const user = await context.prisma.user.findUnique({
         where: { id: context.user.userId },
       });
 
-      if (
-        !user ||
-        !(await context.authService.verifyPassword(input.currentPassword, user.password))
-      ) {
-        throw new Error('Invalid current password');
+      if (!user) {
+        throw new NotFoundError('User', context.user.userId);
+      }
+
+      if (!(await context.authService.verifyPassword(input.currentPassword, user.password))) {
+        throw new ValidationError('Invalid current password', [
+          { field: 'currentPassword', message: 'Current password is incorrect' },
+        ]);
       }
 
       const hashedPassword = await context.authService.hashPassword(input.newPassword);
@@ -444,20 +563,49 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     deactivateUser: async (_, { id }, context) => {
-      const user = await context.prisma.user.update({
-        where: { id },
-        data: { isActive: false, refreshToken: null },
-      });
+      if (!context.user) throw new AuthenticationError();
 
-      // Invalidate cache
-      await context.cacheService.delete(cacheKeys.user(id));
+      // Only admins can deactivate users
+      if (context.user.role !== 'ADMIN') {
+        throw new AuthorizationError('Only administrators can deactivate users');
+      }
 
-      const transformedUser = transformUser(user);
+      try {
+        // Check if user exists
+        const existingUser = await context.prisma.user.findUnique({ where: { id } });
+        if (!existingUser) {
+          throw new NotFoundError('User', id);
+        }
 
-      // Publish event
-      await publishUserDeactivated(context, transformedUser);
+        // Prevent deactivating self
+        if (context.user.userId === id) {
+          throw new BusinessRuleError('You cannot deactivate your own account');
+        }
 
-      return transformedUser;
+        const user = await context.prisma.user.update({
+          where: { id },
+          data: { isActive: false, refreshToken: null },
+        });
+
+        // Invalidate cache
+        await context.cacheService.delete(cacheKeys.user(id));
+
+        const transformedUser = transformUser(user);
+
+        // Publish event
+        await publishUserDeactivated(context, transformedUser);
+
+        return transformedUser;
+      } catch (error) {
+        // Re-throw GraphQL errors
+        if (error instanceof GraphQLError) {
+          throw error;
+        }
+
+        // Log and throw generic error
+        logError(error, { operation: 'deactivateUser', userId: context.user?.userId });
+        throw new InternalServerError('Failed to deactivate user');
+      }
     },
   },
 
@@ -470,9 +618,15 @@ const resolvers: GraphQLResolvers<Context> = {
   ...subscriptionResolvers.Subscription,
 };
 
-// Create Apollo Server
+// Create Apollo Server with error formatting
 const server = new ApolloServer({
   schema: buildSubgraphSchema([{ typeDefs, resolvers }]),
+  formatError: ({ message, locations, path, extensions }) =>
+    formatError(
+      { message, locations, path, extensions } as GraphQLError,
+      env.NODE_ENV === 'development',
+      'users-service'
+    ),
 });
 
 // Start server
@@ -489,7 +643,10 @@ const { url } = await startStandaloneServer(server, {
       try {
         user = authService.verifyAccessToken(token);
       } catch (error) {
-        console.error('Error verifying access token:', error);
+        // Don't log auth failures as errors, they're expected
+        if (env.NODE_ENV === 'development') {
+          console.debug('Token verification failed:', error);
+        }
       }
     }
 
@@ -499,6 +656,7 @@ const { url } = await startStandaloneServer(server, {
       cacheService,
       userLoader,
       user,
+      pubsub,
     };
   },
 });

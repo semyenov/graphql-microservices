@@ -1,0 +1,12 @@
+{
+  "name": "@graphql-microservices/shared-errors",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "type": "module",
+  "dependencies": {
+    "graphql": "^16.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.1"
+  }
+}
