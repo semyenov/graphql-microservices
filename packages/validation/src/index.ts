@@ -8,7 +8,7 @@ export const formatZodError = (error: ZodError): ValidationError => {
   const validationErrors = error.issues.map((err) => ({
     field: err.path.join('.'),
     message: err.message,
-    value: (err as any).input,
+    value: err.input,
   }));
 
   return new ValidationError('Validation failed', validationErrors);

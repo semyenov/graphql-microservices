@@ -213,7 +213,7 @@ export class EventDrivenIntegration {
               status: this.eventSubscriber.getStatus(),
             }
           : undefined,
-        projections: projectionHealth,
+        projections: projectionHealth ?? undefined,
       };
     } catch (error) {
       console.error('Health check failed:', error);
@@ -246,8 +246,8 @@ export class EventDrivenIntegration {
 
       return {
         cqrs: cqrsMetrics,
-        eventSubscriber: subscriberStats,
-        projections: projectionStatuses,
+        eventSubscriber: subscriberStats ?? undefined,
+        projections: projectionStatuses ?? undefined,
       };
     } catch (error) {
       console.error('Failed to get metrics:', error);

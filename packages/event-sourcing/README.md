@@ -29,22 +29,25 @@ This package provides the foundational building blocks for implementing event so
 Events represent facts that have occurred in your domain:
 
 ```typescript
-import { DomainEvent, EventFactory } from '@graphql-microservices/shared-event-sourcing';
+import {
+  DomainEvent,
+  EventFactory,
+} from "@graphql-microservices/event-sourcing";
 
 // Create a domain event
 const userCreatedEvent = EventFactory.create(
-  'UserCreated',
+  "UserCreated",
   userId,
-  'User',
+  "User",
   {
-    username: 'john_doe',
-    email: 'john@example.com',
-    name: 'John Doe'
+    username: "john_doe",
+    email: "john@example.com",
+    name: "John Doe",
   },
   {
-    source: 'users-service',
+    source: "users-service",
     userId: creatorId,
-    correlationId: 'req-123'
+    correlationId: "req-123",
   },
   1 // version
 );
@@ -55,40 +58,43 @@ const userCreatedEvent = EventFactory.create(
 Aggregates encapsulate business logic and emit events:
 
 ```typescript
-import { AggregateRoot, EventFactory } from '@graphql-microservices/shared-event-sourcing';
+import {
+  AggregateRoot,
+  EventFactory,
+} from "@graphql-microservices/event-sourcing";
 
 class User extends AggregateRoot {
-  private username: string = '';
-  private email: string = '';
+  private username: string = "";
+  private email: string = "";
   private isActive: boolean = true;
 
   static create(id: string, username: string, email: string): User {
     const user = new User(id);
-    
+
     const event = EventFactory.create(
-      'UserCreated',
+      "UserCreated",
       id,
-      'User',
+      "User",
       { username, email },
-      { source: 'users-service' },
+      { source: "users-service" },
       1
     );
-    
+
     user.applyEvent(event);
     return user;
   }
 
   deactivate(): void {
     if (!this.isActive) {
-      throw new Error('User is already deactivated');
+      throw new Error("User is already deactivated");
     }
 
     const event = EventFactory.create(
-      'UserDeactivated',
+      "UserDeactivated",
       this.id,
-      'User',
-      { reason: 'Manual deactivation' },
-      { source: 'users-service' },
+      "User",
+      { reason: "Manual deactivation" },
+      { source: "users-service" },
       this.version + 1
     );
 
@@ -97,13 +103,13 @@ class User extends AggregateRoot {
 
   protected applyEventData(event: DomainEvent): void {
     switch (event.type) {
-      case 'UserCreated':
+      case "UserCreated":
         this.username = event.data.username as string;
         this.email = event.data.email as string;
         this.isActive = true;
         break;
-      
-      case 'UserDeactivated':
+
+      case "UserDeactivated":
         this.isActive = false;
         break;
 
@@ -113,9 +119,15 @@ class User extends AggregateRoot {
   }
 
   // Getters
-  getUsername(): string { return this.username; }
-  getEmail(): string { return this.email; }
-  getIsActive(): boolean { return this.isActive; }
+  getUsername(): string {
+    return this.username;
+  }
+  getEmail(): string {
+    return this.email;
+  }
+  getIsActive(): boolean {
+    return this.isActive;
+  }
 }
 ```
 
@@ -124,7 +136,7 @@ class User extends AggregateRoot {
 The event store persists events and supports querying:
 
 ```typescript
-import { EventStore } from '@graphql-microservices/shared-event-sourcing';
+import { EventStore } from "@graphql-microservices/event-sourcing";
 
 // Append events to an aggregate stream
 await eventStore.appendToStream(userId, user.uncommittedEvents);
@@ -137,10 +149,10 @@ const user = User.fromEvents(events);
 
 // Query events across aggregates
 const recentEvents = await eventStore.readEvents({
-  aggregateType: 'User',
-  eventType: 'UserCreated',
+  aggregateType: "User",
+  eventType: "UserCreated",
   fromPosition: lastProcessedPosition,
-  limit: 100
+  limit: 100,
 });
 ```
 
@@ -149,24 +161,24 @@ const recentEvents = await eventStore.readEvents({
 Ensures reliable event publishing across service boundaries:
 
 ```typescript
-import { OutboxProcessor, OutboxStore, EventPublisher } from '@graphql-microservices/shared-event-sourcing';
+import {
+  OutboxProcessor,
+  OutboxStore,
+  EventPublisher,
+} from "@graphql-microservices/event-sourcing";
 
 // Setup outbox processor
-const processor = new OutboxProcessor(
-  outboxStore,
-  eventPublisher,
-  {
-    maxRetries: 5,
-    batchSize: 10,
-    processingInterval: 5000
-  }
-);
+const processor = new OutboxProcessor(outboxStore, eventPublisher, {
+  maxRetries: 5,
+  batchSize: 10,
+  processingInterval: 5000,
+});
 
 // Start processing
 processor.start();
 
 // Events are automatically published from the outbox
-await outboxStore.addEvents(user.uncommittedEvents, 'user.events');
+await outboxStore.addEvents(user.uncommittedEvents, "user.events");
 ```
 
 ## Implementation Guide
@@ -178,7 +190,7 @@ Define your domain events with proper typing:
 ```typescript
 // User domain events
 export interface UserCreatedEvent extends DomainEvent {
-  type: 'UserCreated';
+  type: "UserCreated";
   data: {
     username: string;
     email: string;
@@ -187,7 +199,7 @@ export interface UserCreatedEvent extends DomainEvent {
 }
 
 export interface UserDeactivatedEvent extends DomainEvent {
-  type: 'UserDeactivated';
+  type: "UserDeactivated";
   data: {
     reason: string;
   };
@@ -201,7 +213,7 @@ export type UserDomainEvent = UserCreatedEvent | UserDeactivatedEvent;
 Create a PostgreSQL-based event store:
 
 ```typescript
-import { BaseEventStore } from '@graphql-microservices/shared-event-sourcing';
+import { BaseEventStore } from "@graphql-microservices/event-sourcing";
 
 export class PostgreSQLEventStore extends BaseEventStore {
   // Implementation details...
@@ -234,23 +246,13 @@ export class CreateUserCommandHandler {
 
   async handle(command: CreateUserCommand): Promise<void> {
     // Create aggregate
-    const user = User.create(
-      command.id,
-      command.username,
-      command.email
-    );
+    const user = User.create(command.id, command.username, command.email);
 
     // Save events
-    await this.eventStore.appendToStream(
-      user.id,
-      user.uncommittedEvents
-    );
+    await this.eventStore.appendToStream(user.id, user.uncommittedEvents);
 
     // Add to outbox for publishing
-    await this.outboxStore.addEvents(
-      user.uncommittedEvents,
-      'user.events'
-    );
+    await this.outboxStore.addEvents(user.uncommittedEvents, "user.events");
 
     user.markEventsAsCommitted();
   }
@@ -265,11 +267,11 @@ Implement read-side projections:
 export class UserProjection {
   async handle(event: UserDomainEvent): Promise<void> {
     switch (event.type) {
-      case 'UserCreated':
+      case "UserCreated":
         await this.createUserView(event);
         break;
-      
-      case 'UserDeactivated':
+
+      case "UserDeactivated":
         await this.deactivateUserView(event);
         break;
     }
@@ -286,24 +288,24 @@ export class UserProjection {
 Configure the event sourcing system:
 
 ```typescript
-import { EventSourcingConfig } from '@graphql-microservices/shared-event-sourcing';
+import { EventSourcingConfig } from "@graphql-microservices/event-sourcing";
 
 const config: EventSourcingConfig = {
-  serviceName: 'users-service',
+  serviceName: "users-service",
   eventStore: {
     connectionString: process.env.DATABASE_URL,
-    eventsTable: 'events',
-    snapshotsTable: 'snapshots',
+    eventsTable: "events",
+    snapshotsTable: "snapshots",
     enableSnapshots: true,
-    snapshotFrequency: 50
+    snapshotFrequency: 50,
   },
   outbox: {
     maxRetries: 5,
     initialRetryDelay: 1000,
-    batchSize: 10
+    batchSize: 10,
   },
   enableReplay: true,
-  enableProjections: true
+  enableProjections: true,
 };
 ```
 
@@ -340,7 +342,7 @@ const snapshot = await eventStore.loadSnapshot(aggregateId);
 const fromVersion = snapshot ? snapshot.version + 1 : 1;
 const events = await eventStore.readStream(aggregateId, fromVersion);
 
-const aggregate = snapshot 
+const aggregate = snapshot
   ? User.fromSnapshot(snapshot)
   : new User(aggregateId);
 
@@ -361,7 +363,7 @@ const subscription = await eventStore.subscribe(
       await eventHandler.handle(event);
     }
   },
-  { aggregateType: 'User' }
+  { aggregateType: "User" }
 );
 ```
 
@@ -370,23 +372,23 @@ const subscription = await eventStore.subscribe(
 Test your event-sourced aggregates:
 
 ```typescript
-describe('User Aggregate', () => {
-  it('should create user with correct events', () => {
-    const user = User.create('123', 'john', 'john@example.com');
-    
+describe("User Aggregate", () => {
+  it("should create user with correct events", () => {
+    const user = User.create("123", "john", "john@example.com");
+
     expect(user.uncommittedEvents).toHaveLength(1);
-    expect(user.uncommittedEvents[0].type).toBe('UserCreated');
-    expect(user.getUsername()).toBe('john');
+    expect(user.uncommittedEvents[0].type).toBe("UserCreated");
+    expect(user.getUsername()).toBe("john");
   });
 
-  it('should deactivate user', () => {
-    const user = User.create('123', 'john', 'john@example.com');
+  it("should deactivate user", () => {
+    const user = User.create("123", "john", "john@example.com");
     user.markEventsAsCommitted();
-    
+
     user.deactivate();
-    
+
     expect(user.uncommittedEvents).toHaveLength(1);
-    expect(user.uncommittedEvents[0].type).toBe('UserDeactivated');
+    expect(user.uncommittedEvents[0].type).toBe("UserDeactivated");
     expect(user.getIsActive()).toBe(false);
   });
 });

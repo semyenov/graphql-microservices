@@ -1,5 +1,5 @@
 {
-  "name": "@graphql-microservices/shared-event-sourcing",
+  "name": "@graphql-microservices/event-sourcing",
   "version": "1.0.0",
   "description": "Event sourcing and CQRS implementation for GraphQL microservices",
   "type": "module",
@@ -12,8 +12,8 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node",
-    "dev": "bun run src/index.ts",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "migrate": "bun run src/migration-runner.ts migrate",
@@ -27,7 +27,8 @@
   "devDependencies": {
     "@types/node": "latest",
     "@types/pg": "^8.11.6",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "tsdown": "^0.13.0"
   },
   "keywords": [
     "event-sourcing",

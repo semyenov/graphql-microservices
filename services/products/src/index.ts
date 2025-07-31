@@ -24,7 +24,7 @@ import {
   createProductInputSchema,
   updateProductInputSchema,
   validateInput,
-} from '@graphql-microservices/shared-validation';
+} from '@graphql-microservices/validation';
 import DataLoader from 'dataloader';
 import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';

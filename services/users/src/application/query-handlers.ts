@@ -1,5 +1,5 @@
+import type { EventStore, EventStoreQuery } from '@graphql-microservices/event-sourcing';
 import type { CacheService } from '@graphql-microservices/shared-cache';
-import type { EventStore, EventStoreQuery } from '@graphql-microservices/shared-event-sourcing';
 import type { PrismaClient } from '../../generated/prisma';
 import {
   type GetAllUsersQuery,
@@ -55,8 +55,8 @@ abstract class BaseQueryHandler<T extends UserQuery, R = unknown> implements Que
       username: user.username,
       email: user.email,
       name: user.name,
-      phoneNumber: user.phoneNumber,
-      role: user.role,
+      phoneNumber: user.phoneNumber ?? undefined,
+      role: user.role as 'USER' | 'ADMIN' | 'MODERATOR',
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -76,14 +76,14 @@ abstract class BaseQueryHandler<T extends UserQuery, R = unknown> implements Que
     }
 
     // Try cache first
-    const cached = await this.cacheService.get<T>(cacheKey);
+    const cached = await this.cacheService.get<T>(`user:${cacheKey}` as `${string}:${string}`);
     if (cached !== null) {
       return cached;
     }
 
     // Execute query and cache result
     const result = await queryFn();
-    await this.cacheService.set(cacheKey, result, ttl);
+    await this.cacheService.set(`user:${cacheKey}` as `${string}:${string}`, result, ttl);
 
     return result;
   }
@@ -322,7 +322,7 @@ export class GetUserEventsQueryHandler extends BaseQueryHandler<
           type: event.type,
           aggregateId: event.aggregateId,
           data: event.data,
-          metadata: event.metadata,
+          metadata: event.metadata as unknown as Record<string, unknown>,
           occurredAt: event.occurredAt,
           version: event.version,
         })),
@@ -430,7 +430,7 @@ export class UserQueryBus {
    * Execute a query
    */
   async execute<T extends UserQuery, R = unknown>(query: T): Promise<QueryResult<R>> {
-    const handler = this.handlers.get(query.type);
+    const handler = this.handlers.get(query.type) as QueryHandler<T, R>;
 
     if (!handler) {
       throw new Error(`No handler found for query type: ${query.type}`);
@@ -440,7 +440,6 @@ export class UserQueryBus {
       return await handler.handle(query);
     } catch (error) {
       console.error(`Query execution failed:`, error);
-
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

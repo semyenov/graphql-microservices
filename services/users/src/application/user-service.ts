@@ -27,6 +27,7 @@ import type {
   GetUserByIdQuery,
   GetUserByUsernameQuery,
   GetUsersByIdsQuery,
+  PaginatedResult,
   UserViewModel,
 } from './queries';
 import type { UserQueryBus } from './query-handlers';
@@ -335,13 +336,13 @@ export class UserService implements UserServiceInterface {
       payload: { userId: id },
     };
 
-    const result = await this.queryBus.execute(query);
+    const result = await this.queryBus.execute<GetUserByIdQuery, UserViewModel | null>(query);
 
     if (!result.success || !result.data) {
       return null;
     }
 
-    return this.transformToGraphQLUser(result.data);
+    return this.transformToGraphQLUser(result.data as UserViewModel);
   }
 
   /**
@@ -353,13 +354,13 @@ export class UserService implements UserServiceInterface {
       payload: { username },
     };
 
-    const result = await this.queryBus.execute(query);
+    const result = await this.queryBus.execute<GetUserByUsernameQuery, UserViewModel | null>(query);
 
     if (!result.success || !result.data) {
       return null;
     }
 
-    return this.transformToGraphQLUser(result.data);
+    return this.transformToGraphQLUser(result.data as UserViewModel);
   }
 
   /**
@@ -371,7 +372,7 @@ export class UserService implements UserServiceInterface {
       payload: { email },
     };
 
-    const result = await this.queryBus.execute(query);
+    const result = await this.queryBus.execute<GetUserByEmailQuery, UserViewModel | null>(query);
 
     if (!result.success || !result.data) {
       return null;
@@ -402,7 +403,9 @@ export class UserService implements UserServiceInterface {
       },
     };
 
-    const result = await this.queryBus.execute(query);
+    const result = await this.queryBus.execute<GetAllUsersQuery, PaginatedResult<UserViewModel>>(
+      query
+    );
 
     if (!result.success || !result.data) {
       return [];
@@ -420,7 +423,7 @@ export class UserService implements UserServiceInterface {
       payload: { userIds: ids },
     };
 
-    const result = await this.queryBus.execute(query);
+    const result = await this.queryBus.execute<GetUsersByIdsQuery, UserViewModel[]>(query);
 
     if (!result.success || !result.data) {
       return [];

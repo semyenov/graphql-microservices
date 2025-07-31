@@ -1,8 +1,8 @@
 import {
-  type EventStore,
   OptimisticConcurrencyError,
-  type OutboxStore,
-} from '@graphql-microservices/shared-event-sourcing';
+  type PostgreSQLEventStore,
+  type PostgreSQLOutboxStore,
+} from '@graphql-microservices/event-sourcing';
 import { User } from '../domain/user-aggregate';
 import {
   type ChangeUserPasswordCommand,
@@ -31,8 +31,8 @@ export interface CommandHandler<T extends UserCommand> {
  */
 abstract class BaseCommandHandler<T extends UserCommand> implements CommandHandler<T> {
   constructor(
-    protected readonly eventStore: EventStore,
-    protected readonly outboxStore: OutboxStore
+    protected readonly eventStore: PostgreSQLEventStore,
+    protected readonly outboxStore: PostgreSQLOutboxStore
   ) {}
 
   abstract handle(command: T): Promise<CommandResult>;
@@ -48,7 +48,7 @@ abstract class BaseCommandHandler<T extends UserCommand> implements CommandHandl
         return null;
       }
 
-      return User.fromEvents(events);
+      return User.fromUserEvents(events);
     } catch (error) {
       console.error(`Failed to load user ${aggregateId}:`, error);
       throw new Error(`Failed to load user: ${error}`);
@@ -71,10 +71,10 @@ abstract class BaseCommandHandler<T extends UserCommand> implements CommandHandl
 
     try {
       // Save to event store with optimistic concurrency control
-      await this.eventStore.appendToStream(user.id, uncommittedEvents, expectedVersion);
+      await this.eventStore.appendToStream(user.id, uncommittedEvents.slice(), expectedVersion);
 
       // Add to outbox for reliable publishing
-      await this.outboxStore.addEvents(uncommittedEvents, routingKey);
+      await this.outboxStore.addEvents(uncommittedEvents.slice(), routingKey);
 
       // Mark events as committed
       user.markEventsAsCommitted();
@@ -116,7 +116,7 @@ abstract class BaseCommandHandler<T extends UserCommand> implements CommandHandl
         success: true,
         aggregateId: command.aggregateId,
         version: user.version,
-        events: user.uncommittedEvents,
+        events: user.uncommittedEvents.slice(),
       };
     } catch (error) {
       console.error(`Command ${command.type} failed:`, error);
@@ -164,7 +164,7 @@ export class CreateUserCommandHandler extends BaseCommandHandler<CreateUserComma
         success: true,
         aggregateId: command.aggregateId,
         version: user.version,
-        events: user.uncommittedEvents,
+        events: user.uncommittedEvents.slice(),
       };
     } catch (error) {
       console.error(`CreateUser command failed:`, error);
@@ -278,7 +278,7 @@ export class RecordUserSignOutCommandHandler extends BaseCommandHandler<RecordUs
 export class UserCommandBus {
   private readonly handlers = new Map<string, CommandHandler<UserCommand>>();
 
-  constructor(eventStore: EventStore, outboxStore: OutboxStore) {
+  constructor(eventStore: PostgreSQLEventStore, outboxStore: PostgreSQLOutboxStore) {
     // Register command handlers
     this.handlers.set('CreateUser', new CreateUserCommandHandler(eventStore, outboxStore));
     this.handlers.set(
@@ -310,7 +310,7 @@ export class UserCommandBus {
    * Execute a command
    */
   async execute<T extends UserCommand>(command: T): Promise<CommandResult> {
-    const handler = this.handlers.get(command.type);
+    const handler = this.handlers.get(command.type) as CommandHandler<T>;
 
     if (!handler) {
       throw new Error(`No handler found for command type: ${command.type}`);

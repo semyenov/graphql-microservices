@@ -1,16 +1,11 @@
 import { SUBSCRIPTION_EVENTS } from '@graphql-microservices/shared-pubsub';
-import type {
-  Order as GraphQLOrder,
-  SubscriptionOrderCreatedArgs,
-  SubscriptionOrderStatusChangedArgs,
-  SubscriptionResolvers,
-} from '../generated/graphql';
+import type { Order as GraphQLOrder, SubscriptionResolvers } from '../generated/graphql';
 import type { Context } from './index';
 
 export const subscriptionResolvers: { Subscription: SubscriptionResolvers<Context> } = {
   Subscription: {
     orderCreated: {
-      subscribe: (_: any, _args: Partial<SubscriptionOrderCreatedArgs>, context: Context) => {
+      subscribe: (_, _args, context) => {
         return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.ORDER_CREATED]);
       },
       resolve: (payload: { orderCreated: GraphQLOrder }) => {
@@ -18,7 +13,7 @@ export const subscriptionResolvers: { Subscription: SubscriptionResolvers<Contex
       },
     },
     orderStatusChanged: {
-      subscribe: (_: any, _args: Partial<SubscriptionOrderStatusChangedArgs>, context: Context) => {
+      subscribe: (_, _args, context) => {
         return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.ORDER_STATUS_CHANGED]);
       },
       resolve: (payload: { orderStatusChanged: GraphQLOrder }) => {
@@ -26,12 +21,12 @@ export const subscriptionResolvers: { Subscription: SubscriptionResolvers<Contex
       },
     },
     orderCancelled: {
-      subscribe: (_: any, __: any, context: Context) => {
+      subscribe: (_, __, context) => {
         return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.ORDER_CANCELLED]);
       },
     },
     orderRefunded: {
-      subscribe: (_: any, __: any, context: Context) => {
+      subscribe: (_, __, context) => {
         return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.ORDER_REFUNDED]);
       },
     },

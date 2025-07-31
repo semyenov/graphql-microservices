@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import type { GraphQLRequestContext } from '@apollo/server';
+import { nanoid } from 'nanoid';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 
@@ -134,13 +134,9 @@ export const createLogger = (config: LoggerConfig) => {
 
   return {
     trace: (message: string, context?: LogContext) => logger.trace({ ...context }, message),
-
     debug: (message: string, context?: LogContext) => logger.debug({ ...context }, message),
-
     info: (message: string, context?: LogContext) => logger.info({ ...context }, message),
-
     warn: (message: string, context?: LogContext) => logger.warn({ ...context }, message),
-
     error: (message: string, error?: Error | unknown, context?: LogContext) => {
       const errorInfo =
         error instanceof Error
@@ -155,7 +151,6 @@ export const createLogger = (config: LoggerConfig) => {
 
       logger.error({ ...context, ...errorInfo }, message);
     },
-
     fatal: (message: string, error?: Error | unknown, context?: LogContext) => {
       const errorInfo =
         error instanceof Error
@@ -170,11 +165,9 @@ export const createLogger = (config: LoggerConfig) => {
 
       logger.fatal({ ...context, ...errorInfo }, message);
     },
-
     // Performance logging
     timing: (message: string, duration: number, context?: LogContext) =>
       logger.info({ ...context, duration, metric: 'timing' }, message),
-
     // Business metric logging
     metric: (name: string, value: number, unit?: string, context?: LogContext) =>
       logger.info(
@@ -187,7 +180,6 @@ export const createLogger = (config: LoggerConfig) => {
         },
         `Metric: ${name} = ${value}${unit ? ` ${unit}` : ''}`
       ),
-
     // Audit logging
     audit: (action: string, resource: string, context?: LogContext) =>
       logger.info(
@@ -209,14 +201,10 @@ export const createLogger = (config: LoggerConfig) => {
  * Correlation ID utilities
  */
 export const correlationUtils = {
-  generate: (): string => randomUUID(),
+  generate: (): string => nanoid(16),
 
   fromRequest: (req: HttpRequest, headerName = 'x-correlation-id'): string => {
-    return (
-      req.headers?.[headerName] ||
-      req.headers?.[headerName.toLowerCase()] ||
-      correlationUtils.generate()
-    );
+    return (req.headers?.[headerName] as string) || correlationUtils.generate();
   },
 
   middleware:
@@ -238,11 +226,8 @@ export const createGraphQLLoggingPlugin = (logger: ReturnType<typeof createLogge
       requestContext.request.http?.headers.get('x-correlation-id') || correlationUtils.generate();
 
     // Add correlation ID to context
-    requestContext.contextValue = {
-      ...requestContext.contextValue,
-      correlationId,
-      logger,
-    };
+    requestContext.contextValue.correlationId = correlationId;
+    requestContext.contextValue.logger = logger;
 
     const startTime = Date.now();
 
@@ -306,10 +291,10 @@ export const createHttpLoggingMiddleware = (config: LoggerConfig) => {
         method: req.method,
         url: req.url,
         headers: {
-          'user-agent': req.headers['user-agent'],
-          'content-type': req.headers['content-type'],
-          'content-length': req.headers['content-length'],
-          'x-correlation-id': req.headers['x-correlation-id'],
+          'user-agent': req.headers?.['user-agent'],
+          'content-type': req.headers?.['content-type'],
+          'content-length': req.headers?.['content-length'],
+          'x-correlation-id': req.headers?.['x-correlation-id'],
         },
         correlationId: req.correlationId,
       }),
@@ -322,7 +307,7 @@ export const createHttpLoggingMiddleware = (config: LoggerConfig) => {
         },
       }),
     },
-    customLogLevel: (_req: HttpRequest, res: HttpResponse, err: Error | null) => {
+    customLogLevel: (_req: HttpRequest, res: HttpResponse, err: Error | undefined) => {
       if (res.statusCode >= 400 && res.statusCode < 500) return 'warn';
       if (res.statusCode >= 500 || err) return 'error';
       return 'info';

@@ -1,4 +1,4 @@
-import type { EventStore } from '@graphql-microservices/shared-event-sourcing';
+import type { EventStore } from '@graphql-microservices/event-sourcing';
 import type { PrismaClient } from '../../generated/prisma';
 import type { UserEventDispatcher } from './event-handlers';
 
@@ -184,10 +184,25 @@ export class ProjectionService {
   /**
    * Get all projection statuses
    */
-  async getAllProjectionStatuses(): Promise<Record<string, ProjectionStatus>> {
+  async getAllProjectionStatuses(): Promise<
+    Record<
+      string,
+      {
+        isRunning: boolean;
+        checkpoint: ProjectionCheckpoint | null;
+        config: ProjectionConfig | null;
+      }
+    >
+  > {
     const projectionNames = Array.from(this.projectionConfigs.keys());
-    const statuses: Record<string, ProjectionStatus> = {};
-
+    const statuses: Record<
+      string,
+      {
+        isRunning: boolean;
+        checkpoint: ProjectionCheckpoint | null;
+        config: ProjectionConfig | null;
+      }
+    > = {};
     for (const name of projectionNames) {
       statuses[name] = await this.getProjectionStatus(name);
     }
@@ -287,6 +302,10 @@ export class ProjectionService {
       }
 
       const row = result[0];
+      if (!row) {
+        return null;
+      }
+
       return {
         projectionName: row.projectionName,
         lastProcessedPosition: BigInt(row.lastProcessedPosition),
@@ -377,12 +396,14 @@ export class ProjectionService {
       ORDER BY projection_name
     `;
 
-    const checkpoints: ProjectionCheckpoint[] = checkpointsResult.map((row) => ({
-      projectionName: row.projectionName,
-      lastProcessedPosition: BigInt(row.lastProcessedPosition),
-      lastProcessedAt: new Date(row.lastProcessedAt),
-      isActive: row.isActive,
-    }));
+    const checkpoints: ProjectionCheckpoint[] = checkpointsResult.map((row) => {
+      return {
+        projectionName: row.projectionName,
+        lastProcessedPosition: BigInt(row.lastProcessedPosition),
+        lastProcessedAt: new Date(row.lastProcessedAt),
+        isActive: row.isActive,
+      };
+    });
 
     return {
       totalProjections,

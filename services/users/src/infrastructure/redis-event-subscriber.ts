@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@graphql-microservices/shared-event-sourcing';
+import type { DomainEvent } from '@graphql-microservices/event-sourcing';
 import { Redis } from 'ioredis';
 import type { UserEventDispatcher } from '../application/event-handlers';
 
@@ -175,7 +175,7 @@ export class RedisEventSubscriber {
         console.error(`💀 Event ${event.id} failed after ${this.config.retryAttempts} attempts`);
 
         // Could send to dead letter queue here
-        await this.handleFailedEvent(event, error);
+        await this.handleFailedEvent(event, error as Error);
       }
     }
   }

@@ -53,7 +53,7 @@ export function generatePassword(length: number = 16): string {
   let password = '';
 
   for (let i = 0; i < length; i++) {
-    const randomIndex = randomBytes(1)[0] % charset.length;
+    const randomIndex = (randomBytes(1)[0] ?? 0) % charset.length;
     password += charset[randomIndex];
   }
 

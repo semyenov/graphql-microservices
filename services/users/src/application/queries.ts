@@ -277,7 +277,7 @@ export const querySchemas = {
   GetUsersByIds: getUsersByIdsQuerySchema,
   GetUserEvents: getUserEventsQuerySchema,
   SearchUsers: searchUsersQuerySchema,
-} as const;
+} as const satisfies Record<string, z.ZodSchema<Query>>;
 
 /**
  * Validate a query against its schema
@@ -290,10 +290,10 @@ export function validateQuery<T extends Query>(query: T): T {
   }
 
   try {
-    return schema.parse(query) as T;
+    return schema.parse(query) as unknown as T;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const messages = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      const messages = error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new Error(`Query validation failed: ${messages}`);
     }
     throw error;

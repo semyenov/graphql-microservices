@@ -4,6 +4,7 @@
 
 import { ApolloServer } from '@apollo/server';
 import { buildSubgraphSchema } from '@apollo/subgraph';
+import type { GraphQLResolverMap } from '@apollo/subgraph/dist/schema-helper';
 import {
   addComplexityToSchema,
   createComplexityValidationRules,
@@ -11,6 +12,20 @@ import {
   fieldComplexityConfig,
   type QueryComplexityConfig,
 } from './index';
+
+// Type definitions for GraphQL resolvers with complexity configuration
+interface ResolverWithComplexity {
+  [key: string]: unknown;
+  complexity?: number;
+  multipliers?: string[];
+}
+
+interface ResolversMap {
+  Query?: Record<string, ResolverWithComplexity>;
+  Mutation?: Record<string, ResolverWithComplexity>;
+  Subscription?: Record<string, ResolverWithComplexity>;
+  [typeName: string]: Record<string, ResolverWithComplexity> | undefined;
+}
 
 /**
  * Example type definitions with complexity directives
@@ -78,21 +93,21 @@ export const exampleTypeDefs = `
 /**
  * Example of adding field complexity programmatically
  */
-export const addFieldComplexityToResolvers = (resolvers: any) => {
+export const addFieldComplexityToResolvers = (resolvers: ResolversMap): ResolversMap => {
   // Add complexity to Query fields
   if (resolvers.Query) {
     // Users query with pagination
-    if ((resolvers.Query as any).users) {
-      (resolvers.Query as any).users = {
-        ...(resolvers.Query as any).users,
+    if (resolvers.Query.users) {
+      resolvers.Query.users = {
+        ...resolvers.Query.users,
         ...fieldComplexityConfig.connection(20),
       };
     }
 
     // Search operation
-    if ((resolvers.Query as any).searchProducts) {
-      (resolvers.Query as any).searchProducts = {
-        ...(resolvers.Query as any).searchProducts,
+    if (resolvers.Query.searchProducts) {
+      resolvers.Query.searchProducts = {
+        ...resolvers.Query.searchProducts,
         ...fieldComplexityConfig.search(20),
       };
     }
@@ -101,9 +116,9 @@ export const addFieldComplexityToResolvers = (resolvers: any) => {
   // Add complexity to Mutation fields
   if (resolvers.Mutation) {
     // Bulk operations
-    if ((resolvers.Mutation as any).bulkUpdateStock) {
-      (resolvers.Mutation as any).bulkUpdateStock = {
-        ...(resolvers.Mutation as any).bulkUpdateStock,
+    if (resolvers.Mutation.bulkUpdateStock) {
+      resolvers.Mutation.bulkUpdateStock = {
+        ...resolvers.Mutation.bulkUpdateStock,
         ...fieldComplexityConfig.mutation(5),
       };
     }
@@ -112,9 +127,9 @@ export const addFieldComplexityToResolvers = (resolvers: any) => {
   // Add complexity to type fields
   if (resolvers.User) {
     // Orders field with pagination
-    if ((resolvers.User as any).orders) {
-      (resolvers.User as any).orders = {
-        ...(resolvers.User as any).orders,
+    if (resolvers.User.orders) {
+      resolvers.User.orders = {
+        ...resolvers.User.orders,
         ...fieldComplexityConfig.list(20),
       };
     }
@@ -128,21 +143,21 @@ export const addFieldComplexityToResolvers = (resolvers: any) => {
  */
 export const createServerWithComplexityAnalysis = (
   typeDefs: string,
-  resolvers: any,
+  resolvers: ResolversMap,
   complexityConfig?: QueryComplexityConfig
 ): ApolloServer => {
   // Build schema
   const schema = buildSubgraphSchema([
     {
-      typeDefs: addComplexityToSchema(typeDefs) as any,
-      resolvers: addFieldComplexityToResolvers(resolvers),
+      typeDefs: addComplexityToSchema(typeDefs),
+      resolvers: addFieldComplexityToResolvers(resolvers) as GraphQLResolverMap<unknown>,
     },
   ]);
 
   // Create server with complexity plugin
   return new ApolloServer({
     schema,
-    plugins: [createQueryComplexityPlugin(schema, complexityConfig) as any],
+    plugins: [createQueryComplexityPlugin(schema, complexityConfig)],
     validationRules: [...createComplexityValidationRules(schema, complexityConfig)],
   });
 };
@@ -242,19 +257,36 @@ export const complexityExamples = {
 };
 
 /**
+ * Type for Apollo Server request context with query complexity
+ */
+interface GraphQLRequestContextWithComplexity {
+  queryComplexity?: number;
+  response: {
+    extensions?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  request: {
+    operationName?: string | null;
+    query?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+/**
  * Middleware to add complexity info to response
  */
 export const complexityLoggingPlugin = () => ({
   async requestDidStart() {
     return {
-      async willSendResponse(requestContext: any) {
-        const complexity = (requestContext as any).queryComplexity;
+      async willSendResponse(requestContext: GraphQLRequestContextWithComplexity) {
+        const complexity = requestContext.queryComplexity;
         if (complexity) {
           // Add to response extensions
-          if (!(requestContext as any).response.extensions) {
-            (requestContext as any).response.extensions = {};
+          if (!requestContext.response.extensions) {
+            requestContext.response.extensions = {};
           }
-          (requestContext as any).response.extensions.queryComplexity = {
+          requestContext.response.extensions.queryComplexity = {
             score: complexity,
             timestamp: new Date().toISOString(),
           };
@@ -263,8 +295,8 @@ export const complexityLoggingPlugin = () => ({
           if (complexity > 500) {
             console.warn('High complexity query executed', {
               complexity,
-              operationName: (requestContext as any).request.operationName,
-              query: (requestContext as any).request.query?.substring(0, 200),
+              operationName: requestContext.request.operationName,
+              query: requestContext.request.query?.substring(0, 200),
             });
           }
         }

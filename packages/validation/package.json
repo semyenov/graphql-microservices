@@ -1,5 +1,5 @@
 {
-  "name": "@graphql-microservices/shared-validation",
+  "name": "@graphql-microservices/validation",
   "version": "1.0.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -8,6 +8,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "dependencies": {
@@ -16,6 +19,7 @@
     "zod": "^4.0.14"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "tsdown": "^0.13.0"
   }
 }

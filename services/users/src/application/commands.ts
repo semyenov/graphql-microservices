@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@graphql-microservices/shared-event-sourcing';
+import type { DomainEvent } from '@graphql-microservices/event-sourcing';
 import { z } from 'zod';
 
 /**
@@ -319,7 +319,7 @@ export function validateCommand<T extends Command>(command: T): T {
     return schema.parse(command) as T;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const messages = error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      const messages = error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new Error(`Command validation failed: ${messages}`);
     }
     throw error;

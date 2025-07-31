@@ -361,7 +361,7 @@ export const estimateQueryComplexity = (
   variables: Record<string, unknown> = {},
   config: QueryComplexityConfig = {}
 ): number => {
-  const finalConfig = { ...defaultConfig, ...config };
+  const _finalConfig = { ...defaultConfig, ...config };
 
   try {
     const parsedQuery = typeof query === 'string' ? parseQuery(query) : query;

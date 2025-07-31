@@ -1,5 +1,5 @@
+import type { DomainEvent } from '@graphql-microservices/event-sourcing';
 import type { CacheService } from '@graphql-microservices/shared-cache';
-import type { DomainEvent } from '@graphql-microservices/shared-event-sourcing';
 import type { PubSubService } from '@graphql-microservices/shared-pubsub';
 import type { PrismaClient } from '../../generated/prisma';
 import type {
@@ -85,7 +85,7 @@ abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandl
       version: event.version,
       status,
       timestamp: new Date().toISOString(),
-      ...(error && { error: error.message }),
+      ...(error && { error: handleError(error).message }),
     };
 
     if (status === 'failed') {
@@ -152,7 +152,7 @@ export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> 
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -205,7 +205,7 @@ export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfile
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -266,7 +266,7 @@ export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCre
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -313,7 +313,7 @@ export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChange
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -348,7 +348,7 @@ export class UserPasswordChangedEventHandler extends BaseEventHandler<UserPasswo
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -396,7 +396,7 @@ export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivate
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -443,7 +443,7 @@ export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivate
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -466,7 +466,7 @@ export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent
       await this.prisma.user.update({
         where: { id: event.aggregateId },
         data: {
-          lastSignInAt: event.occurredAt,
+          isActive: true,
           updatedAt: event.occurredAt,
         },
       });
@@ -487,7 +487,7 @@ export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -519,7 +519,7 @@ export class UserSignedOutEventHandler extends BaseEventHandler<UserSignedOutEve
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', error);
+      this.logEventProcessing(event, 'failed', handleError(error));
       throw error;
     }
   }
@@ -589,4 +589,16 @@ export class UserEventDispatcher {
   getHandlers(): EventHandler[] {
     return [...this.handlers];
   }
+}
+
+function isError(error: unknown): error is Error {
+  return error instanceof Error;
+}
+
+function handleError(error: unknown): Error {
+  if (isError(error)) {
+    return error;
+  }
+
+  return new Error(error as string);
 }

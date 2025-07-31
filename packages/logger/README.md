@@ -17,65 +17,68 @@ Production-ready structured logging with correlation ID support for GraphQL micr
 ### Basic Setup
 
 ```typescript
-import { createLogger, LogLevel } from '@graphql-microservices/shared-logging';
+import { createLogger, LogLevel } from "@graphql-microservices/logger";
 
 const logger = createLogger({
-  service: 'users-service',
+  service: "users-service",
   level: LogLevel.INFO,
-  version: '1.0.0',
+  version: "1.0.0",
 });
 
-logger.info('Service started', { port: 4001 });
-logger.error('Database connection failed', error, { 
-  correlationId: 'req-123',
-  operation: 'startup' 
+logger.info("Service started", { port: 4001 });
+logger.error("Database connection failed", error, {
+  correlationId: "req-123",
+  operation: "startup",
 });
 ```
 
 ### GraphQL Integration
 
 ```typescript
-import { createGraphQLLoggingPlugin } from '@graphql-microservices/shared-logging';
+import { createGraphQLLoggingPlugin } from "@graphql-microservices/logger";
 
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  plugins: [
-    createGraphQLLoggingPlugin(logger)
-  ],
+  plugins: [createGraphQLLoggingPlugin(logger)],
 });
 ```
 
 ### HTTP Middleware
 
 ```typescript
-import { createHttpLoggingMiddleware, correlationUtils } from '@graphql-microservices/shared-logging';
+import {
+  createHttpLoggingMiddleware,
+  correlationUtils,
+} from "@graphql-microservices/logger";
 
 app.use(correlationUtils.middleware());
-app.use(createHttpLoggingMiddleware({
-  service: 'gateway',
-  level: LogLevel.INFO,
-}));
+app.use(
+  createHttpLoggingMiddleware({
+    service: "gateway",
+    level: LogLevel.INFO,
+  })
+);
 ```
 
 ### Performance Timing
 
 ```typescript
-import { createTimer } from '@graphql-microservices/shared-logging';
+import { createTimer } from "@graphql-microservices/logger";
 
-const timer = createTimer(logger, { operation: 'user-lookup' });
+const timer = createTimer(logger, { operation: "user-lookup" });
 const user = await findUser(id);
-timer.stop('User lookup completed', { userId: user.id });
+timer.stop("User lookup completed", { userId: user.id });
 ```
 
 ### Database Logging
 
 ```typescript
-import { createDatabaseLogger } from '@graphql-microservices/shared-logging';
+import { createDatabaseLogger } from "@graphql-microservices/logger";
 
 const dbLogger = createDatabaseLogger(logger);
 
-const query = dbLogger.query('SELECT * FROM users WHERE id = ?', [userId]);
+const query = dbLogger.query("SELECT * FROM users WHERE id = ?", [userId]);
 try {
   const result = await db.query(sql, params);
   query.success(result.rows.length);
@@ -87,14 +90,14 @@ try {
 ### Business Metrics
 
 ```typescript
-logger.metric('user.registration', 1, 'count', { 
+logger.metric("user.registration", 1, "count", {
   correlationId,
-  source: 'web' 
+  source: "web",
 });
 
-logger.audit('user.login', 'user:123', { 
+logger.audit("user.login", "user:123", {
   correlationId,
-  ipAddress: req.ip 
+  ipAddress: req.ip,
 });
 ```
 
@@ -111,12 +114,12 @@ logger.audit('user.login', 'user:123', {
 ```typescript
 interface LoggerConfig {
   level?: LogLevel;
-  service: string;              // Required: service name
-  version?: string;             // App version
-  prettyPrint?: boolean;        // Enable colored output
-  destination?: string;         // Log file path
+  service: string; // Required: service name
+  version?: string; // App version
+  prettyPrint?: boolean; // Enable colored output
+  destination?: string; // Log file path
   correlationIdHeader?: string; // Header name for correlation ID
-  redactFields?: string[];      // Fields to redact from logs
+  redactFields?: string[]; // Fields to redact from logs
 }
 ```
 
@@ -160,22 +163,23 @@ All logs follow a consistent JSON structure:
 
 ```typescript
 // services/users/src/index.ts
-import { createLogger, createGraphQLLoggingPlugin } from '@graphql-microservices/shared-logging';
+import {
+  createLogger,
+  createGraphQLLoggingPlugin,
+} from "@graphql-microservices/logger";
 
 const logger = createLogger({
-  service: 'users-service',
-  level: process.env.LOG_LEVEL as LogLevel || LogLevel.INFO,
+  service: "users-service",
+  level: (process.env.LOG_LEVEL as LogLevel) || LogLevel.INFO,
 });
 
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  plugins: [
-    createGraphQLLoggingPlugin(logger),
-  ],
+  plugins: [createGraphQLLoggingPlugin(logger)],
 });
 
-logger.info('Users service started', { port: 4001 });
+logger.info("Users service started", { port: 4001 });
 ```
 
 ### Resolver Logging
@@ -185,14 +189,20 @@ const resolvers = {
   Query: {
     user: async (_, { id }, context) => {
       const { logger, correlationId } = context;
-      const timer = createTimer(logger, { correlationId, operation: 'getUser' });
-      
+      const timer = createTimer(logger, {
+        correlationId,
+        operation: "getUser",
+      });
+
       try {
         const user = await userService.findById(id);
-        timer.stop('User retrieved successfully', { userId: id });
+        timer.stop("User retrieved successfully", { userId: id });
         return user;
       } catch (error) {
-        logger.error('Failed to retrieve user', error, { correlationId, userId: id });
+        logger.error("Failed to retrieve user", error, {
+          correlationId,
+          userId: id,
+        });
         throw error;
       }
     },

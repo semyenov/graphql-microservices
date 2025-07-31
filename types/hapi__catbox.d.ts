@@ -1,3 +1,1 @@
-declare module 'hapi__catbox' {
-  export = any;
-}
+declare module '@hapi/catbox';

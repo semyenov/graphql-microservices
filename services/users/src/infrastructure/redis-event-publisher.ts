@@ -1,11 +1,16 @@
-import type { DomainEvent } from '@graphql-microservices/shared-event-sourcing';
+import type { DomainEvent, OutboxEvent } from '@graphql-microservices/event-sourcing';
 import { Redis } from 'ioredis';
 
 /**
  * Event publisher interface
  */
 export interface EventPublisher {
-  publish(events: DomainEvent[], routingKey?: string): Promise<void>;
+  publish(
+    event: DomainEvent,
+    routingKey?: string,
+    metadata?: Record<string, unknown>
+  ): Promise<void>;
+  publishBatch(events: OutboxEvent[]): Promise<void>;
   isHealthy(): Promise<boolean>;
   close(): Promise<void>;
   initialize(): Promise<void>;
@@ -64,62 +69,63 @@ export class RedisEventPublisher implements EventPublisher {
   /**
    * Publish domain events to Redis
    */
-  async publish(events: DomainEvent[], routingKey: string = 'domain.events'): Promise<void> {
+  async publish(event: DomainEvent, routingKey: string = 'domain.events'): Promise<void> {
     if (!this.redis) {
       console.warn('⚠️  Redis not initialized. Skipping event publishing.');
-      return;
-    }
-
-    if (events.length === 0) {
       return;
     }
 
     try {
       const pipeline = this.redis.pipeline();
 
-      for (const event of events) {
-        const eventMessage = {
-          id: event.id,
-          type: event.type,
-          aggregateId: event.aggregateId,
-          aggregateType: event.aggregateType,
-          data: event.data,
-          metadata: {
-            ...event.metadata,
-            publishedAt: new Date().toISOString(),
-            publisher: 'users-service',
-          },
-          occurredAt: event.occurredAt.toISOString(),
-          version: event.version,
-        };
+      const eventMessage = {
+        id: event.id,
+        type: event.type,
+        aggregateId: event.aggregateId,
+        aggregateType: event.aggregateType,
+        data: event.data,
+        metadata: {
+          ...event.metadata,
+          publishedAt: new Date().toISOString(),
+          publisher: 'users-service',
+        },
+        occurredAt: event.occurredAt.toISOString(),
+        version: event.version,
+      };
 
-        // Publish to specific channels
-        const channels = [
-          routingKey, // General routing key
-          `${event.aggregateType.toLowerCase()}.events`, // Aggregate-specific
-          `${event.type}`, // Event-type specific
-          `${event.aggregateType.toLowerCase()}.${event.aggregateId}`, // Instance-specific
-        ];
+      // Publish to specific channels
+      const channels = [
+        routingKey, // General routing key
+        `${event.aggregateType.toLowerCase()}.events`, // Aggregate-specific
+        `${event.type}`, // Event-type specific
+        `${event.aggregateType.toLowerCase()}.${event.aggregateId}`, // Instance-specific
+      ];
 
-        for (const channel of channels) {
-          pipeline.publish(channel, JSON.stringify(eventMessage));
-        }
-
-        // Also store in a list for reliable processing
-        pipeline.lpush(`events:${routingKey}`, JSON.stringify(eventMessage));
-
-        // Set expiry on the list (7 days)
-        pipeline.expire(`events:${routingKey}`, 7 * 24 * 60 * 60);
+      for (const channel of channels) {
+        pipeline.publish(channel, JSON.stringify(eventMessage));
       }
+
+      // Also store in a list for reliable processing
+      pipeline.lpush(`events:${routingKey}`, JSON.stringify(eventMessage));
+
+      // Set expiry on the list (7 days)
+      pipeline.expire(`events:${routingKey}`, 7 * 24 * 60 * 60);
 
       // Execute all commands
       await pipeline.exec();
 
-      console.log(`📡 Published ${events.length} events to Redis channels`);
+      console.log(`📡 Published event to Redis channels`);
     } catch (error) {
       console.error('❌ Failed to publish events to Redis:', error);
       throw error;
     }
+  }
+
+  /**
+   * Publish events in batch (alias for publish method)
+   */
+  async publishBatch(events: OutboxEvent[]): Promise<void> {
+    await Promise.all(events.map((event) => this.publish(event.event)));
   }
 
   /**
@@ -186,7 +192,7 @@ export class RedisEventPublisher implements EventPublisher {
    * Publish a single event (convenience method)
    */
   async publishSingle(event: DomainEvent, routingKey?: string): Promise<void> {
-    await this.publish([event], routingKey);
+    await this.publish(event, routingKey);
   }
 
   /**
@@ -242,9 +248,13 @@ export class MockEventPublisher implements EventPublisher {
     console.log('Mock event publisher initialized');
   }
 
-  async publish(events: DomainEvent[], routingKey?: string): Promise<void> {
-    this.publishedEvents.push(...events);
-    console.log(`Mock published ${events.length} events with routing key: ${routingKey}`);
+  async publish(event: DomainEvent, routingKey?: string): Promise<void> {
+    this.publishedEvents.push(event);
+    console.log(`Mock published event with routing key: ${routingKey}`);
+  }
+
+  async publishBatch(events: OutboxEvent[]): Promise<void> {
+    await Promise.all(events.map((event) => this.publish(event.event)));
   }
 
   async isHealthy(): Promise<boolean> {

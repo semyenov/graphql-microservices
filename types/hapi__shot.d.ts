@@ -1,3 +1,1 @@
-declare module 'hapi__shot' {
-  export = any;
-}
+declare module '@hapi/shot';

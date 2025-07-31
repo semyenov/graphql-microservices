@@ -287,10 +287,16 @@ export const toGraphQLConnection = <TPrisma, TGraphQL>(
   }
 ): GraphQLConnection<TGraphQL> => {
   const nodes = page.data.map(transformer);
-  const edges = nodes.map((node, index) => ({
-    node,
-    cursor: encodeCursor(page.data[index]!),
-  }));
+  const edges = nodes.map((node, index) => {
+    const dataItem = page.data[index];
+    if (!dataItem) {
+      throw new Error(`Missing data item at index ${index}`);
+    }
+    return {
+      node,
+      cursor: encodeCursor(dataItem),
+    };
+  });
 
   return {
     nodes,

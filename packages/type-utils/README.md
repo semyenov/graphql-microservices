@@ -14,7 +14,7 @@ Shared utilities for converting between Prisma database models and GraphQL types
 ## Installation
 
 ```bash
-bun add @graphql-microservices/shared-type-utils
+bun add @graphql-microservices/type-utils
 ```
 
 ## Basic Type Conversions
@@ -22,7 +22,7 @@ bun add @graphql-microservices/shared-type-utils
 ### Numbers and Decimals
 
 ```typescript
-import { toGraphQLFloat } from '@graphql-microservices/shared-type-utils';
+import { toGraphQLFloat } from '@graphql-microservices/type-utils';
 
 // Prisma Decimal to GraphQL Float
 const price = toGraphQLFloat(product.price); // Decimal → number
@@ -32,7 +32,7 @@ const total = toGraphQLFloat(order.total);   // BigInt → number
 ### Dates
 
 ```typescript
-import { toGraphQLDateTime } from '@graphql-microservices/shared-type-utils';
+import { toGraphQLDateTime } from '@graphql-microservices/type-utils';
 
 // Prisma DateTime to GraphQL String (ISO format)
 const createdAt = toGraphQLDateTime(user.createdAt); // Date → "2024-01-01T00:00:00.000Z"
@@ -42,7 +42,7 @@ const updatedAt = toGraphQLDateTime(post.updatedAt); // Date → string | null
 ### JSON Fields
 
 ```typescript
-import { toGraphQLJSON } from '@graphql-microservices/shared-type-utils';
+import { toGraphQLJSON } from '@graphql-microservices/type-utils';
 
 // Prisma Json to GraphQL object
 const metadata = toGraphQLJSON<MetadataType>(product.metadata);
@@ -52,7 +52,7 @@ const settings = toGraphQLJSON(user.preferences);
 ### Arrays
 
 ```typescript
-import { toGraphQLArray, toGraphQLNullable } from '@graphql-microservices/shared-type-utils';
+import { toGraphQLArray, toGraphQLNullable } from '@graphql-microservices/type-utils';
 
 // Ensure arrays are never null
 const tags = toGraphQLArray(product.tags); // string[] | null → string[]
@@ -66,7 +66,7 @@ const phone = toGraphQLNullable(user.phoneNumber); // string | undefined → str
 ### Basic Transformation
 
 ```typescript
-import { transformPrismaToGraphQL } from '@graphql-microservices/shared-type-utils';
+import { transformPrismaToGraphQL } from '@graphql-microservices/type-utils';
 
 const graphqlUser = transformPrismaToGraphQL<PrismaUser, GraphQLUser>(
   prismaUser,
@@ -86,7 +86,7 @@ import {
   createUserTransformer,
   createProductTransformer,
   createOrderTransformer,
-} from '@graphql-microservices/shared-type-utils';
+} from '@graphql-microservices/type-utils';
 
 // User transformer (excludes password, converts dates)
 const transformUser = createUserTransformer<PrismaUser, GraphQLUser>();
@@ -104,7 +104,7 @@ const order = transformOrder(prismaOrder);
 ### Custom Transformers
 
 ```typescript
-import { createModelTransformer } from '@graphql-microservices/shared-type-utils';
+import { createModelTransformer } from '@graphql-microservices/type-utils';
 
 const transformReview = createModelTransformer<PrismaReview, GraphQLReview>({
   dateFields: ['createdAt', 'updatedAt', 'editedAt'],
@@ -123,7 +123,7 @@ const transformReview = createModelTransformer<PrismaReview, GraphQLReview>({
 ### GraphQL Connection Pattern
 
 ```typescript
-import { toGraphQLConnection } from '@graphql-microservices/shared-type-utils';
+import { toGraphQLConnection } from '@graphql-microservices/type-utils';
 
 // Convert Prisma pagination to GraphQL connection
 const users = await prisma.user.findMany({
@@ -151,7 +151,7 @@ return connection;
 ### Cursor Encoding
 
 ```typescript
-import { encodeCursor, decodeCursor } from '@graphql-microservices/shared-type-utils';
+import { encodeCursor, decodeCursor } from '@graphql-microservices/type-utils';
 
 // Encode ID to cursor
 const cursor = encodeCursor({ id: 'user-123' }); // → base64 string
@@ -165,7 +165,7 @@ const id = decodeCursor(cursor); // → 'user-123'
 ### Prisma Error Transformation
 
 ```typescript
-import { handlePrismaError } from '@graphql-microservices/shared-type-utils';
+import { handlePrismaError } from '@graphql-microservices/type-utils';
 
 try {
   await prisma.user.create({ data });
@@ -185,7 +185,7 @@ import {
   isValidId,
   isValidDate,
   isValidEmail,
-} from '@graphql-microservices/shared-type-utils';
+} from '@graphql-microservices/type-utils';
 
 // Validate at runtime
 if (!isValidId(args.id)) {
@@ -204,7 +204,7 @@ if (!isValidDate(input.birthDate)) {
 ## Batch Operations
 
 ```typescript
-import { batchTransform, groupBy } from '@graphql-microservices/shared-type-utils';
+import { batchTransform, groupBy } from '@graphql-microservices/type-utils';
 
 // Transform array of items
 const products = await prisma.product.findMany();
@@ -223,7 +223,7 @@ const productsByCategory = groupBy(products, 'category');
 ### User Service
 
 ```typescript
-import { createUserTransformer, toGraphQLConnection } from '@graphql-microservices/shared-type-utils';
+import { createUserTransformer, toGraphQLConnection } from '@graphql-microservices/type-utils';
 
 const transformUser = createUserTransformer<PrismaUser, GraphQLUser>();
 
@@ -261,7 +261,7 @@ import {
   createProductTransformer,
   handlePrismaError,
   toGraphQLFloat,
-} from '@graphql-microservices/shared-type-utils';
+} from '@graphql-microservices/type-utils';
 
 const transformProduct = createProductTransformer<PrismaProduct, GraphQLProduct>();
 
@@ -297,7 +297,7 @@ import {
   createOrderTransformer,
   toGraphQLJSON,
   toGraphQLDateTime,
-} from '@graphql-microservices/shared-type-utils';
+} from '@graphql-microservices/type-utils';
 
 const transformOrder = createOrderTransformer<PrismaOrder, GraphQLOrder>();
 

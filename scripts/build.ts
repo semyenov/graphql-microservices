@@ -1,18 +1,14 @@
 #!/usr/bin/env bun
 
-import { discoverServices, logStep, logSuccess } from '@shared/utils';
-import { $ } from 'bun';
+import { buildAllServices } from '@graphql-microservices/builder';
 
-console.log('🏗️  Building GraphQL Microservices...\n');
+console.log('🏗️  Building GraphQL Microservices with tsdown...\n');
 
 async function main() {
-  const services = await discoverServices();
-
-  for (const service of services) {
-    logStep(`Building ${service.name}...`);
-    await $`cd ${service.path} && bun build src/index.ts --outdir=dist --target=bun`;
-    logSuccess(`Built ${service.name}`);
-  }
+  await buildAllServices({
+    minify: process.env.NODE_ENV === 'production',
+    sourcemap: true,
+  });
 
   console.log('\n✅ Build complete!');
 }

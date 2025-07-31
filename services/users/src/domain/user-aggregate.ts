@@ -2,7 +2,7 @@ import {
   AggregateRoot,
   type DomainEvent,
   EventFactory,
-} from '@graphql-microservices/shared-event-sourcing';
+} from '@graphql-microservices/event-sourcing';
 import { hashPassword, verifyPassword } from './auth-helpers';
 
 /**
@@ -173,7 +173,7 @@ export class User extends AggregateRoot {
     // Hash password
     const passwordHash = await hashPassword(password);
 
-    const event = EventFactory.create<UserCreatedEvent>(
+    const event = EventFactory.create(
       'UserCreated',
       id,
       'User',
@@ -187,7 +187,6 @@ export class User extends AggregateRoot {
       {
         source: metadata?.source || 'users-service',
         correlationId: metadata?.correlationId,
-        timestamp: new Date(),
       },
       1
     );
@@ -201,13 +200,13 @@ export class User extends AggregateRoot {
   /**
    * Create user from events (for event sourcing reconstruction)
    */
-  static fromEvents(events: DomainEvent[]): User {
+  static fromUserEvents(events: DomainEvent[]): User {
     if (events.length === 0) {
       throw new Error('Cannot create user from empty event stream');
     }
 
     const firstEvent = events[0];
-    const user = new User(firstEvent.aggregateId);
+    const user = new User(firstEvent?.aggregateId ?? '');
 
     // Apply all events to reconstruct state
     for (const event of events) {
@@ -238,7 +237,7 @@ export class User extends AggregateRoot {
       (name !== undefined && name !== this.name) ||
       (phoneNumber !== undefined && phoneNumber !== this.phoneNumber)
     ) {
-      const event = EventFactory.create<UserProfileUpdatedEvent>(
+      const event = EventFactory.create(
         'UserProfileUpdated',
         this.id,
         'User',
@@ -252,7 +251,6 @@ export class User extends AggregateRoot {
           source: 'users-service',
           correlationId: metadata?.correlationId,
           userId: metadata?.userId,
-          timestamp: new Date(),
         },
         this.version + 1
       );
@@ -281,7 +279,7 @@ export class User extends AggregateRoot {
       (username !== undefined && username !== this.username) ||
       (email !== undefined && email !== this.email)
     ) {
-      const event = EventFactory.create<UserCredentialsUpdatedEvent>(
+      const event = EventFactory.create(
         'UserCredentialsUpdated',
         this.id,
         'User',
@@ -295,7 +293,6 @@ export class User extends AggregateRoot {
           source: 'users-service',
           correlationId: metadata?.correlationId,
           userId: metadata?.userId,
-          timestamp: new Date(),
         },
         this.version + 1
       );
@@ -320,7 +317,7 @@ export class User extends AggregateRoot {
       return; // No change needed
     }
 
-    const event = EventFactory.create<UserRoleChangedEvent>(
+    const event = EventFactory.create(
       'UserRoleChanged',
       this.id,
       'User',
@@ -333,7 +330,6 @@ export class User extends AggregateRoot {
         source: 'users-service',
         correlationId: metadata?.correlationId,
         userId: changedBy,
-        timestamp: new Date(),
       },
       this.version + 1
     );
@@ -363,7 +359,7 @@ export class User extends AggregateRoot {
     // Hash new password
     const newPasswordHash = await hashPassword(newPassword);
 
-    const event = EventFactory.create<UserPasswordChangedEvent>(
+    const event = EventFactory.create(
       'UserPasswordChanged',
       this.id,
       'User',
@@ -374,7 +370,6 @@ export class User extends AggregateRoot {
         source: 'users-service',
         correlationId: metadata?.correlationId,
         userId: changedBy,
-        timestamp: new Date(),
       },
       this.version + 1
     );
@@ -392,7 +387,7 @@ export class User extends AggregateRoot {
       return; // Already deactivated
     }
 
-    const event = EventFactory.create<UserDeactivatedEvent>(
+    const event = EventFactory.create(
       'UserDeactivated',
       this.id,
       'User',
@@ -404,7 +399,6 @@ export class User extends AggregateRoot {
         source: 'users-service',
         correlationId: metadata?.correlationId,
         userId: deactivatedBy,
-        timestamp: new Date(),
       },
       this.version + 1
     );
@@ -420,7 +414,7 @@ export class User extends AggregateRoot {
       return; // Already active
     }
 
-    const event = EventFactory.create<UserReactivatedEvent>(
+    const event = EventFactory.create(
       'UserReactivated',
       this.id,
       'User',
@@ -432,7 +426,6 @@ export class User extends AggregateRoot {
         source: 'users-service',
         correlationId: metadata?.correlationId,
         userId: reactivatedBy,
-        timestamp: new Date(),
       },
       this.version + 1
     );
@@ -452,7 +445,7 @@ export class User extends AggregateRoot {
       throw new UserDeactivatedError();
     }
 
-    const event = EventFactory.create<UserSignedInEvent>(
+    const event = EventFactory.create(
       'UserSignedIn',
       this.id,
       'User',
@@ -464,7 +457,6 @@ export class User extends AggregateRoot {
       {
         source: 'users-service',
         correlationId: metadata?.correlationId,
-        timestamp: new Date(),
       },
       this.version + 1
     );
@@ -476,7 +468,7 @@ export class User extends AggregateRoot {
    * Record sign out event
    */
   recordSignOut(): void {
-    const event = EventFactory.create<UserSignedOutEvent>(
+    const event = EventFactory.create(
       'UserSignedOut',
       this.id,
       'User',
@@ -485,7 +477,6 @@ export class User extends AggregateRoot {
       },
       {
         source: 'users-service',
-        timestamp: new Date(),
       },
       this.version + 1
     );
