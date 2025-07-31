@@ -26,7 +26,6 @@ import {
   shippingInfoSchema,
   validateInput,
   validateOrderStatusTransition,
-  validateProductAvailability,
 } from '@graphql-microservices/validation';
 import DataLoader from 'dataloader';
 import { GraphQLError } from 'graphql';
@@ -466,35 +465,24 @@ const mutationResolvers: MutationResolvers<Context> = {
         ]);
       }
 
-      // Fetch all products to validate availability
-      const productIds = validatedInput.items.map((item) => item.productId);
-      const products = await context.prisma.$queryRaw<
-        Array<{ id: string; isActive: boolean; stock: number }>
-      >`
-          SELECT id, "isActive", stock FROM products WHERE id = ANY(${productIds})
-        `;
-
-      const productMap = new Map(
-        products.map((p: { id: string; isActive: boolean; stock: number }) => [p.id, p])
-      );
-
       // Validate each item
       for (const item of validatedInput.items) {
-        const product = productMap.get(item.productId);
-
-        if (!product) {
-          throw new NotFoundError('Product', item.productId);
-        }
-
-        // Validate product availability
-        validateProductAvailability({ isActive: true, stock: 100 }, item.quantity);
-
         // Validate price (prevent negative prices)
         if (item.price <= 0) {
           throw new ValidationError('Invalid item price', [
             {
               field: 'price',
               message: `Price must be greater than 0 for product ${item.productId}`,
+            },
+          ]);
+        }
+
+        // Validate quantity
+        if (item.quantity <= 0) {
+          throw new ValidationError('Invalid item quantity', [
+            {
+              field: 'quantity',
+              message: `Quantity must be greater than 0 for product ${item.productId}`,
             },
           ]);
         }
