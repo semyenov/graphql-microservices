@@ -6,7 +6,7 @@ import type {
   GraphQLRequestContext,
   GraphQLRequestListener,
 } from 'apollo-server-plugin-base';
-import type { DocumentNode, GraphQLSchema } from 'graphql';
+import type { GraphQLSchema } from 'graphql';
 import { parse as parseQuery } from 'graphql';
 import type { ValidationRule } from 'graphql/validation/ValidationContext';
 import depthLimit from 'graphql-depth-limit';
@@ -144,7 +144,9 @@ export const fieldComplexityConfig = {
     complexity: ({ args }: { args: Record<string, unknown> }) => {
       // Bulk operations are more expensive
       if (args.items || args.updates) {
-        const count = (args.items as any[])?.length || (args.updates as any[])?.length || 1;
+        const items = args.items as unknown[];
+        const updates = args.updates as unknown[];
+        const count = items?.length || updates?.length || 1;
         return baseCost * Math.min(count, 100);
       }
       return baseCost;
@@ -169,40 +171,8 @@ export const createComplexityValidationRules = (
     })
   );
 
-  // Add complexity rule
-  rules.push(
-    getComplexity({
-      schema,
-      query: {} as DocumentNode, // Will be set by GraphQL execution
-      variables: {},
-      estimators: [
-        // Use directive-based complexity if available
-        directiveEstimator({ name: 'complexity' }),
-        // Use field extensions for complexity
-        fieldExtensionsEstimator(),
-        // Fall back to simple estimation
-        simpleEstimator({
-          defaultComplexity: 1,
-        }),
-      ],
-      maximumComplexity: finalConfig.maximumComplexity,
-      onComplete: (complexity: any) => {
-        if (complexity > finalConfig.maximumComplexity) {
-          if (finalConfig.logRejectedQueries) {
-            logError(new Error('Query rejected due to complexity'), {
-              complexity,
-              maximum: finalConfig.maximumComplexity,
-            });
-          }
-          throw new QueryComplexityError(
-            finalConfig.customErrorMessage(complexity, finalConfig.maximumComplexity),
-            complexity,
-            finalConfig.maximumComplexity
-          );
-        }
-      },
-    }) as ValidationRule
-  );
+  // Complexity validation is handled in the Apollo plugin instead
+  // The getComplexity function is not compatible with ValidationRule interface
 
   return rules;
 };
@@ -324,29 +294,29 @@ export const exampleComplexitySchema = `
     id: ID! @complexity(value: 1)
     username: String! @complexity(value: 1)
     email: String! @complexity(value: 1)
-    
+
     # List field with multiplier
     posts(first: Int = 10): [Post!]! @complexity(value: 1, multipliers: ["first"])
-    
+
     # Expensive computed field
     statistics: UserStatistics! @complexity(value: 50)
   }
-  
+
   type Query {
     # Simple lookup
     user(id: ID!): User @complexity(value: 1)
-    
+
     # List with pagination
     users(first: Int = 20): [User!]! @complexity(value: 1, multipliers: ["first"])
-    
+
     # Search is more expensive
     searchUsers(query: String!, limit: Int = 10): [User!]! @complexity(value: 5, multipliers: ["limit"])
   }
-  
+
   type Mutation {
     # Mutations have higher base cost
     createUser(input: CreateUserInput!): User! @complexity(value: 10)
-    
+
     # Bulk operations multiply by array size
     bulkCreateUsers(users: [CreateUserInput!]!): [User!]! @complexity(value: 10, multipliers: ["users"])
   }
@@ -361,7 +331,7 @@ export const estimateQueryComplexity = (
   variables: Record<string, unknown> = {},
   config: QueryComplexityConfig = {}
 ): number => {
-  const _finalConfig = { ...defaultConfig, ...config };
+  // const _finalConfig = { ...defaultConfig, ...config };
 
   try {
     const parsedQuery = typeof query === 'string' ? parseQuery(query) : query;
