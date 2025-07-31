@@ -114,7 +114,8 @@ const server = new ApolloServer<GatewayContext>({
   ],
   formatError: (err) => {
     // Log errors with correlation ID
-    const correlationId = (err.extensions?.context as any)?.correlationId || 'unknown';
+    const correlationId =
+      (err.extensions?.context as { correlationId?: string })?.correlationId || 'unknown';
     console.error(`GraphQL Error [${correlationId}]:`, {
       message: err.message,
       path: err.path,

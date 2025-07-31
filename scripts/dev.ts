@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 
-import { join } from 'node:path';
 import { discoverServices, getServiceDatabaseUrl, type ServiceConfig } from '@shared/utils';
 import { spawn } from 'bun';
 

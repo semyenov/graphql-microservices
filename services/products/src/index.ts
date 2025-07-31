@@ -2,43 +2,53 @@ import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
 import {
+  type AuthContext,
   AuthService,
   extractAndVerifyUser,
-  type AuthContext,
 } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
 import { parseEnv, productServiceEnvSchema } from '@graphql-microservices/shared-config';
 import {
   AuthenticationError,
-  InternalServerError,
+  BusinessRuleError,
   createErrorLogger,
   formatError,
+  InternalServerError,
+  NotFoundError,
+  toGraphQLError,
+  ValidationError,
 } from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
+import {
+  bulkUpdateStockInputSchema,
+  createProductInputSchema,
+  updateProductInputSchema,
+  validateInput,
+} from '@graphql-microservices/shared-validation';
 import DataLoader from 'dataloader';
 import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
-import { type Prisma, PrismaClient, type Product } from '../generated/prisma';
 import type {
-  Resolvers,
   Product as GraphQLProduct,
+  MutationActivateProductArgs,
+  MutationBulkUpdateStockArgs,
+  MutationCreateProductArgs,
+  MutationDeactivateProductArgs,
+  MutationUpdateProductArgs,
+  MutationUpdateStockArgs,
   QueryProductArgs,
   QueryProductBySkuArgs,
   QueryProductsArgs,
   QuerySearchProductsArgs,
-  MutationCreateProductArgs,
-  MutationUpdateProductArgs,
-  MutationUpdateStockArgs,
-  MutationActivateProductArgs,
-  MutationDeactivateProductArgs,
-  MutationBulkUpdateStockArgs,
+  Resolvers,
 } from '../generated/graphql';
+import { type Prisma, PrismaClient, type Product } from '../generated/prisma';
 import {
-  subscriptionResolvers,
   publishProductCreated,
-  publishProductUpdated,
-  publishProductStockChanged,
   publishProductDeactivated,
+  publishProductStockChanged,
+  publishProductUpdated,
+  subscriptionResolvers,
 } from './subscriptions';
 
 // Parse and validate environment variables
@@ -201,107 +211,153 @@ async function clearProductCaches(product: Product, cacheService: CacheService) 
 const resolvers: Resolvers<Context> = {
   Query: {
     product: async (_, { id }: QueryProductArgs, context: Context) => {
-      // Check cache first
-      const cached = await context.cacheService.get<GraphQLProduct>(cacheKeys.product(id));
-      if (cached) return cached;
+      try {
+        // Check cache first
+        const cached = await context.cacheService.get<GraphQLProduct>(cacheKeys.product(id));
+        if (cached) return cached;
 
-      // Load from database
-      const product = await context.productLoader.load(id);
+        // Load from database
+        const product = await context.productLoader.load(id);
 
-      // Cache the result
-      if (product) {
-        await context.cacheService.set(cacheKeys.product(id), product, cacheTTL.product);
+        // Cache the result
+        if (product) {
+          await context.cacheService.set(cacheKeys.product(id), product, cacheTTL.product);
+        }
+
+        return product;
+      } catch (error) {
+        logError(error, { operation: 'product', productId: id });
+        throw toGraphQLError(error, 'Failed to fetch product');
       }
-
-      return product;
     },
 
     productBySku: async (_, { sku }: QueryProductBySkuArgs, context: Context) => {
-      const cached = await context.cacheService.get<GraphQLProduct>(cacheKeys.productBySku(sku));
-      if (cached) return cached;
+      try {
+        const cached = await context.cacheService.get<GraphQLProduct>(cacheKeys.productBySku(sku));
+        if (cached) return cached;
 
-      const product = await context.prisma.product.findUnique({ where: { sku } });
+        const product = await context.prisma.product.findUnique({ where: { sku } });
 
-      if (product) {
-        const transformedProduct = transformProduct(product);
-        await context.cacheService.set(
-          cacheKeys.productBySku(sku),
-          transformedProduct,
-          cacheTTL.product
-        );
-        return transformedProduct;
+        if (product) {
+          const transformedProduct = transformProduct(product);
+          await context.cacheService.set(
+            cacheKeys.productBySku(sku),
+            transformedProduct,
+            cacheTTL.product
+          );
+          return transformedProduct;
+        }
+
+        return null;
+      } catch (error) {
+        logError(error, { operation: 'productBySku', sku });
+        throw toGraphQLError(error, 'Failed to fetch product by SKU');
       }
-
-      return null;
     },
 
     products: async (_, args: QueryProductsArgs, context: Context) => {
-      const { first = 20, after, category, tags, isActive, search } = args;
+      try {
+        const { first = 20, after, category, tags, isActive, search } = args;
 
-      // Build where clause
-      const where: Prisma.ProductWhereInput = {};
-      if (isActive !== null && isActive !== undefined) where.isActive = isActive;
-      if (category) where.category = category;
-      if (tags && tags.length > 0) where.tags = { hasSome: tags };
-      if (search) {
-        where.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-        ];
+        // Validate pagination
+        if (first && first > 100) {
+          throw new ValidationError('Cannot request more than 100 products at once', [
+            { field: 'first', message: 'Maximum value is 100' },
+          ]);
+        }
+
+        // Build where clause
+        const where: Prisma.ProductWhereInput = {};
+        if (isActive !== null && isActive !== undefined) where.isActive = isActive;
+        if (category) where.category = category;
+        if (tags && tags.length > 0) where.tags = { hasSome: tags };
+        if (search) {
+          where.OR = [
+            { name: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+          ];
+        }
+
+        // Parse cursor
+        const cursor = after ? { id: after } : undefined;
+        const take = first || 20;
+
+        // Fetch products
+        const products = await context.prisma.product.findMany({
+          where,
+          take: take + 1,
+          cursor,
+          orderBy: { createdAt: 'desc' },
+        });
+
+        const hasNextPage = products.length > take;
+        const nodes = hasNextPage ? products.slice(0, -1) : products;
+
+        const totalCount = await context.prisma.product.count({ where });
+
+        return {
+          products: nodes.map(transformProduct),
+          totalCount,
+          pageInfo: {
+            hasNextPage,
+            hasPreviousPage: !!after,
+            startCursor: nodes[0]?.id,
+            endCursor: nodes[nodes.length - 1]?.id,
+          },
+        };
+      } catch (error) {
+        logError(error, { operation: 'products', args });
+        throw toGraphQLError(error, 'Failed to fetch products');
       }
-
-      // Parse cursor
-      const cursor = after ? { id: after } : undefined;
-      const take = first || 20;
-
-      // Fetch products
-      const products = await context.prisma.product.findMany({
-        where,
-        take: take + 1,
-        cursor,
-        orderBy: { createdAt: 'desc' },
-      });
-
-      const hasNextPage = products.length > take;
-      const nodes = hasNextPage ? products.slice(0, -1) : products;
-
-      const totalCount = await context.prisma.product.count({ where });
-
-      return {
-        products: nodes.map(transformProduct),
-        totalCount,
-        pageInfo: {
-          hasNextPage,
-          hasPreviousPage: !!after,
-          startCursor: nodes[0]?.id,
-          endCursor: nodes[nodes.length - 1]?.id,
-        },
-      };
     },
 
     categories: async (_, __, context: Context) => {
-      const result = await context.prisma.product.findMany({
-        select: { category: true },
-        distinct: ['category'],
-        orderBy: { category: 'asc' },
-      });
-      return result.map((r) => r.category);
+      try {
+        const result = await context.prisma.product.findMany({
+          select: { category: true },
+          distinct: ['category'],
+          orderBy: { category: 'asc' },
+        });
+        return result.map((r) => r.category);
+      } catch (error) {
+        logError(error, { operation: 'categories' });
+        throw toGraphQLError(error, 'Failed to fetch categories');
+      }
     },
 
     searchProducts: async (_, { query, limit = 10 }: QuerySearchProductsArgs, context: Context) => {
-      const results = await context.prisma.product.findMany({
-        where: {
-          isActive: true,
-          OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { description: { contains: query, mode: 'insensitive' } },
-            { sku: { contains: query, mode: 'insensitive' } },
-          ],
-        },
-        take: limit || 10,
-        orderBy: { name: 'asc' },
-      });
-      return results.map(transformProduct);
+      try {
+        // Validate search query
+        if (!query || query.trim().length === 0) {
+          throw new ValidationError('Search query is required', [
+            { field: 'query', message: 'Query cannot be empty' },
+          ]);
+        }
+
+        if (limit && limit > 50) {
+          throw new ValidationError('Search limit too high', [
+            { field: 'limit', message: 'Maximum limit is 50' },
+          ]);
+        }
+
+        const results = await context.prisma.product.findMany({
+          where: {
+            isActive: true,
+            OR: [
+              { name: { contains: query, mode: 'insensitive' } },
+              { description: { contains: query, mode: 'insensitive' } },
+              { sku: { contains: query, mode: 'insensitive' } },
+            ],
+          },
+          take: limit || 10,
+          orderBy: { name: 'asc' },
+        });
+        return results.map(transformProduct);
+      } catch (error) {
+        if (error instanceof GraphQLError) throw error;
+        logError(error, { operation: 'searchProducts', query, limit });
+        throw toGraphQLError(error, 'Failed to search products');
+      }
     },
   },
 
@@ -309,138 +365,299 @@ const resolvers: Resolvers<Context> = {
     createProduct: async (_, { input }: MutationCreateProductArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
-      const createData: Prisma.ProductCreateInput = {
-        name: input.name,
-        description: input.description,
-        price: input.price,
-        stock: input.stock,
-        sku: input.sku,
-        category: input.category,
-        tags: input.tags || [],
-        imageUrl: input.imageUrl,
-        isActive: true,
-      };
+      try {
+        // Validate input
+        const validatedInput = validateInput(createProductInputSchema, input);
 
-      const product = await context.prisma.product.create({
-        data: createData,
-      });
+        // Check if SKU already exists
+        const existingProduct = await context.prisma.product.findUnique({
+          where: { sku: validatedInput.sku },
+        });
 
-      const transformedProduct = transformProduct(product);
+        if (existingProduct) {
+          throw new ValidationError('Product with this SKU already exists', [
+            { field: 'sku', message: `SKU '${validatedInput.sku}' is already in use` },
+          ]);
+        }
 
-      // Publish event
-      await publishProductCreated(context, transformedProduct);
+        const createData: Prisma.ProductCreateInput = {
+          name: validatedInput.name,
+          description: validatedInput.description,
+          price: validatedInput.price,
+          stock: validatedInput.stock,
+          sku: validatedInput.sku,
+          category: validatedInput.category,
+          tags: validatedInput.tags || [],
+          imageUrl: validatedInput.imageUrl,
+          isActive: true,
+        };
 
-      return transformedProduct;
+        const product = await context.prisma.product.create({
+          data: createData,
+        });
+
+        const transformedProduct = transformProduct(product);
+
+        // Publish event
+        await publishProductCreated(context, transformedProduct);
+
+        return transformedProduct;
+      } catch (error) {
+        if (error instanceof GraphQLError) throw error;
+
+        // Handle Prisma unique constraint errors
+        if (error instanceof Error && error.message.includes('Unique constraint failed')) {
+          if (error.message.includes('sku')) {
+            throw new ValidationError('Product SKU must be unique', [
+              { field: 'sku', message: 'This SKU is already in use' },
+            ]);
+          }
+        }
+
+        logError(error, { operation: 'createProduct', input });
+        throw new InternalServerError('Failed to create product');
+      }
     },
 
     updateProduct: async (_, { id, input }: MutationUpdateProductArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
-      // Handle InputMaybe fields properly
-      const updateData: Prisma.ProductUpdateInput = {};
-      if (input.name !== undefined && input.name !== null) updateData.name = input.name;
-      if (input.description !== undefined && input.description !== null)
-        updateData.description = input.description;
-      if (input.price !== undefined && input.price !== null) updateData.price = input.price;
-      if (input.stock !== undefined && input.stock !== null) updateData.stock = input.stock;
-      if (input.category !== undefined && input.category !== null)
-        updateData.category = input.category;
-      if (input.tags !== undefined && input.tags !== null) updateData.tags = input.tags;
-      if (input.imageUrl !== undefined) updateData.imageUrl = input.imageUrl;
+      try {
+        // Validate input
+        const validatedInput = validateInput(updateProductInputSchema, input);
 
-      const product = await context.prisma.product.update({
-        where: { id },
-        data: updateData,
-      });
+        // Check if product exists
+        const existingProduct = await context.prisma.product.findUnique({
+          where: { id },
+        });
 
-      await clearProductCaches(product, context.cacheService);
+        if (!existingProduct) {
+          throw new NotFoundError('Product', id);
+        }
 
-      const transformedProduct = transformProduct(product);
+        // Handle InputMaybe fields properly
+        const updateData: Prisma.ProductUpdateInput = {};
+        if (validatedInput.name !== undefined) updateData.name = validatedInput.name;
+        if (validatedInput.description !== undefined)
+          updateData.description = validatedInput.description;
+        if (validatedInput.price !== undefined) updateData.price = validatedInput.price;
+        if (validatedInput.stock !== undefined) updateData.stock = validatedInput.stock;
+        if (validatedInput.category !== undefined) updateData.category = validatedInput.category;
+        if (validatedInput.tags !== undefined) updateData.tags = validatedInput.tags;
+        if (validatedInput.imageUrl !== undefined) updateData.imageUrl = validatedInput.imageUrl;
 
-      // Publish event
-      await publishProductUpdated(context, transformedProduct);
+        const product = await context.prisma.product.update({
+          where: { id },
+          data: updateData,
+        });
 
-      return transformedProduct;
+        await clearProductCaches(product, context.cacheService);
+
+        const transformedProduct = transformProduct(product);
+
+        // Publish event
+        await publishProductUpdated(context, transformedProduct);
+
+        return transformedProduct;
+      } catch (error) {
+        if (error instanceof GraphQLError) throw error;
+
+        logError(error, { operation: 'updateProduct', productId: id, input });
+        throw new InternalServerError('Failed to update product');
+      }
     },
 
     updateStock: async (_, { id, quantity }: MutationUpdateStockArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
-      const product = await context.prisma.product.update({
-        where: { id },
-        data: { stock: quantity },
-      });
+      try {
+        // Validate quantity
+        if (quantity < 0) {
+          throw new ValidationError('Stock quantity cannot be negative', [
+            { field: 'quantity', message: 'Quantity must be 0 or greater' },
+          ]);
+        }
 
-      await clearProductCaches(product, context.cacheService);
+        // Check if product exists
+        const existingProduct = await context.prisma.product.findUnique({
+          where: { id },
+        });
 
-      const transformedProduct = transformProduct(product);
+        if (!existingProduct) {
+          throw new NotFoundError('Product', id);
+        }
 
-      // Publish event
-      await publishProductStockChanged(context, transformedProduct);
+        const product = await context.prisma.product.update({
+          where: { id },
+          data: { stock: quantity },
+        });
 
-      return transformedProduct;
+        await clearProductCaches(product, context.cacheService);
+
+        const transformedProduct = transformProduct(product);
+
+        // Publish event
+        await publishProductStockChanged(context, transformedProduct);
+
+        return transformedProduct;
+      } catch (error) {
+        if (error instanceof GraphQLError) throw error;
+
+        logError(error, { operation: 'updateStock', productId: id, quantity });
+        throw new InternalServerError('Failed to update product stock');
+      }
     },
 
     deactivateProduct: async (_, { id }: MutationDeactivateProductArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
-      const product = await context.prisma.product.update({
-        where: { id },
-        data: { isActive: false },
-      });
+      try {
+        // Check if product exists
+        const existingProduct = await context.prisma.product.findUnique({
+          where: { id },
+        });
 
-      await clearProductCaches(product, context.cacheService);
+        if (!existingProduct) {
+          throw new NotFoundError('Product', id);
+        }
 
-      const transformedProduct = transformProduct(product);
+        if (!existingProduct.isActive) {
+          throw new BusinessRuleError('Product is already deactivated');
+        }
 
-      // Publish event
-      await publishProductDeactivated(context, transformedProduct);
+        const product = await context.prisma.product.update({
+          where: { id },
+          data: { isActive: false },
+        });
 
-      return transformedProduct;
+        await clearProductCaches(product, context.cacheService);
+
+        const transformedProduct = transformProduct(product);
+
+        // Publish event
+        await publishProductDeactivated(context, transformedProduct);
+
+        return transformedProduct;
+      } catch (error) {
+        if (error instanceof GraphQLError) throw error;
+
+        logError(error, { operation: 'deactivateProduct', productId: id });
+        throw new InternalServerError('Failed to deactivate product');
+      }
     },
 
     activateProduct: async (_, { id }: MutationActivateProductArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
-      const product = await context.prisma.product.update({
-        where: { id },
-        data: { isActive: true },
-      });
+      try {
+        // Check if product exists
+        const existingProduct = await context.prisma.product.findUnique({
+          where: { id },
+        });
 
-      await clearProductCaches(product, context.cacheService);
+        if (!existingProduct) {
+          throw new NotFoundError('Product', id);
+        }
 
-      const transformedProduct = transformProduct(product);
+        if (existingProduct.isActive) {
+          throw new BusinessRuleError('Product is already active');
+        }
 
-      // Publish event
-      await publishProductUpdated(context, transformedProduct);
+        const product = await context.prisma.product.update({
+          where: { id },
+          data: { isActive: true },
+        });
 
-      return transformedProduct;
+        await clearProductCaches(product, context.cacheService);
+
+        const transformedProduct = transformProduct(product);
+
+        // Publish event
+        await publishProductUpdated(context, transformedProduct);
+
+        return transformedProduct;
+      } catch (error) {
+        if (error instanceof GraphQLError) throw error;
+
+        logError(error, { operation: 'activateProduct', productId: id });
+        throw new InternalServerError('Failed to activate product');
+      }
     },
 
     bulkUpdateStock: async (_, { updates }: MutationBulkUpdateStockArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
-      const results = await Promise.all(
-        updates.map(({ productId, quantity }) =>
-          context.prisma.product.update({
-            where: { id: productId },
-            data: { stock: quantity },
-          })
-        )
-      );
+      try {
+        // Validate input
+        const validatedInput = validateInput(bulkUpdateStockInputSchema, { updates });
 
-      // Clear caches for all updated products
-      await Promise.all(
-        results.map((product) => clearProductCaches(product, context.cacheService))
-      );
+        // Validate all products exist before updating
+        const productIds = validatedInput.updates.map((u) => u.productId);
+        const existingProducts = await context.prisma.product.findMany({
+          where: { id: { in: productIds } },
+        });
 
-      return results.map(transformProduct);
+        const existingIds = new Set(existingProducts.map((p) => p.id));
+        const missingIds = productIds.filter((id) => !existingIds.has(id));
+
+        if (missingIds.length > 0) {
+          throw new ValidationError('Some products not found', [
+            { field: 'updates', message: `Products not found: ${missingIds.join(', ')}` },
+          ]);
+        }
+
+        // Validate quantities
+        const invalidUpdates = validatedInput.updates.filter((u) => u.quantity < 0);
+        if (invalidUpdates.length > 0) {
+          throw new ValidationError(
+            'Invalid stock quantities',
+            invalidUpdates.map((u) => ({
+              field: 'quantity',
+              message: `Product ${u.productId} cannot have negative stock`,
+              value: u.quantity,
+            }))
+          );
+        }
+
+        // Perform updates
+        const results = await Promise.all(
+          validatedInput.updates.map(({ productId, quantity }) =>
+            context.prisma.product.update({
+              where: { id: productId },
+              data: { stock: quantity },
+            })
+          )
+        );
+
+        // Clear caches for all updated products
+        await Promise.all(
+          results.map((product) => clearProductCaches(product, context.cacheService))
+        );
+
+        // Publish events for all updated products
+        const transformedProducts = results.map(transformProduct);
+        await Promise.all(
+          transformedProducts.map((product) => publishProductStockChanged(context, product))
+        );
+
+        return transformedProducts;
+      } catch (error) {
+        if (error instanceof GraphQLError) throw error;
+
+        logError(error, { operation: 'bulkUpdateStock', updates });
+        throw new InternalServerError('Failed to bulk update product stock');
+      }
     },
   },
 
   Product: {
     __resolveReference: async (product: { id: string }, context: Context) => {
-      return context.productLoader.load(product.id);
+      try {
+        return await context.productLoader.load(product.id);
+      } catch (error) {
+        logError(error, { operation: '__resolveReference', productId: product.id });
+        throw toGraphQLError(error, 'Failed to resolve product reference');
+      }
     },
   } as Resolvers<Context>['Product'],
 

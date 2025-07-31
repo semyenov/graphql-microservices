@@ -1,8 +1,8 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
-import { authDirective, AuthService, type JWTPayload } from '@graphql-microservices/shared-auth';
-import { cacheKeys, CacheService, cacheTTL } from '@graphql-microservices/shared-cache';
+import { AuthService, authDirective, type JWTPayload } from '@graphql-microservices/shared-auth';
+import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
 import { parseEnv, userServiceEnvSchema } from '@graphql-microservices/shared-config';
 import {
   AlreadyExistsError,
@@ -16,27 +16,34 @@ import {
   ValidationError,
 } from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
+import {
+  changePasswordInputSchema,
+  signUpInputSchema,
+  updateProfileInputSchema,
+  updateUserInputSchema,
+  validateInput,
+  validateRoleUpdate,
+} from '@graphql-microservices/shared-validation';
 import DataLoader from 'dataloader';
 import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
-
-import {
-  type GraphQLMutationResolvers,
-  type GraphQLQueryResolvers,
-  type GraphQLResolvers,
-  type GraphQLUserResolvers,
-  type GraphQLRole,
-  type GraphQLUser,
-  PrismaClient,
-  type PrismaUser,
-  type Prisma,
-} from './types';
+import { PrismaClient } from '../generated/prisma';
 import {
   publishUserCreated,
   publishUserDeactivated,
   publishUserUpdated,
   subscriptionResolvers,
 } from './subscriptions';
+import type {
+  GraphQLMutationResolvers,
+  GraphQLQueryResolvers,
+  GraphQLResolvers,
+  GraphQLRole,
+  GraphQLUser,
+  GraphQLUserResolvers,
+  Prisma,
+  PrismaUser,
+} from './types';
 
 // Parse and validate environment variables
 const env = parseEnv(userServiceEnvSchema);
@@ -67,7 +74,7 @@ const pubsub = pubSubService.getPubSub();
 const logError = createErrorLogger('users-service');
 
 // GraphQL schema
-const typeDefs = gql`
+export const typeDefs = gql`
   extend schema
     @link(
       url: "https://specs.apollo.dev/federation/v2.0"
@@ -258,46 +265,18 @@ const queryResolvers: GraphQLQueryResolvers<Context> = {
 const mutationResolvers: GraphQLMutationResolvers<Context> = {
   signUp: async (_, { input }, context) => {
     try {
-      // Validate input
-      if (!input.email || !input.username || !input.password || !input.name) {
-        throw new ValidationError(
-          'Missing required fields',
-          [
-            input.email ? { field: 'email', message: 'Email is required' } : null,
-            input.username ? { field: 'username', message: 'Username is required' } : null,
-            input.password ? { field: 'password', message: 'Password is required' } : null,
-            input.name ? { field: 'name', message: 'Name is required' } : null,
-          ].filter((field): field is { field: string; message: string } => field !== null)
-        );
-      }
+      // Validate input using Zod schema
+      const validatedInput = validateInput(signUpInputSchema, input);
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(input.email)) {
-        throw new ValidationError('Invalid email format', [
-          { field: 'email', message: 'Please provide a valid email address' },
-        ]);
-      }
-
-      // Validate password strength
-      if (input.password.length < 8) {
-        throw new ValidationError('Password too weak', [
-          {
-            field: 'password',
-            message: 'Password must be at least 8 characters long',
-          },
-        ]);
-      }
-
-      const hashedPassword = await context.authService.hashPassword(input.password);
+      const hashedPassword = await context.authService.hashPassword(validatedInput.password);
 
       const user = await context.prisma.user.create({
         data: {
-          username: input.username,
-          email: input.email,
+          username: validatedInput.username,
+          email: validatedInput.email,
           password: hashedPassword,
-          name: input.name,
-          phoneNumber: input.phoneNumber || null,
+          name: validatedInput.name,
+          phoneNumber: validatedInput.phoneNumber || null,
         },
       });
 
@@ -448,6 +427,9 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
     if (!context.user) throw new AuthenticationError();
 
     try {
+      // Validate input
+      const validatedInput = validateInput(updateUserInputSchema, input);
+
       // Check if user exists
       const existingUser = await context.prisma.user.findUnique({
         where: { id },
@@ -461,32 +443,27 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
         throw new AuthorizationError('You can only update your own profile');
       }
 
-      // Validate email if provided
-      if (input.email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(input.email)) {
-          throw new ValidationError('Invalid email format', [
-            { field: 'email', message: 'Please provide a valid email address' },
-          ]);
-        }
+      // Validate role update if applicable
+      if (validatedInput.role) {
+        validateRoleUpdate(context.user.userId, id, context.user.role, validatedInput.role);
       }
 
       // Convert InputMaybe fields to Prisma-compatible format
       const updateData: Prisma.UserUpdateInput = {};
-      if (input.username !== undefined && input.username !== null) {
-        updateData.username = input.username;
+      if (validatedInput.username !== undefined) {
+        updateData.username = validatedInput.username;
       }
-      if (input.email !== undefined && input.email !== null) {
-        updateData.email = input.email;
+      if (validatedInput.email !== undefined) {
+        updateData.email = validatedInput.email;
       }
-      if (input.name !== undefined && input.name !== null) {
-        updateData.name = input.name;
+      if (validatedInput.name !== undefined) {
+        updateData.name = validatedInput.name;
       }
-      if (input.phoneNumber !== undefined) {
-        updateData.phoneNumber = input.phoneNumber;
+      if (validatedInput.phoneNumber !== undefined) {
+        updateData.phoneNumber = validatedInput.phoneNumber;
       }
-      if (input.role !== undefined && input.role !== null) {
-        updateData.role = input.role;
+      if (validatedInput.role !== undefined) {
+        updateData.role = validatedInput.role;
       }
 
       const user = await context.prisma.user.update({
@@ -513,10 +490,10 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
       // Handle Prisma unique constraint errors
       if (error instanceof Error && error.message.includes('Unique constraint failed')) {
         if (error.message.includes('username')) {
-          throw new AlreadyExistsError('User', 'username', input.username || undefined);
+          throw new AlreadyExistsError('User', 'username', input.username || '');
         }
         if (error.message.includes('email')) {
-          throw new AlreadyExistsError('User', 'email', input.email || undefined);
+          throw new AlreadyExistsError('User', 'email', input.email || '');
         }
       }
 
@@ -537,13 +514,16 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
   updateProfile: async (_, { input }, context) => {
     if (!context.user) throw new AuthenticationError();
 
+    // Validate input
+    const validatedInput = validateInput(updateProfileInputSchema, input);
+
     // Convert InputMaybe fields to Prisma-compatible format
     const updateData: Prisma.UserUpdateInput = {};
-    if (input.name !== undefined && input.name !== null) {
-      updateData.name = input.name;
+    if (validatedInput.name !== undefined) {
+      updateData.name = validatedInput.name;
     }
-    if (input.phoneNumber !== undefined) {
-      updateData.phoneNumber = input.phoneNumber;
+    if (validatedInput.phoneNumber !== undefined) {
+      updateData.phoneNumber = validatedInput.phoneNumber;
     }
 
     const user = await context.prisma.user.update({
@@ -565,6 +545,9 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
   changePassword: async (_, { input }, context) => {
     if (!context.user) throw new AuthenticationError();
 
+    // Validate input
+    const validatedInput = validateInput(changePasswordInputSchema, input);
+
     const user = await context.prisma.user.findUnique({
       where: { id: context.user.userId },
     });
@@ -573,13 +556,15 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
       throw new NotFoundError('User', context.user.userId);
     }
 
-    if (!(await context.authService.verifyPassword(input.currentPassword, user.password))) {
+    if (
+      !(await context.authService.verifyPassword(validatedInput.currentPassword, user.password))
+    ) {
       throw new ValidationError('Invalid current password', [
         { field: 'currentPassword', message: 'Current password is incorrect' },
       ]);
     }
 
-    const hashedPassword = await context.authService.hashPassword(input.newPassword);
+    const hashedPassword = await context.authService.hashPassword(validatedInput.newPassword);
 
     await context.prisma.user.update({
       where: { id: context.user.userId },
@@ -647,7 +632,7 @@ const userResolvers: GraphQLUserResolvers<Context> = {
   },
 } as GraphQLUserResolvers<Context>;
 
-const resolvers: GraphQLResolvers<Context> = {
+export const resolvers: GraphQLResolvers<Context> = {
   Query: queryResolvers,
   Mutation: mutationResolvers,
   User: userResolvers,

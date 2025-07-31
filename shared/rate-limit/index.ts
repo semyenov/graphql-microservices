@@ -77,7 +77,7 @@ export class RateLimitService {
     ): GraphQLFieldResolver<TSource, TContext, TArgs> => {
       return async (source, args, context, info) => {
         // Skip rate limiting if condition is met
-        if (options.skipIf && options.skipIf(context)) {
+        if (options.skipIf?.(context)) {
           return resolver(source, args, context, info);
         }
 

@@ -6,7 +6,9 @@ export interface ServiceConfig {
   path: string;
   port: number;
   priority: number; // Lower priority starts first
-  packageJson?: Record<string, unknown>;
+  packageJson?: Record<string, unknown> & {
+    scripts?: Record<string, string>;
+  };
 }
 
 export interface ServiceInfo {

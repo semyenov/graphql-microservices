@@ -11,7 +11,7 @@ async function main() {
     const data = JSON.parse(content);
 
     // Extract just the introspection data
-    if (data.data && data.data.__schema) {
+    if (data.data?.__schema) {
       // Write the introspection data for gql.tada
       const introspectionPath = join(process.cwd(), 'introspection.json');
       await writeFile(introspectionPath, JSON.stringify({ __schema: data.data.__schema }, null, 2));

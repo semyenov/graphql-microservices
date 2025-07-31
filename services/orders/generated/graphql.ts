@@ -1,25 +1,20 @@
 import type { GraphQLResolveInfo } from 'graphql';
 import type { Context } from '../src/index';
-
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = {
-  [_ in K]?: never;
-};
-export type Incremental<T> =
-  | T
-  | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
+export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
+export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 export type RequireFields<T, K extends keyof T> = Omit<T, K> & { [P in K]-?: NonNullable<T[P]> };
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
-  ID: { input: string; output: string };
-  String: { input: string; output: string };
-  Boolean: { input: boolean; output: boolean };
-  Int: { input: number; output: number };
-  Float: { input: number; output: number };
+  ID: { input: string; output: string; }
+  String: { input: string; output: string; }
+  Boolean: { input: boolean; output: boolean; }
+  Int: { input: number; output: number; }
+  Float: { input: number; output: number; }
 };
 
 export type CreateOrderInput = {
@@ -38,29 +33,35 @@ export type Mutation = {
   updateShippingInfo: Order;
 };
 
+
 export type MutationCancelOrderArgs = {
   id: Scalars['ID']['input'];
   reason?: InputMaybe<Scalars['String']['input']>;
 };
 
+
 export type MutationCreateOrderArgs = {
   input: CreateOrderInput;
 };
+
 
 export type MutationRefundOrderArgs = {
   id: Scalars['ID']['input'];
   reason: Scalars['String']['input'];
 };
 
+
 export type MutationUpdateOrderNotesArgs = {
   id: Scalars['ID']['input'];
   notes: Scalars['String']['input'];
 };
 
+
 export type MutationUpdateOrderStatusArgs = {
   id: Scalars['ID']['input'];
   status: OrderStatus;
 };
+
 
 export type MutationUpdateShippingInfoArgs = {
   id: Scalars['ID']['input'];
@@ -108,7 +109,7 @@ export enum OrderStatus {
   Pending = 'PENDING',
   Processing = 'PROCESSING',
   Refunded = 'REFUNDED',
-  Shipped = 'SHIPPED',
+  Shipped = 'SHIPPED'
 }
 
 export type OrdersPage = {
@@ -146,19 +147,23 @@ export type Query = {
   orders: OrdersPage;
 };
 
+
 export type QueryMyOrdersArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   status?: InputMaybe<OrderStatus>;
 };
 
+
 export type QueryOrderArgs = {
   id: Scalars['ID']['input'];
 };
 
+
 export type QueryOrderByNumberArgs = {
   orderNumber: Scalars['String']['input'];
 };
+
 
 export type QueryOrdersArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
@@ -196,9 +201,11 @@ export type Subscription = {
   orderStatusChanged: Order;
 };
 
+
 export type SubscriptionOrderCreatedArgs = {
   userId?: InputMaybe<Scalars['ID']['input']>;
 };
+
 
 export type SubscriptionOrderStatusChangedArgs = {
   userId?: InputMaybe<Scalars['ID']['input']>;
@@ -210,14 +217,15 @@ export type User = {
   orders: Array<Order>;
 };
 
+
+
 export type ResolverTypeWrapper<T> = Promise<T> | T;
+
 
 export type ResolverWithResolve<TResult, TParent, TContext, TArgs> = {
   resolve: ResolverFn<TResult, TParent, TContext, TArgs>;
 };
-export type Resolver<TResult, TParent = {}, TContext = {}, TArgs = {}> =
-  | ResolverFn<TResult, TParent, TContext, TArgs>
-  | ResolverWithResolve<TResult, TParent, TContext, TArgs>;
+export type Resolver<TResult, TParent = {}, TContext = {}, TArgs = {}> = ResolverFn<TResult, TParent, TContext, TArgs> | ResolverWithResolve<TResult, TParent, TContext, TArgs>;
 
 export type ResolverFn<TResult, TParent, TContext, TArgs> = (
   parent: TParent,
@@ -240,13 +248,7 @@ export type SubscriptionResolveFn<TResult, TParent, TContext, TArgs> = (
   info: GraphQLResolveInfo
 ) => TResult | Promise<TResult>;
 
-export interface SubscriptionSubscriberObject<
-  TResult,
-  TKey extends string,
-  TParent,
-  TContext,
-  TArgs,
-> {
+export interface SubscriptionSubscriberObject<TResult, TKey extends string, TParent, TContext, TArgs> {
   subscribe: SubscriptionSubscribeFn<{ [key in TKey]: TResult }, TParent, TContext, TArgs>;
   resolve?: SubscriptionResolveFn<TResult, { [key in TKey]: TResult }, TContext, TArgs>;
 }
@@ -260,13 +262,7 @@ export type SubscriptionObject<TResult, TKey extends string, TParent, TContext, 
   | SubscriptionSubscriberObject<TResult, TKey, TParent, TContext, TArgs>
   | SubscriptionResolverObject<TResult, TParent, TContext, TArgs>;
 
-export type SubscriptionResolver<
-  TResult,
-  TKey extends string,
-  TParent = {},
-  TContext = {},
-  TArgs = {},
-> =
+export type SubscriptionResolver<TResult, TKey extends string, TParent = {}, TContext = {}, TArgs = {}> =
   | ((...args: any[]) => SubscriptionObject<TResult, TKey, TParent, TContext, TArgs>)
   | SubscriptionObject<TResult, TKey, TParent, TContext, TArgs>;
 
@@ -276,11 +272,7 @@ export type TypeResolveFn<TTypes, TParent = {}, TContext = {}> = (
   info: GraphQLResolveInfo
 ) => Maybe<TTypes> | Promise<Maybe<TTypes>>;
 
-export type IsTypeOfResolverFn<T = {}, TContext = {}> = (
-  obj: T,
-  context: TContext,
-  info: GraphQLResolveInfo
-) => boolean | Promise<boolean>;
+export type IsTypeOfResolverFn<T = {}, TContext = {}> = (obj: T, context: TContext, info: GraphQLResolveInfo) => boolean | Promise<boolean>;
 
 export type NextResolverFn<T> = () => Promise<T>;
 
@@ -291,6 +283,8 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
   context: TContext,
   info: GraphQLResolveInfo
 ) => TResult | Promise<TResult>;
+
+
 
 /** Mapping between all available schema types and the resolvers types */
 export type ResolversTypes = {
@@ -339,52 +333,16 @@ export type ResolversParentTypes = {
   User: User;
 };
 
-export type MutationResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation'],
-> = {
-  cancelOrder?: Resolver<
-    ResolversTypes['Order'],
-    ParentType,
-    ContextType,
-    RequireFields<MutationCancelOrderArgs, 'id'>
-  >;
-  createOrder?: Resolver<
-    ResolversTypes['Order'],
-    ParentType,
-    ContextType,
-    RequireFields<MutationCreateOrderArgs, 'input'>
-  >;
-  refundOrder?: Resolver<
-    ResolversTypes['Order'],
-    ParentType,
-    ContextType,
-    RequireFields<MutationRefundOrderArgs, 'id' | 'reason'>
-  >;
-  updateOrderNotes?: Resolver<
-    ResolversTypes['Order'],
-    ParentType,
-    ContextType,
-    RequireFields<MutationUpdateOrderNotesArgs, 'id' | 'notes'>
-  >;
-  updateOrderStatus?: Resolver<
-    ResolversTypes['Order'],
-    ParentType,
-    ContextType,
-    RequireFields<MutationUpdateOrderStatusArgs, 'id' | 'status'>
-  >;
-  updateShippingInfo?: Resolver<
-    ResolversTypes['Order'],
-    ParentType,
-    ContextType,
-    RequireFields<MutationUpdateShippingInfoArgs, 'id' | 'shippingInfo'>
-  >;
+export type MutationResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {
+  cancelOrder?: Resolver<ResolversTypes['Order'], ParentType, ContextType, RequireFields<MutationCancelOrderArgs, 'id'>>;
+  createOrder?: Resolver<ResolversTypes['Order'], ParentType, ContextType, RequireFields<MutationCreateOrderArgs, 'input'>>;
+  refundOrder?: Resolver<ResolversTypes['Order'], ParentType, ContextType, RequireFields<MutationRefundOrderArgs, 'id' | 'reason'>>;
+  updateOrderNotes?: Resolver<ResolversTypes['Order'], ParentType, ContextType, RequireFields<MutationUpdateOrderNotesArgs, 'id' | 'notes'>>;
+  updateOrderStatus?: Resolver<ResolversTypes['Order'], ParentType, ContextType, RequireFields<MutationUpdateOrderStatusArgs, 'id' | 'status'>>;
+  updateShippingInfo?: Resolver<ResolversTypes['Order'], ParentType, ContextType, RequireFields<MutationUpdateShippingInfoArgs, 'id' | 'shippingInfo'>>;
 };
 
-export type OrderResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['Order'] = ResolversParentTypes['Order'],
-> = {
+export type OrderResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Order'] = ResolversParentTypes['Order']> = {
   createdAt?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   items?: Resolver<Array<ResolversTypes['OrderItem']>, ParentType, ContextType>;
@@ -403,10 +361,7 @@ export type OrderResolvers<
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type OrderItemResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['OrderItem'] = ResolversParentTypes['OrderItem'],
-> = {
+export type OrderItemResolvers<ContextType = Context, ParentType extends ResolversParentTypes['OrderItem'] = ResolversParentTypes['OrderItem']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   price?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   product?: Resolver<Maybe<ResolversTypes['Product']>, ParentType, ContextType>;
@@ -416,20 +371,14 @@ export type OrderItemResolvers<
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type OrdersPageResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['OrdersPage'] = ResolversParentTypes['OrdersPage'],
-> = {
+export type OrdersPageResolvers<ContextType = Context, ParentType extends ResolversParentTypes['OrdersPage'] = ResolversParentTypes['OrdersPage']> = {
   orders?: Resolver<Array<ResolversTypes['Order']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type PageInfoResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['PageInfo'] = ResolversParentTypes['PageInfo'],
-> = {
+export type PageInfoResolvers<ContextType = Context, ParentType extends ResolversParentTypes['PageInfo'] = ResolversParentTypes['PageInfo']> = {
   endCursor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   hasNextPage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   hasPreviousPage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -437,58 +386,26 @@ export type PageInfoResolvers<
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type PaymentInfoResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['PaymentInfo'] = ResolversParentTypes['PaymentInfo'],
-> = {
+export type PaymentInfoResolvers<ContextType = Context, ParentType extends ResolversParentTypes['PaymentInfo'] = ResolversParentTypes['PaymentInfo']> = {
   method?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   paidAt?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   transactionId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type ProductResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['Product'] = ResolversParentTypes['Product'],
-> = {
+export type ProductResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Product'] = ResolversParentTypes['Product']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type QueryResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query'],
-> = {
-  myOrders?: Resolver<
-    ResolversTypes['OrdersPage'],
-    ParentType,
-    ContextType,
-    Partial<QueryMyOrdersArgs>
-  >;
-  order?: Resolver<
-    Maybe<ResolversTypes['Order']>,
-    ParentType,
-    ContextType,
-    RequireFields<QueryOrderArgs, 'id'>
-  >;
-  orderByNumber?: Resolver<
-    Maybe<ResolversTypes['Order']>,
-    ParentType,
-    ContextType,
-    RequireFields<QueryOrderByNumberArgs, 'orderNumber'>
-  >;
-  orders?: Resolver<
-    ResolversTypes['OrdersPage'],
-    ParentType,
-    ContextType,
-    Partial<QueryOrdersArgs>
-  >;
+export type QueryResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query']> = {
+  myOrders?: Resolver<ResolversTypes['OrdersPage'], ParentType, ContextType, Partial<QueryMyOrdersArgs>>;
+  order?: Resolver<Maybe<ResolversTypes['Order']>, ParentType, ContextType, RequireFields<QueryOrderArgs, 'id'>>;
+  orderByNumber?: Resolver<Maybe<ResolversTypes['Order']>, ParentType, ContextType, RequireFields<QueryOrderByNumberArgs, 'orderNumber'>>;
+  orders?: Resolver<ResolversTypes['OrdersPage'], ParentType, ContextType, Partial<QueryOrdersArgs>>;
 };
 
-export type ShippingInfoResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['ShippingInfo'] = ResolversParentTypes['ShippingInfo'],
-> = {
+export type ShippingInfoResolvers<ContextType = Context, ParentType extends ResolversParentTypes['ShippingInfo'] = ResolversParentTypes['ShippingInfo']> = {
   address?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   city?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   country?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -498,42 +415,14 @@ export type ShippingInfoResolvers<
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type SubscriptionResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['Subscription'] = ResolversParentTypes['Subscription'],
-> = {
-  orderCancelled?: SubscriptionResolver<
-    ResolversTypes['Order'],
-    'orderCancelled',
-    ParentType,
-    ContextType
-  >;
-  orderCreated?: SubscriptionResolver<
-    ResolversTypes['Order'],
-    'orderCreated',
-    ParentType,
-    ContextType,
-    Partial<SubscriptionOrderCreatedArgs>
-  >;
-  orderRefunded?: SubscriptionResolver<
-    ResolversTypes['Order'],
-    'orderRefunded',
-    ParentType,
-    ContextType
-  >;
-  orderStatusChanged?: SubscriptionResolver<
-    ResolversTypes['Order'],
-    'orderStatusChanged',
-    ParentType,
-    ContextType,
-    Partial<SubscriptionOrderStatusChangedArgs>
-  >;
+export type SubscriptionResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Subscription'] = ResolversParentTypes['Subscription']> = {
+  orderCancelled?: SubscriptionResolver<ResolversTypes['Order'], "orderCancelled", ParentType, ContextType>;
+  orderCreated?: SubscriptionResolver<ResolversTypes['Order'], "orderCreated", ParentType, ContextType, Partial<SubscriptionOrderCreatedArgs>>;
+  orderRefunded?: SubscriptionResolver<ResolversTypes['Order'], "orderRefunded", ParentType, ContextType>;
+  orderStatusChanged?: SubscriptionResolver<ResolversTypes['Order'], "orderStatusChanged", ParentType, ContextType, Partial<SubscriptionOrderStatusChangedArgs>>;
 };
 
-export type UserResolvers<
-  ContextType = Context,
-  ParentType extends ResolversParentTypes['User'] = ResolversParentTypes['User'],
-> = {
+export type UserResolvers<ContextType = Context, ParentType extends ResolversParentTypes['User'] = ResolversParentTypes['User']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   orders?: Resolver<Array<ResolversTypes['Order']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -552,3 +441,4 @@ export type Resolvers<ContextType = Context> = {
   Subscription?: SubscriptionResolvers<ContextType>;
   User?: UserResolvers<ContextType>;
 };
+

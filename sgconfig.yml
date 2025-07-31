@@ -1,0 +1,6 @@
+ruleDirs:
+- /Users/aleksandrsemenov/Projects/graphql-microservices/rules
+testConfigs:
+- testDir: /Users/aleksandrsemenov/Projects/graphql-microservices/rule-tests
+utilDirs:
+- /Users/aleksandrsemenov/Projects/graphql-microservices/utils

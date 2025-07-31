@@ -4,16 +4,12 @@ import { join } from 'node:path';
 import {
   checkServiceHealth,
   exportSchema,
-  fetchIntrospectionSchema,
   getAllServiceInfo,
-  introspectionToSDL,
   logError,
-  logInfo,
   logStep,
   logSuccess,
   logWarning,
   type ServiceInfo,
-  saveSchema,
 } from '@shared/utils';
 
 interface ExportOptions {
@@ -47,6 +43,10 @@ async function exportServiceSchema(service: ServiceInfo, format: string, outputD
 async function exportGatewaySchema(format: string, outputDir: string) {
   const services = getAllServiceInfo();
   const gateway = services.gateway;
+
+  if (!gateway) {
+    throw new Error('Gateway service not found. Make sure the gateway service is configured.');
+  }
 
   console.log(`🌐 Exporting federated gateway schema...`);
 
@@ -159,7 +159,7 @@ Examples:
     }
   } else if (service === 'gateway') {
     // Check if gateway is running
-    if (!(await checkServiceHealth(allServices.gateway.url))) {
+    if (!allServices.gateway || !(await checkServiceHealth(allServices.gateway.url))) {
       logError('Gateway is not running. Please start it with: bun run dev');
       process.exit(1);
     }
@@ -167,6 +167,10 @@ Examples:
   } else if (service in allServices) {
     // Export specific service
     const serviceInfo = allServices[service];
+    if (!serviceInfo) {
+      logError(`Service '${service}' not found.`);
+      process.exit(1);
+    }
     if (!(await checkServiceHealth(serviceInfo.url))) {
       logError(`${serviceInfo.name} service is not running. Please start it with: bun run dev`);
       process.exit(1);

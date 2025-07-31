@@ -3,19 +3,15 @@ export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = {
-  [_ in K]?: never;
-};
-export type Incremental<T> =
-  | T
-  | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
+export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
+export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
-  ID: { input: string; output: string };
-  String: { input: string; output: string };
-  Boolean: { input: boolean; output: boolean };
-  Int: { input: number; output: number };
-  Float: { input: number; output: number };
+  ID: { input: string; output: string; }
+  String: { input: string; output: string; }
+  Boolean: { input: boolean; output: boolean; }
+  Int: { input: number; output: number; }
+  Float: { input: number; output: number; }
 };
 
 export type AuthPayload = {
@@ -71,84 +67,103 @@ export type Mutation = {
   updateUser: User;
 };
 
+
 export type MutationActivateProductArgs = {
   id: Scalars['ID']['input'];
 };
 
+
 export type MutationBulkUpdateStockArgs = {
   updates: Array<StockUpdate>;
 };
+
 
 export type MutationCancelOrderArgs = {
   id: Scalars['ID']['input'];
   reason?: InputMaybe<Scalars['String']['input']>;
 };
 
+
 export type MutationChangePasswordArgs = {
   input: ChangePasswordInput;
 };
+
 
 export type MutationCreateOrderArgs = {
   input: CreateOrderInput;
 };
 
+
 export type MutationCreateProductArgs = {
   input: CreateProductInput;
 };
+
 
 export type MutationDeactivateProductArgs = {
   id: Scalars['ID']['input'];
 };
 
+
 export type MutationDeactivateUserArgs = {
   id: Scalars['ID']['input'];
 };
 
+
 export type MutationRefreshTokenArgs = {
   refreshToken: Scalars['String']['input'];
 };
+
 
 export type MutationRefundOrderArgs = {
   id: Scalars['ID']['input'];
   reason: Scalars['String']['input'];
 };
 
+
 export type MutationSignInArgs = {
   input: SignInInput;
 };
 
+
 export type MutationSignUpArgs = {
   input: SignUpInput;
 };
+
 
 export type MutationUpdateOrderNotesArgs = {
   id: Scalars['ID']['input'];
   notes: Scalars['String']['input'];
 };
 
+
 export type MutationUpdateOrderStatusArgs = {
   id: Scalars['ID']['input'];
   status: OrderStatus;
 };
+
 
 export type MutationUpdateProductArgs = {
   id: Scalars['ID']['input'];
   input: UpdateProductInput;
 };
 
+
 export type MutationUpdateProfileArgs = {
   input: UpdateProfileInput;
 };
+
 
 export type MutationUpdateShippingInfoArgs = {
   id: Scalars['ID']['input'];
   shippingInfo: ShippingInfoInput;
 };
 
+
 export type MutationUpdateStockArgs = {
   id: Scalars['ID']['input'];
   quantity: Scalars['Int']['input'];
 };
+
 
 export type MutationUpdateUserArgs = {
   id: Scalars['ID']['input'];
@@ -196,7 +211,7 @@ export enum OrderStatus {
   Pending = 'PENDING',
   Processing = 'PROCESSING',
   Refunded = 'REFUNDED',
-  Shipped = 'SHIPPED',
+  Shipped = 'SHIPPED'
 }
 
 export type OrdersPage = {
@@ -262,19 +277,23 @@ export type Query = {
   users: Array<User>;
 };
 
+
 export type QueryMyOrdersArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   status?: InputMaybe<OrderStatus>;
 };
 
+
 export type QueryOrderArgs = {
   id: Scalars['ID']['input'];
 };
 
+
 export type QueryOrderByNumberArgs = {
   orderNumber: Scalars['String']['input'];
 };
+
 
 export type QueryOrdersArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
@@ -285,13 +304,16 @@ export type QueryOrdersArgs = {
   userId?: InputMaybe<Scalars['ID']['input']>;
 };
 
+
 export type QueryProductArgs = {
   id: Scalars['ID']['input'];
 };
 
+
 export type QueryProductBySkuArgs = {
   sku: Scalars['String']['input'];
 };
+
 
 export type QueryProductsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
@@ -302,18 +324,22 @@ export type QueryProductsArgs = {
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
+
 export type QuerySearchProductsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   query: Scalars['String']['input'];
 };
 
+
 export type QueryUserArgs = {
   id: Scalars['ID']['input'];
 };
 
+
 export type QueryUserByEmailArgs = {
   email: Scalars['String']['input'];
 };
+
 
 export type QueryUserByUsernameArgs = {
   username: Scalars['String']['input'];
@@ -322,7 +348,7 @@ export type QueryUserByUsernameArgs = {
 export enum Role {
   Admin = 'ADMIN',
   Moderator = 'MODERATOR',
-  User = 'USER',
+  User = 'USER'
 }
 
 export type ShippingInfo = {
@@ -377,21 +403,26 @@ export type Subscription = {
   userUpdated: User;
 };
 
+
 export type SubscriptionOrderCreatedArgs = {
   userId?: InputMaybe<Scalars['ID']['input']>;
 };
+
 
 export type SubscriptionOrderStatusChangedArgs = {
   userId?: InputMaybe<Scalars['ID']['input']>;
 };
 
+
 export type SubscriptionProductStockChangedArgs = {
   productId?: InputMaybe<Scalars['ID']['input']>;
 };
 
+
 export type SubscriptionProductUpdatedArgs = {
   productId?: InputMaybe<Scalars['ID']['input']>;
 };
+
 
 export type SubscriptionUserUpdatedArgs = {
   userId?: InputMaybe<Scalars['ID']['input']>;
@@ -438,428 +469,157 @@ export type SignUpMutationVariables = Exact<{
   input: SignUpInput;
 }>;
 
-export type SignUpMutation = {
-  __typename?: 'Mutation';
-  signUp: {
-    __typename?: 'AuthPayload';
-    accessToken: string;
-    refreshToken: string;
-    user: {
-      __typename?: 'User';
-      id: string;
-      username: string;
-      email: string;
-      name: string;
-      role: Role;
-    };
-  };
-};
+
+export type SignUpMutation = { __typename?: 'Mutation', signUp: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, user: { __typename?: 'User', id: string, username: string, email: string, name: string, role: Role } } };
 
 export type SignInMutationVariables = Exact<{
   input: SignInInput;
 }>;
 
-export type SignInMutation = {
-  __typename?: 'Mutation';
-  signIn: {
-    __typename?: 'AuthPayload';
-    accessToken: string;
-    refreshToken: string;
-    user: {
-      __typename?: 'User';
-      id: string;
-      username: string;
-      email: string;
-      name: string;
-      role: Role;
-    };
-  };
-};
+
+export type SignInMutation = { __typename?: 'Mutation', signIn: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, user: { __typename?: 'User', id: string, username: string, email: string, name: string, role: Role } } };
 
 export type RefreshTokenMutationVariables = Exact<{
   refreshToken: Scalars['String']['input'];
 }>;
 
-export type RefreshTokenMutation = {
-  __typename?: 'Mutation';
-  refreshToken: {
-    __typename?: 'AuthPayload';
-    accessToken: string;
-    refreshToken: string;
-    user: {
-      __typename?: 'User';
-      id: string;
-      username: string;
-      email: string;
-      name: string;
-      role: Role;
-    };
-  };
-};
 
-export type SignOutMutationVariables = Exact<{ [key: string]: never }>;
+export type RefreshTokenMutation = { __typename?: 'Mutation', refreshToken: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, user: { __typename?: 'User', id: string, username: string, email: string, name: string, role: Role } } };
 
-export type SignOutMutation = { __typename?: 'Mutation'; signOut: boolean };
+export type SignOutMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type SignOutMutation = { __typename?: 'Mutation', signOut: boolean };
 
 export type UpdateUserMutationVariables = Exact<{
   id: Scalars['ID']['input'];
   input: UpdateUserInput;
 }>;
 
-export type UpdateUserMutation = {
-  __typename?: 'Mutation';
-  updateUser: {
-    __typename?: 'User';
-    id: string;
-    username: string;
-    email: string;
-    name: string;
-    phoneNumber?: string | null;
-    role: Role;
-    isActive: boolean;
-    updatedAt: string;
-  };
-};
+
+export type UpdateUserMutation = { __typename?: 'Mutation', updateUser: { __typename?: 'User', id: string, username: string, email: string, name: string, phoneNumber?: string | null, role: Role, isActive: boolean, updatedAt: string } };
 
 export type UpdateProfileMutationVariables = Exact<{
   input: UpdateProfileInput;
 }>;
 
-export type UpdateProfileMutation = {
-  __typename?: 'Mutation';
-  updateProfile: {
-    __typename?: 'User';
-    id: string;
-    username: string;
-    email: string;
-    name: string;
-    phoneNumber?: string | null;
-    updatedAt: string;
-  };
-};
+
+export type UpdateProfileMutation = { __typename?: 'Mutation', updateProfile: { __typename?: 'User', id: string, username: string, email: string, name: string, phoneNumber?: string | null, updatedAt: string } };
 
 export type ChangePasswordMutationVariables = Exact<{
   input: ChangePasswordInput;
 }>;
 
-export type ChangePasswordMutation = { __typename?: 'Mutation'; changePassword: boolean };
+
+export type ChangePasswordMutation = { __typename?: 'Mutation', changePassword: boolean };
 
 export type DeactivateUserMutationVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
-export type DeactivateUserMutation = {
-  __typename?: 'Mutation';
-  deactivateUser: { __typename?: 'User'; id: string; username: string; isActive: boolean };
-};
+
+export type DeactivateUserMutation = { __typename?: 'Mutation', deactivateUser: { __typename?: 'User', id: string, username: string, isActive: boolean } };
 
 export type CreateProductMutationVariables = Exact<{
   input: CreateProductInput;
 }>;
 
-export type CreateProductMutation = {
-  __typename?: 'Mutation';
-  createProduct: {
-    __typename?: 'Product';
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    sku: string;
-    category: string;
-    tags: Array<string>;
-    stock: number;
-    isActive: boolean;
-    createdAt: string;
-  };
-};
+
+export type CreateProductMutation = { __typename?: 'Mutation', createProduct: { __typename?: 'Product', id: string, name: string, description: string, price: number, sku: string, category: string, tags: Array<string>, stock: number, isActive: boolean, createdAt: string } };
 
 export type UpdateProductMutationVariables = Exact<{
   id: Scalars['ID']['input'];
   input: UpdateProductInput;
 }>;
 
-export type UpdateProductMutation = {
-  __typename?: 'Mutation';
-  updateProduct: {
-    __typename?: 'Product';
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    sku: string;
-    category: string;
-    tags: Array<string>;
-    stock: number;
-    isActive: boolean;
-    updatedAt: string;
-  };
-};
+
+export type UpdateProductMutation = { __typename?: 'Mutation', updateProduct: { __typename?: 'Product', id: string, name: string, description: string, price: number, sku: string, category: string, tags: Array<string>, stock: number, isActive: boolean, updatedAt: string } };
 
 export type DeactivateProductMutationVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
-export type DeactivateProductMutation = {
-  __typename?: 'Mutation';
-  deactivateProduct: { __typename?: 'Product'; id: string; isActive: boolean };
-};
+
+export type DeactivateProductMutation = { __typename?: 'Mutation', deactivateProduct: { __typename?: 'Product', id: string, isActive: boolean } };
 
 export type UpdateStockMutationVariables = Exact<{
   id: Scalars['ID']['input'];
   quantity: Scalars['Int']['input'];
 }>;
 
-export type UpdateStockMutation = {
-  __typename?: 'Mutation';
-  updateStock: { __typename?: 'Product'; id: string; stock: number; updatedAt: string };
-};
+
+export type UpdateStockMutation = { __typename?: 'Mutation', updateStock: { __typename?: 'Product', id: string, stock: number, updatedAt: string } };
 
 export type CreateOrderMutationVariables = Exact<{
   input: CreateOrderInput;
 }>;
 
-export type CreateOrderMutation = {
-  __typename?: 'Mutation';
-  createOrder: {
-    __typename?: 'Order';
-    id: string;
-    status: OrderStatus;
-    total: number;
-    createdAt: string;
-    user?: { __typename?: 'User'; id: string; username: string; email: string } | null;
-    items: Array<{
-      __typename?: 'OrderItem';
-      id: string;
-      quantity: number;
-      price: number;
-      product?: { __typename?: 'Product'; id: string; name: string; price: number } | null;
-    }>;
-  };
-};
+
+export type CreateOrderMutation = { __typename?: 'Mutation', createOrder: { __typename?: 'Order', id: string, status: OrderStatus, total: number, createdAt: string, user?: { __typename?: 'User', id: string, username: string, email: string } | null, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, price: number, product?: { __typename?: 'Product', id: string, name: string, price: number } | null }> } };
 
 export type UpdateOrderStatusMutationVariables = Exact<{
   id: Scalars['ID']['input'];
   status: OrderStatus;
 }>;
 
-export type UpdateOrderStatusMutation = {
-  __typename?: 'Mutation';
-  updateOrderStatus: { __typename?: 'Order'; id: string; status: OrderStatus; updatedAt: string };
-};
+
+export type UpdateOrderStatusMutation = { __typename?: 'Mutation', updateOrderStatus: { __typename?: 'Order', id: string, status: OrderStatus, updatedAt: string } };
 
 export type CancelOrderMutationVariables = Exact<{
   id: Scalars['ID']['input'];
   reason?: InputMaybe<Scalars['String']['input']>;
 }>;
 
-export type CancelOrderMutation = {
-  __typename?: 'Mutation';
-  cancelOrder: { __typename?: 'Order'; id: string; status: OrderStatus; updatedAt: string };
-};
+
+export type CancelOrderMutation = { __typename?: 'Mutation', cancelOrder: { __typename?: 'Order', id: string, status: OrderStatus, updatedAt: string } };
 
 export type GetUserQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
-export type GetUserQuery = {
-  __typename?: 'Query';
-  user?: {
-    __typename?: 'User';
-    id: string;
-    username: string;
-    email: string;
-    name: string;
-    phoneNumber?: string | null;
-    role: Role;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-  } | null;
-};
 
-export type GetUsersQueryVariables = Exact<{ [key: string]: never }>;
+export type GetUserQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username: string, email: string, name: string, phoneNumber?: string | null, role: Role, isActive: boolean, createdAt: string, updatedAt: string } | null };
 
-export type GetUsersQuery = {
-  __typename?: 'Query';
-  users: Array<{
-    __typename?: 'User';
-    id: string;
-    username: string;
-    email: string;
-    name: string;
-    phoneNumber?: string | null;
-    role: Role;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-  }>;
-};
+export type GetUsersQueryVariables = Exact<{ [key: string]: never; }>;
 
-export type GetMeQueryVariables = Exact<{ [key: string]: never }>;
 
-export type GetMeQuery = {
-  __typename?: 'Query';
-  me?: {
-    __typename?: 'User';
-    id: string;
-    username: string;
-    email: string;
-    name: string;
-    phoneNumber?: string | null;
-    role: Role;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-  } | null;
-};
+export type GetUsersQuery = { __typename?: 'Query', users: Array<{ __typename?: 'User', id: string, username: string, email: string, name: string, phoneNumber?: string | null, role: Role, isActive: boolean, createdAt: string, updatedAt: string }> };
+
+export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetMeQuery = { __typename?: 'Query', me?: { __typename?: 'User', id: string, username: string, email: string, name: string, phoneNumber?: string | null, role: Role, isActive: boolean, createdAt: string, updatedAt: string } | null };
 
 export type GetProductQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
-export type GetProductQuery = {
-  __typename?: 'Query';
-  product?: {
-    __typename?: 'Product';
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    sku: string;
-    category: string;
-    tags: Array<string>;
-    stock: number;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-  } | null;
-};
+
+export type GetProductQuery = { __typename?: 'Query', product?: { __typename?: 'Product', id: string, name: string, description: string, price: number, sku: string, category: string, tags: Array<string>, stock: number, isActive: boolean, createdAt: string, updatedAt: string } | null };
 
 export type GetProductsQueryVariables = Exact<{
   category?: InputMaybe<Scalars['String']['input']>;
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
-export type GetProductsQuery = {
-  __typename?: 'Query';
-  products: {
-    __typename?: 'ProductsPage';
-    totalCount: number;
-    products: Array<{
-      __typename?: 'Product';
-      id: string;
-      name: string;
-      description: string;
-      price: number;
-      sku: string;
-      category: string;
-      tags: Array<string>;
-      stock: number;
-      isActive: boolean;
-    }>;
-    pageInfo: {
-      __typename?: 'PageInfo';
-      hasNextPage: boolean;
-      hasPreviousPage: boolean;
-      startCursor?: string | null;
-      endCursor?: string | null;
-    };
-  };
-};
+
+export type GetProductsQuery = { __typename?: 'Query', products: { __typename?: 'ProductsPage', totalCount: number, products: Array<{ __typename?: 'Product', id: string, name: string, description: string, price: number, sku: string, category: string, tags: Array<string>, stock: number, isActive: boolean }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
 
 export type GetOrderWithDetailsQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
-export type GetOrderWithDetailsQuery = {
-  __typename?: 'Query';
-  order?: {
-    __typename?: 'Order';
-    id: string;
-    status: OrderStatus;
-    total: number;
-    createdAt: string;
-    updatedAt: string;
-    user?: {
-      __typename?: 'User';
-      id: string;
-      username: string;
-      email: string;
-      name: string;
-    } | null;
-    items: Array<{
-      __typename?: 'OrderItem';
-      id: string;
-      quantity: number;
-      price: number;
-      product?: {
-        __typename?: 'Product';
-        id: string;
-        name: string;
-        description: string;
-        price: number;
-      } | null;
-    }>;
-  } | null;
-};
 
-export type GetMyOrdersQueryVariables = Exact<{ [key: string]: never }>;
+export type GetOrderWithDetailsQuery = { __typename?: 'Query', order?: { __typename?: 'Order', id: string, status: OrderStatus, total: number, createdAt: string, updatedAt: string, user?: { __typename?: 'User', id: string, username: string, email: string, name: string } | null, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, price: number, product?: { __typename?: 'Product', id: string, name: string, description: string, price: number } | null }> } | null };
 
-export type GetMyOrdersQuery = {
-  __typename?: 'Query';
-  myOrders: {
-    __typename?: 'OrdersPage';
-    totalCount: number;
-    orders: Array<{
-      __typename?: 'Order';
-      id: string;
-      status: OrderStatus;
-      total: number;
-      createdAt: string;
-      items: Array<{
-        __typename?: 'OrderItem';
-        id: string;
-        quantity: number;
-        price: number;
-        product?: { __typename?: 'Product'; id: string; name: string; price: number } | null;
-      }>;
-    }>;
-    pageInfo: {
-      __typename?: 'PageInfo';
-      hasNextPage: boolean;
-      hasPreviousPage: boolean;
-      startCursor?: string | null;
-      endCursor?: string | null;
-    };
-  };
-};
+export type GetMyOrdersQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetMyOrdersQuery = { __typename?: 'Query', myOrders: { __typename?: 'OrdersPage', totalCount: number, orders: Array<{ __typename?: 'Order', id: string, status: OrderStatus, total: number, createdAt: string, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, price: number, product?: { __typename?: 'Product', id: string, name: string, price: number } | null }> }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
 
 export type GetUserWithOrdersQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
-export type GetUserWithOrdersQuery = {
-  __typename?: 'Query';
-  user?: {
-    __typename?: 'User';
-    id: string;
-    username: string;
-    email: string;
-    name: string;
-    orders: Array<{
-      __typename?: 'Order';
-      id: string;
-      status: OrderStatus;
-      total: number;
-      createdAt: string;
-      items: Array<{
-        __typename?: 'OrderItem';
-        id: string;
-        quantity: number;
-        price: number;
-        product?: { __typename?: 'Product'; id: string; name: string } | null;
-      }>;
-    }>;
-  } | null;
-};
+
+export type GetUserWithOrdersQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username: string, email: string, name: string, orders: Array<{ __typename?: 'Order', id: string, status: OrderStatus, total: number, createdAt: string, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, price: number, product?: { __typename?: 'Product', id: string, name: string } | null }> }> } | null };

@@ -1,0 +1,128 @@
+version: '3.9'
+
+services:
+  # Test databases
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_db
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass test_password
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Services with test configuration
+  users:
+    build:
+      context: .
+      dockerfile: services/users/Dockerfile
+    environment:
+      NODE_ENV: test
+      PORT: 4001
+      DATABASE_URL: postgresql://postgres:test_password@postgres:5432/test_db
+      REDIS_URL: redis://:test_password@redis:6379/0
+      JWT_ACCESS_SECRET: test_access_secret
+      JWT_REFRESH_SECRET: test_refresh_secret
+      INTROSPECTION_ENABLED: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - test-network
+
+  products:
+    build:
+      context: .
+      dockerfile: services/products/Dockerfile
+    environment:
+      NODE_ENV: test
+      PORT: 4002
+      DATABASE_URL: postgresql://postgres:test_password@postgres:5432/test_db
+      REDIS_URL: redis://:test_password@redis:6379/1
+      INTROSPECTION_ENABLED: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - test-network
+
+  orders:
+    build:
+      context: .
+      dockerfile: services/orders/Dockerfile
+    environment:
+      NODE_ENV: test
+      PORT: 4003
+      DATABASE_URL: postgresql://postgres:test_password@postgres:5432/test_db
+      REDIS_URL: redis://:test_password@redis:6379/2
+      INTROSPECTION_ENABLED: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - test-network
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    environment:
+      NODE_ENV: test
+      PORT: 4000
+      SUBGRAPH_URLS: |
+        [
+          {"name": "users", "url": "http://users:4001/graphql"},
+          {"name": "products", "url": "http://products:4002/graphql"},
+          {"name": "orders", "url": "http://orders:4003/graphql"}
+        ]
+      POLLING_INTERVAL: 10000
+      INTROSPECTION_ENABLED: true
+    depends_on:
+      - users
+      - products
+      - orders
+    ports:
+      - "4000:4000"
+    networks:
+      - test-network
+
+  # Integration test runner
+  tests:
+    image: oven/bun:1.2
+    volumes:
+      - ./tests:/app/tests
+      - ./package.json:/app/package.json
+      - ./bun.lockb:/app/bun.lockb
+    working_dir: /app
+    command: bun test:integration
+    depends_on:
+      - gateway
+    networks:
+      - test-network
+    environment:
+      GATEWAY_URL: http://gateway:4000/graphql
+
+networks:
+  test-network:
+    driver: bridge

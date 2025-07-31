@@ -150,7 +150,7 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-async function apolloExample() {
+async function _apolloExample() {
   // Works seamlessly with Apollo Client
   const result = await client.query({
     query: GET_ME,
@@ -170,7 +170,7 @@ const urqlClient = createClient({
   url: 'http://localhost:4000/graphql',
 });
 
-async function urqlExample() {
+async function _urqlExample() {
   // Works with urql too!
   const result = await urqlClient.query(GET_USER_WITH_ORDERS, { id: 'user-123' }).toPromise();
 
@@ -182,7 +182,7 @@ async function urqlExample() {
 }
 
 // Run examples
-async function main() {
+async function _main() {
   try {
     // Sign in
     const token = await signInWithFetch();

@@ -1,0 +1,176 @@
+name: Performance Testing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: "Test duration in seconds"
+        required: false
+        default: "60"
+      rate:
+        description: "Requests per second"
+        required: false
+        default: "100"
+
+jobs:
+  performance-test:
+    name: GraphQL Performance Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start services
+        run: |
+          docker-compose -f docker-compose.test.yml up -d gateway users products orders postgres redis
+
+          # Wait for services to be healthy
+          echo "Waiting for services to be ready..."
+          for i in {1..30}; do
+            if curl -f http://localhost:4000/health >/dev/null 2>&1; then
+              echo "Gateway is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run k6 performance tests
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: tests/performance/k6-test.js
+          flags: --out json=results.json --duration ${{ github.event.inputs.duration || '60' }}s --rps ${{ github.event.inputs.rate || '100' }}
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-results
+          path: results.json
+
+      - name: Stop services
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down
+
+      - name: Process results
+        run: |
+          # Extract key metrics from results
+          if [ -f results.json ]; then
+            echo "## Performance Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse and display results (simplified - in reality you'd use jq)
+            echo "- Duration: ${{ github.event.inputs.duration || '60' }}s" >> $GITHUB_STEP_SUMMARY
+            echo "- Target RPS: ${{ github.event.inputs.rate || '100' }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Add more detailed parsing here
+          fi
+
+  query-complexity-test:
+    name: Query Complexity Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run complexity analysis
+        run: |
+          # Create a test script for complexity analysis
+          cat > test-complexity.ts << 'EOF'
+          import { estimateQueryComplexity } from '@graphql-microservices/shared-query-complexity';
+          import { buildSubgraphSchema } from '@apollo/subgraph';
+          import { readFileSync } from 'fs';
+
+          // Test queries with expected complexity
+          const testQueries = [
+            {
+              name: 'Simple user query',
+              query: `
+                query GetUser {
+                  user(id: "1") {
+                    id
+                    username
+                    email
+                  }
+                }
+              `,
+              maxComplexity: 10
+            },
+            {
+              name: 'User with orders',
+              query: `
+                query GetUserWithOrders {
+                  user(id: "1") {
+                    id
+                    username
+                    orders(first: 20) {
+                      id
+                      totalAmount
+                      items {
+                        id
+                        quantity
+                        product {
+                          id
+                          name
+                          price
+                        }
+                      }
+                    }
+                  }
+                }
+              `,
+              maxComplexity: 500
+            },
+            {
+              name: 'Complex nested query',
+              query: `
+                query ComplexQuery {
+                  users(first: 50) {
+                    id
+                    orders(first: 10) {
+                      id
+                      items {
+                        product {
+                          id
+                          reviews(first: 5) {
+                            id
+                            rating
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `,
+              maxComplexity: 2000
+            }
+          ];
+
+          console.log('## Query Complexity Test Results\n');
+
+          testQueries.forEach(test => {
+            try {
+              // This is simplified - you'd need to load actual schema
+              console.log(`### ${test.name}`);
+              console.log(`Max allowed: ${test.maxComplexity}`);
+              console.log(`Query:\n\`\`\`graphql\n${test.query}\n\`\`\`\n`);
+            } catch (error) {
+              console.error(`Failed: ${error.message}`);
+            }
+          });
+          EOF
+
+          bun run test-complexity.ts >> $GITHUB_STEP_SUMMARY

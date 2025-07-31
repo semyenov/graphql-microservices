@@ -29,8 +29,12 @@
     "docker:down": "docker-compose down",
     "schema:introspect": "bun run scripts/introspect-schema.ts",
     "schema:export": "bun run scripts/export-schema.ts",
+    "schema:validate": "bun run scripts/validate-schemas.ts",
+    "schema:check-compatibility": "bun run scripts/check-schema-compatibility.ts",
     "docs:generate": "bun run scripts/generate-docs.ts",
-    "schema:update": "bun run scripts/update-schemas.ts"
+    "schema:update": "bun run scripts/update-schemas.ts",
+    "test:integration": "docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from tests",
+    "docker:build": "bash scripts/docker-build-prod.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.3",
@@ -38,8 +42,13 @@
     "@graphql-codegen/typescript": "^4.1.6",
     "@graphql-codegen/typescript-operations": "^4.6.1",
     "@graphql-codegen/typescript-resolvers": "^4.5.1",
+    "@graphql-inspector/core": "^6.2.1",
+    "@graphql-tools/graphql-file-loader": "^8.0.1",
+    "@graphql-tools/load": "^8.0.2",
     "@prisma/client": "^6.13.0",
     "@types/bun": "^1.2.19",
+    "ast-grep": "^0.1.0",
+    "chalk": "^5.4.1",
     "prisma": "^6.13.0"
   },
   "peerDependencies": {

@@ -9,14 +9,14 @@ export async function extractAndVerifyUser(
   authHeader: string | undefined
 ): Promise<JWTPayload | null> {
   const token = authService.extractTokenFromHeader(authHeader);
-  
+
   if (!token) {
     return null;
   }
 
   try {
     return authService.verifyAccessToken(token);
-  } catch (error) {
+  } catch (_error) {
     // Token verification failed - don't throw, just return null
     // The resolvers will handle authentication requirements
     return null;

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import type { Decimal } from '@prisma/client/runtime/library';
 import { getServiceDatabaseUrl, logError, logSuccess } from '@shared/utils';
 import { PrismaClient as OrdersClient } from '../services/orders/generated/prisma';
 import { PrismaClient as ProductsClient } from '../services/products/generated/prisma';
@@ -188,16 +189,27 @@ async function seedProducts() {
   return createdProducts;
 }
 
-async function seedOrders(users: any[], products: any[]) {
+async function seedOrders(
+  users: { id: string; username: string; email: string }[],
+  products: { id: string; name: string; price: Decimal }[]
+) {
   console.log('Seeding orders...');
+
+  // Ensure we have enough users and products for seeding
+  if (users.length < 3) {
+    throw new Error('Need at least 3 users to seed orders');
+  }
+  if (products.length < 8) {
+    throw new Error('Need at least 8 products to seed orders');
+  }
 
   // Create some sample orders
   const orderData = [
     {
-      userId: users[1].id, // John Doe
+      userId: users[1]?.id, // John Doe
       items: [
-        { productId: products[0].id, quantity: 1, price: products[0].price },
-        { productId: products[2].id, quantity: 2, price: products[2].price },
+        { productId: products[0]?.id, quantity: 1, price: products[0]?.price.toNumber() },
+        { productId: products[2]?.id, quantity: 2, price: products[2]?.price.toNumber() },
       ],
       status: 'DELIVERED' as const,
       shippingInfo: {
@@ -210,8 +222,8 @@ async function seedOrders(users: any[], products: any[]) {
       },
     },
     {
-      userId: users[2].id, // Jane Doe
-      items: [{ productId: products[1].id, quantity: 1, price: products[1].price }],
+      userId: users[2]?.id, // Jane Doe
+      items: [{ productId: products[1]?.id, quantity: 1, price: products[1]?.price.toNumber() }],
       status: 'PROCESSING' as const,
       shippingInfo: {
         address: '456 Oak Ave',
@@ -223,10 +235,10 @@ async function seedOrders(users: any[], products: any[]) {
       },
     },
     {
-      userId: users[1].id, // John Doe
+      userId: users[1]?.id, // John Doe
       items: [
-        { productId: products[4].id, quantity: 1, price: products[4].price },
-        { productId: products[7].id, quantity: 1, price: products[7].price },
+        { productId: products[4]?.id, quantity: 1, price: products[4]?.price.toNumber() },
+        { productId: products[7]?.id, quantity: 1, price: products[7]?.price.toNumber() },
       ],
       status: 'PENDING' as const,
       shippingInfo: {

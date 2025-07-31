@@ -31,6 +31,7 @@ export enum ErrorCode {
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
   TIMEOUT = 'TIMEOUT',
   RATE_LIMITED = 'RATE_LIMITED',
+  QUERY_COMPLEXITY_EXCEEDED = 'QUERY_COMPLEXITY_EXCEEDED',
 
   // Database errors
   DATABASE_ERROR = 'DATABASE_ERROR',
@@ -179,6 +180,34 @@ export class RateLimitError extends GraphQLError {
       },
     });
     this.name = 'RateLimitError';
+  }
+}
+
+/**
+ * Query complexity error
+ */
+export interface QueryComplexityErrorExtensions extends BaseErrorExtensions {
+  complexity: number;
+  maximumComplexity: number;
+}
+
+export class QueryComplexityError extends GraphQLError {
+  constructor(
+    message = 'Query is too complex',
+    complexity: number,
+    maximumComplexity: number,
+    extensions?: Partial<QueryComplexityErrorExtensions>
+  ) {
+    super(message, {
+      extensions: {
+        code: ErrorCode.QUERY_COMPLEXITY_EXCEEDED,
+        timestamp: new Date().toISOString(),
+        complexity,
+        maximumComplexity,
+        ...extensions,
+      },
+    });
+    this.name = 'QueryComplexityError';
   }
 }
 

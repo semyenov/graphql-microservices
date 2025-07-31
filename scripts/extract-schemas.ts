@@ -13,7 +13,7 @@ async function extractSchemaFromFile(filePath: string): Promise<string | null> {
     const gqlRegex = /const\s+typeDefs\s*=\s*gql`([\s\S]*?)`;/;
     const match = content.match(gqlRegex);
 
-    if (match && match[1]) {
+    if (match?.[1]) {
       // Clean up the schema
       let schema = match[1].trim();
 

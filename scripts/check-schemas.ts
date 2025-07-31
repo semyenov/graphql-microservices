@@ -38,32 +38,50 @@ async function checkService(service: { name: string; url: string }) {
       return;
     }
 
-    const data = (await response.json()) as { data?: { __schema?: { types?: any[] } } };
+    const data = (await response.json()) as {
+      data?: {
+        __schema?: {
+          types?: {
+            name: string;
+            fields: { name: string; type: { name: string; kind: string } }[];
+          }[];
+        };
+      };
+    };
     const types = data.data?.__schema?.types || [];
 
     // Find User type
-    const userType = types.find((t: any) => t.name === 'User');
-    if (userType && userType.fields) {
+    const userType = types.find(
+      (t: { name: string; fields: { name: string; type: { name: string; kind: string } }[] }) =>
+        t.name === 'User'
+    );
+    if (userType?.fields) {
       console.log(`\n📦 ${service.name} service - User type fields:`);
-      userType.fields.forEach((field: any) => {
+      userType.fields.forEach((field: { name: string; type: { name: string; kind: string } }) => {
         console.log(`  - ${field.name}: ${field.type.name || field.type.kind}`);
       });
     }
 
     // Find AuthPayload type
-    const authType = types.find((t: any) => t.name === 'AuthPayload');
-    if (authType && authType.fields) {
+    const authType = types.find(
+      (t: { name: string; fields: { name: string; type: { name: string; kind: string } }[] }) =>
+        t.name === 'AuthPayload'
+    );
+    if (authType?.fields) {
       console.log(`\n📦 ${service.name} service - AuthPayload type fields:`);
-      authType.fields.forEach((field: any) => {
+      authType.fields.forEach((field: { name: string; type: { name: string; kind: string } }) => {
         console.log(`  - ${field.name}: ${field.type.name || field.type.kind}`);
       });
     }
 
     // Find Query type
-    const queryType = types.find((t: any) => t.name === 'Query');
-    if (queryType && queryType.fields) {
+    const queryType = types.find(
+      (t: { name: string; fields: { name: string; type: { name: string; kind: string } }[] }) =>
+        t.name === 'Query'
+    );
+    if (queryType?.fields) {
       const userQueries = queryType.fields.filter(
-        (f: any) =>
+        (f: { name: string }) =>
           f.name.toLowerCase().includes('user') ||
           f.name === 'me' ||
           f.name.includes('signIn') ||
@@ -71,17 +89,20 @@ async function checkService(service: { name: string; url: string }) {
       );
       if (userQueries.length > 0) {
         console.log(`\n📦 ${service.name} service - User-related queries:`);
-        userQueries.forEach((field: any) => {
+        userQueries.forEach((field: { name: string }) => {
           console.log(`  - ${field.name}`);
         });
       }
     }
 
     // Find Mutation type
-    const mutationType = types.find((t: any) => t.name === 'Mutation');
-    if (mutationType && mutationType.fields) {
+    const mutationType = types.find(
+      (t: { name: string; fields: { name: string; type: { name: string; kind: string } }[] }) =>
+        t.name === 'Mutation'
+    );
+    if (mutationType?.fields) {
       const userMutations = mutationType.fields.filter(
-        (f: any) =>
+        (f: { name: string }) =>
           f.name.toLowerCase().includes('user') ||
           f.name.includes('sign') ||
           f.name.includes('auth') ||
@@ -90,7 +111,7 @@ async function checkService(service: { name: string; url: string }) {
       );
       if (userMutations.length > 0) {
         console.log(`\n📦 ${service.name} service - User-related mutations:`);
-        userMutations.forEach((field: any) => {
+        userMutations.forEach((field: { name: string }) => {
           console.log(`  - ${field.name}`);
         });
       }
@@ -105,5 +126,7 @@ console.log('🔍 Checking GraphQL schemas exposed by each service...\n');
 // Check all services
 for (const service of services) {
   await checkService(service);
-  console.log('\n' + '='.repeat(50));
+  console.log(`\n${'='.repeat(50)}`);
 }
+
+export {};

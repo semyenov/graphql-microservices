@@ -94,15 +94,21 @@ shared/
   auth/                     # JWT with RS256, auth directives
   cache/                    # Redis caching with TTL strategies
   config/                   # Zod schemas for env validation
+  errors/                   # Centralized error handling and types
   graphql/                  # Federation directives
   health/                   # Health check utilities
+  logging/                  # Structured logging with correlation IDs
+  observability/            # OpenTelemetry tracing and metrics
   pubsub/                   # GraphQL subscriptions via Redis
+  query-complexity/         # GraphQL query complexity analysis
   rate-limit/               # Rate limiting with presets
+  type-utils/               # TypeScript utility types
   utils/                    # Shared utilities for scripts and services
     service-discovery.ts    # Auto-discovery patterns for services
     schema.ts              # GraphQL schema utilities
     docker.ts              # Docker management utilities
     index.ts               # Common logging and utility functions
+  validation/               # Input validation with Zod schemas
 scripts/
   dev.ts                    # Auto-discovers and starts services
   build.ts                  # Production build with auto-discovery
@@ -156,6 +162,19 @@ scripts/
    - Zero-configuration addition of new services
    - Shared utilities for common patterns across all scripts
    - Centralized service management and health checking
+
+8. **Observability & Monitoring**
+   - OpenTelemetry distributed tracing across services
+   - Structured logging with correlation ID propagation
+   - Custom metrics collection for business events
+   - Query complexity analysis to prevent expensive operations
+   - Automatic instrumentation for GraphQL, HTTP, Redis, and database operations
+
+9. **Input Validation & Security**
+   - Comprehensive Zod schemas for all input validation
+   - Automatic sanitization of string inputs
+   - Centralized error handling with typed error responses
+   - TypeScript utility types for better type safety
 
 ## Testing Approach
 

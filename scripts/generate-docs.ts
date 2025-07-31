@@ -1,19 +1,9 @@
 #!/usr/bin/env bun
 
-import {
-  checkServiceHealth,
-  fetchIntrospectionSchema,
-  getAllServiceInfo,
-  introspectionToSDL,
-  logError,
-  logStep,
-  logSuccess,
-  logWarning,
-} from '@shared/utils';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { buildSchema, getIntrospectionQuery, graphqlSync, printSchema } from 'graphql';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { getAllServiceInfo, logError, logSuccess } from '@shared/utils';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -201,22 +191,29 @@ ws://localhost:4000/graphql
       const enumRegex = /enum\s+(\w+)\s*{[^}]+}/g;
       const inputRegex = /input\s+(\w+)\s*{[^}]+}/g;
 
-      let match;
-      while ((match = typeRegex.exec(service.schema)) !== null) {
+      let match: RegExpExecArray | null = null;
+
+      match = typeRegex.exec(service.schema);
+      while (match !== null) {
         if (
-          !['Query', 'Mutation', 'Subscription'].includes(match[1]) &&
-          !match[1].startsWith('__')
+          !['Query', 'Mutation', 'Subscription'].includes(match[1] ?? '') &&
+          !match[1]?.startsWith('__')
         ) {
           typeDefinitions.push(match[0]);
         }
+        match = typeRegex.exec(service.schema);
       }
 
-      while ((match = enumRegex.exec(service.schema)) !== null) {
+      match = enumRegex.exec(service.schema);
+      while (match !== null) {
         typeDefinitions.push(match[0]);
+        match = enumRegex.exec(service.schema);
       }
 
-      while ((match = inputRegex.exec(service.schema)) !== null) {
+      match = inputRegex.exec(service.schema);
+      while (match !== null) {
         typeDefinitions.push(match[0]);
+        match = inputRegex.exec(service.schema);
       }
     }
   });
@@ -561,7 +558,7 @@ function generateHtmlDocs(): string {
 
 // Generate OpenAPI spec from GraphQL schema
 function generateOpenApiSpec(): object {
-  const gatewaySchema = readFileSync(join(rootDir, 'schemas', 'combined.graphql'), 'utf-8');
+  // Gateway schema is available in schemas/combined.graphql if needed for OpenAPI generation
 
   return {
     openapi: '3.0.0',

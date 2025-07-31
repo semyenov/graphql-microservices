@@ -7,4 +7,8 @@ export type {
   User as GraphQLUser,
   UserResolvers as GraphQLUserResolvers,
 } from '../generated/graphql';
-export { type Prisma, PrismaClient, type User as PrismaUser } from '../generated/prisma';
+export type {
+  Prisma,
+  Role as PrismaUserRole,
+  User as PrismaUser,
+} from '../generated/prisma';
