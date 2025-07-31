@@ -1,0 +1,62 @@
+# Generic Service Dockerfile Template
+# Build arguments: SERVICE_NAME, SERVICE_PORT
+
+ARG SERVICE_NAME
+ARG SERVICE_PORT
+ARG BASE_IMAGE=./Dockerfile.base
+
+# Build stage
+FROM service-builder AS builder
+ARG SERVICE_NAME
+
+WORKDIR /app
+
+# Copy service source code
+COPY services/${SERVICE_NAME}/ ./services/${SERVICE_NAME}/
+
+# Generate Prisma client if schema exists
+WORKDIR /app/services/${SERVICE_NAME}
+RUN if [ -f "prisma/schema.prisma" ]; then \
+        bunx prisma generate; \
+    fi
+
+# Build the service using the new build system
+RUN bun run /app/packages/builder/dist/index.js
+
+# Runtime stage
+FROM base AS runtime
+ARG SERVICE_NAME
+ARG SERVICE_PORT
+
+WORKDIR /app
+
+# Copy built application
+COPY --from=builder --chown=nodejs:nodejs /app/services/${SERVICE_NAME}/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/services/${SERVICE_NAME}/package.json ./
+
+# Copy Prisma files if they exist
+COPY --from=builder --chown=nodejs:nodejs /app/services/${SERVICE_NAME}/prisma ./prisma || true
+COPY --from=builder --chown=nodejs:nodejs /app/services/${SERVICE_NAME}/generated/prisma ./generated/prisma || true
+
+# Copy only production dependencies
+COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+
+# Service specific environment
+ENV PORT=${SERVICE_PORT} \
+    SERVICE_NAME=${SERVICE_NAME}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+   CMD wget --no-verbose --tries=1 --spider http://localhost:${SERVICE_PORT}/health || exit 1
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE ${SERVICE_PORT}
+
+# Use tini for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start the service
+CMD ["bun", "run", "dist/index.js"]

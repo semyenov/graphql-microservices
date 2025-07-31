@@ -14,9 +14,8 @@ VERSION=${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo "l
 BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 VCS_REF=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-# Enable BuildKit
+# Enable BuildKit if available
 export DOCKER_BUILDKIT=1
-export BUILDKIT_PROGRESS=plain
 
 # Function to print colored output
 print_info() {
@@ -41,19 +40,6 @@ if ! docker info >/dev/null 2>&1; then
     exit 1
 fi
 
-# Check if we should use buildx
-USE_BUILDX=false
-if docker buildx version >/dev/null 2>&1; then
-    USE_BUILDX=true
-    print_info "Using Docker Buildx for enhanced build features"
-    # Create builder instance if it doesn't exist
-    if ! docker buildx inspect mybuilder >/dev/null 2>&1; then
-        docker buildx create --name mybuilder --use
-    else
-        docker buildx use mybuilder
-    fi
-fi
-
 # Auto-discover services
 SERVICES=($(ls -d services/*/ | xargs -n1 basename))
 
@@ -71,14 +57,13 @@ build_service() {
         --build-arg VERSION="${VERSION}"
     )
     
-    # Build with cache
+    # Build with cache if registry is configured
     if [ -n "${REGISTRY}" ]; then
+        docker pull "${image_name}:latest" 2>/dev/null || true
+        docker pull "${REGISTRY}graphql-microservices-builder:latest" 2>/dev/null || true
         BUILD_ARGS+=(--cache-from "${image_name}:latest")
         BUILD_ARGS+=(--cache-from "${REGISTRY}graphql-microservices-builder:latest")
     fi
-    
-    # Add progress output
-    BUILD_ARGS+=(--progress=plain)
     
     # Build the image
     if docker build \
@@ -115,11 +100,9 @@ build_base() {
     )
     
     if [ -n "${REGISTRY}" ]; then
+        docker pull "${image_name}:latest" 2>/dev/null || true
         BUILD_ARGS+=(--cache-from "${image_name}:latest")
     fi
-    
-    # Add progress output
-    BUILD_ARGS+=(--progress=plain)
     
     if docker build \
         -f "Dockerfile.base" \
@@ -138,27 +121,6 @@ build_base() {
         print_error "Failed to build base/builder image"
         return 1
     fi
-}
-
-# Parallel build function
-parallel_build() {
-    local pids=()
-    
-    # Build services in parallel
-    for service in "${SERVICES[@]}"; do
-        build_service "${service}" &
-        pids+=($!)
-    done
-    
-    # Wait for all builds to complete
-    local failed=0
-    for pid in "${pids[@]}"; do
-        if ! wait "$pid"; then
-            failed=$((failed + 1))
-        fi
-    done
-    
-    return $failed
 }
 
 # Main execution
@@ -180,24 +142,13 @@ if ! build_base; then
     exit 1
 fi
 
-# Build all services
-if [ "${PARALLEL_BUILD:-true}" = "true" ]; then
-    print_info "Building services in parallel..."
-    if parallel_build; then
-        print_info "All services built successfully!"
-    else
-        print_error "Some services failed to build"
+# Build all services sequentially
+for service in "${SERVICES[@]}"; do
+    if ! build_service "${service}"; then
+        print_error "Build process failed"
         exit 1
     fi
-else
-    print_info "Building services sequentially..."
-    for service in "${SERVICES[@]}"; do
-        if ! build_service "${service}"; then
-            print_error "Build process failed"
-            exit 1
-        fi
-    done
-fi
+done
 
 # Generate docker-compose override file with image tags
 cat > docker-compose.override.yml <<EOF
@@ -219,12 +170,6 @@ EOF
 done
 
 print_info "Generated docker-compose.override.yml with image tags"
-
-# Optionally run tests
-if [ "${RUN_TESTS:-false}" = "true" ]; then
-    print_info "Running integration tests..."
-    docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from tests
-fi
 
 # Print summary
 echo ""

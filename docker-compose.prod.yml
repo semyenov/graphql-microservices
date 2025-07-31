@@ -1,5 +1,9 @@
 version: '3.9'
 
+x-build-args: &build-args
+  DOCKER_BUILDKIT: 1
+  BUILDKIT_PROGRESS: plain
+    
 services:
   # PostgreSQL Databases
   postgres-users:
@@ -112,21 +116,40 @@ services:
           cpus: '0.25'
           memory: 256M
 
+  # Base builder service (builds once, shared by all services)
+  builder:
+    image: ${REGISTRY}graphql-microservices-builder:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+      target: service-builder
+      cache_from:
+        - ${REGISTRY}graphql-microservices-builder:latest
+      args:
+        <<: *build-args
+    networks:
+      - none
+
   # Users Service
   users:
     build:
       context: .
       dockerfile: services/users/Dockerfile
       cache_from:
-        - ${REGISTRY}/graphql-microservices-users:latest
-    image: ${REGISTRY}/graphql-microservices-users:${VERSION:-latest}
+        - ${REGISTRY}graphql-microservices-users:latest
+        - ${REGISTRY}graphql-microservices-builder:latest
+      args:
+        <<: *build-args
+    image: ${REGISTRY}graphql-microservices-users:${VERSION:-latest}
     environment:
       NODE_ENV: production
       PORT: 4001
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-users:5432/users_db
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_PRIVATE_KEY: ${JWT_ACCESS_PRIVATE_KEY}
+      JWT_ACCESS_PUBLIC_KEY: ${JWT_ACCESS_PUBLIC_KEY}
+      JWT_REFRESH_PRIVATE_KEY: ${JWT_REFRESH_PRIVATE_KEY}
+      JWT_REFRESH_PUBLIC_KEY: ${JWT_REFRESH_PUBLIC_KEY}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
@@ -141,6 +164,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      builder:
+        condition: service_completed_successfully
     networks:
       - backend
     restart: unless-stopped
@@ -164,13 +189,17 @@ services:
       context: .
       dockerfile: services/products/Dockerfile
       cache_from:
-        - ${REGISTRY}/graphql-microservices-products:latest
-    image: ${REGISTRY}/graphql-microservices-products:${VERSION:-latest}
+        - ${REGISTRY}graphql-microservices-products:latest
+        - ${REGISTRY}graphql-microservices-builder:latest
+      args:
+        <<: *build-args
+    image: ${REGISTRY}graphql-microservices-products:${VERSION:-latest}
     environment:
       NODE_ENV: production
       PORT: 4002
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-products:5432/products_db
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      JWT_ACCESS_PUBLIC_KEY: ${JWT_ACCESS_PUBLIC_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       INTROSPECTION_ENABLED: ${INTROSPECTION_ENABLED:-false}
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
@@ -183,6 +212,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      builder:
+        condition: service_completed_successfully
     networks:
       - backend
     restart: unless-stopped
@@ -206,13 +237,17 @@ services:
       context: .
       dockerfile: services/orders/Dockerfile
       cache_from:
-        - ${REGISTRY}/graphql-microservices-orders:latest
-    image: ${REGISTRY}/graphql-microservices-orders:${VERSION:-latest}
+        - ${REGISTRY}graphql-microservices-orders:latest
+        - ${REGISTRY}graphql-microservices-builder:latest
+      args:
+        <<: *build-args
+    image: ${REGISTRY}graphql-microservices-orders:${VERSION:-latest}
     environment:
       NODE_ENV: production
       PORT: 4003
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-orders:5432/orders_db
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/2
+      JWT_ACCESS_PUBLIC_KEY: ${JWT_ACCESS_PUBLIC_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       INTROSPECTION_ENABLED: ${INTROSPECTION_ENABLED:-false}
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
@@ -225,6 +260,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      builder:
+        condition: service_completed_successfully
     networks:
       - backend
     restart: unless-stopped
@@ -248,8 +285,11 @@ services:
       context: .
       dockerfile: services/gateway/Dockerfile
       cache_from:
-        - ${REGISTRY}/graphql-microservices-gateway:latest
-    image: ${REGISTRY}/graphql-microservices-gateway:${VERSION:-latest}
+        - ${REGISTRY}graphql-microservices-gateway:latest
+        - ${REGISTRY}graphql-microservices-builder:latest
+      args:
+        <<: *build-args
+    image: ${REGISTRY}graphql-microservices-gateway:${VERSION:-latest}
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -269,9 +309,12 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_SERVICE_NAME: gateway-service
     depends_on:
-      - users
-      - products
-      - orders
+      users:
+        condition: service_healthy
+      products:
+        condition: service_healthy
+      orders:
+        condition: service_healthy
     ports:
       - "${GATEWAY_PORT:-4000}:4000"
     networks:
@@ -302,7 +345,8 @@ services:
       - "80:80"
       - "443:443"
     depends_on:
-      - gateway
+      gateway:
+        condition: service_healthy
     networks:
       - frontend
     restart: unless-stopped

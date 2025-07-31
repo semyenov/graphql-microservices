@@ -1,36 +1,51 @@
-# Multi-stage Dockerfile for Orders Service
+# Orders Service Dockerfile
 
-# Stage 1: Dependencies
+# Dependencies stage
 FROM oven/bun:1.2 AS deps
 WORKDIR /app
 
-# Copy package files
+# Copy workspace package files
 COPY package.json bun.lock ./
-COPY services/orders/package.json ./services/orders/
-COPY shared/ ./shared/
+COPY packages/*/package.json ./packages/
+COPY shared/*/package.json ./shared/
+COPY services/*/package.json ./services/
 COPY client/package.json ./client/
 
-# Install dependencies
+# Install all dependencies
 RUN bun install
 
-# Stage 2: Build
-FROM oven/bun:1.2 AS builder
+# Build packages stage
+FROM deps AS package-builder
 WORKDIR /app
 
-# Copy dependencies
-COPY --from=deps /app/node_modules ./node_modules
+# Copy package source code
+COPY packages/ ./packages/
+COPY shared/ ./shared/
+COPY tsconfig.json ./
+COPY biome.json ./
+COPY codegen.yml ./
 
-# Copy source code
-COPY . .
+# Install tsdown as dev dependency for building
+RUN bun add -D tsdown
+
+# Build all packages
+RUN bun run build:packages
+
+# Build stage
+FROM package-builder AS builder
+WORKDIR /app
+
+# Copy orders service source code
+COPY services/orders/ ./services/orders/
 
 # Generate Prisma client
 WORKDIR /app/services/orders
 RUN bunx prisma generate
 
-# Build the service
-RUN bun build ./src/index.ts --target=bun --outdir=./dist --minify
+# Build the service using the new build system
+RUN bun run /app/packages/builder/dist/index.js
 
-# Stage 3: Runtime
+# Runtime stage
 FROM oven/bun:1.2-alpine AS runtime
 WORKDIR /app
 
@@ -38,7 +53,8 @@ WORKDIR /app
 RUN apk add --no-cache \
     openssl \
     ca-certificates \
-    tini
+    tini \
+    && rm -rf /var/cache/apk/*
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -46,24 +62,23 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Copy built application
 COPY --from=builder --chown=nodejs:nodejs /app/services/orders/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/services/orders/package.json ./
+
+# Copy Prisma files
 COPY --from=builder --chown=nodejs:nodejs /app/services/orders/prisma ./prisma
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nodejs:nodejs /app/services/orders/generated/prisma ./generated/prisma
+
+# Copy only production dependencies
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 
-# Copy package.json for scripts
-COPY --chown=nodejs:nodejs services/orders/package.json ./
-
-# Set environment
-ENV NODE_ENV=production
-ENV PORT=4003
+# Orders service specific environment
+ENV NODE_ENV=production \
+    PORT=4003 \
+    SERVICE_NAME=orders
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD bun healthcheck.js || exit 1
-
-# Create health check script
-RUN echo 'fetch("http://localhost:4003/health").then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))' > healthcheck.js
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:4003/health || exit 1
 
 # Switch to non-root user
 USER nodejs

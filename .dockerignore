@@ -3,11 +3,19 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Generated files
-generated/
+# Build outputs
 dist/
 build/
+.next/
+out/
+*.tsbuildinfo
+
+# Generated files (except needed ones)
+**/generated/**
+!**/generated/prisma/**
 
 # Environment files
 .env
@@ -15,36 +23,60 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*.local
+!.env.production.example
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Git
 .git/
 .gitignore
+.gitattributes
 
 # Documentation
 *.md
 docs/
+!README.md
 
 # Test files
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+**/__tests__/**
+**/__mocks__/**
+coverage/
+.nyc_output/
+jest.config.*
+vitest.config.*
 test/
 tests/
-*.test.js
-*.test.ts
-*.spec.js
-*.spec.ts
+e2e/
 
 # Logs
 logs/
 *.log
+lerna-debug.log*
 
 # Runtime data
 pids/
@@ -52,17 +84,14 @@ pids/
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
-coverage/
-
-# nyc test coverage
-.nyc_output
-
 # Dependency directories
 jspm_packages/
 
 # Optional npm cache directory
 .npm
+
+# Optional eslint cache
+.eslintcache
 
 # Optional REPL history
 .node_repl_history
@@ -70,17 +99,78 @@ jspm_packages/
 # Output of 'npm pack'
 *.tgz
 
-# Yarn Integrity file
+# Yarn files
 .yarn-integrity
+.yarn/cache
+.yarn/patches
+.yarn/plugins
+.yarn/releases
+.yarn/sdks
+.yarn/versions
 
-# Docker
-Dockerfile*
+# pnpm files
+.pnp.*
+
+# Bun files
+bun.lockb
+.bun/
+
+# Docker files (don't need these in build context)
 docker-compose*.yml
+Dockerfile*
 .dockerignore
 
-# Scripts
+# Scripts (except build-related)
 scripts/
+!scripts/build.ts
+!scripts/generate-types.ts
 
 # Temporary files
 tmp/
-temp/ 
+temp/
+*.tmp
+*.temp
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Misc
+.history/
+.husky/
+.github/
+.circleci/
+.gitlab-ci.yml
+.travis.yml
+
+# Storybook
+.storybook/
+storybook-static/
+
+# Biome
+!biome.json
+
+# TypeScript config (needed for builds)
+!tsconfig.json
+!tsconfig.*.json
+
+# Keep workspace config
+!package.json
+!bun.lock
+!codegen.yml
+
+# Keep service configs
+!services/*/package.json
+!services/*/tsconfig.json
+!services/*/prisma/
+!services/*/src/
+
+# Keep shared packages
+!shared/*/package.json
+!shared/*/src/
+!packages/*/package.json
+!packages/*/src/
+
+# Client
+!client/package.json
+!client/src/
