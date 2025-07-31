@@ -152,7 +152,9 @@ export const validateCreditCard = (cardNumber: string): boolean => {
   let isEven = false;
 
   for (let i = digits.length - 1; i >= 0; i--) {
-    let digit = parseInt(digits[i], 10);
+    const digitChar = digits[i];
+    if (!digitChar) continue;
+    let digit = parseInt(digitChar, 10);
 
     if (isEven) {
       digit *= 2;
@@ -221,7 +223,7 @@ export const validatePasswordStrength = (
 
   if (email) {
     const emailPrefix = email.split('@')[0];
-    if (password.toLowerCase().includes(emailPrefix.toLowerCase())) {
+    if (emailPrefix && password.toLowerCase().includes(emailPrefix.toLowerCase())) {
       score -= 2;
       feedback.push('Password should not contain your email address');
     }

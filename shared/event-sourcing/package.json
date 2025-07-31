@@ -1,0 +1,44 @@
+{
+  "name": "@graphql-microservices/shared-event-sourcing",
+  "version": "1.0.0",
+  "description": "Event sourcing and CQRS implementation for GraphQL microservices",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "dev": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "migrate": "bun run src/migration-runner.ts migrate",
+    "migrate:status": "bun run src/migration-runner.ts status"
+  },
+  "dependencies": {
+    "zod": "^4.0.14",
+    "@prisma/client": "^6.13.0",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/pg": "^8.11.6",
+    "typescript": "^5.8.3"
+  },
+  "keywords": [
+    "event-sourcing",
+    "cqrs",
+    "domain-driven-design",
+    "microservices",
+    "graphql",
+    "postgresql",
+    "outbox-pattern",
+    "aggregate-root"
+  ],
+  "author": "GraphQL Microservices Team",
+  "license": "MIT"
+}

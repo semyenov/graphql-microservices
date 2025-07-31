@@ -15,7 +15,7 @@ const logError = createErrorLogger('type-utils');
  * Convert Prisma Decimal to GraphQL Float
  * Handles BigInt, Decimal, and string representations
  */
-export const toGraphQLFloat = (value: any): number => {
+export const toGraphQLFloat = (value: unknown): number => {
   if (value === null || value === undefined) {
     return 0;
   }
@@ -70,7 +70,7 @@ export const toGraphQLDateTime = (value: Date | string | null | undefined): stri
  * Convert Prisma JSON to GraphQL-safe object
  * Ensures proper serialization and removes undefined values
  */
-export const toGraphQLJSON = <T = any>(value: any): T | null => {
+export const toGraphQLJSON = <T = unknown>(value: unknown): T | null => {
   if (value === null || value === undefined) {
     return null;
   }
@@ -97,7 +97,7 @@ export const toGraphQLJSON = <T = any>(value: any): T | null => {
 /**
  * Clean object by removing undefined values and converting dates
  */
-const cleanObject = (obj: any): any => {
+const cleanObject = (obj: unknown): unknown => {
   if (obj === null || obj === undefined) {
     return null;
   }
@@ -111,7 +111,7 @@ const cleanObject = (obj: any): any => {
   }
 
   if (typeof obj === 'object') {
-    const cleaned: Record<string, any> = {};
+    const cleaned: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       if (value !== undefined) {
         cleaned[key] = cleanObject(value);
@@ -146,7 +146,11 @@ export const toGraphQLNullable = <T>(value: T | null | undefined): T | null => {
  * Batch convert Prisma model to GraphQL type
  * Generic transformer that applies conversion functions to specified fields
  */
-export type FieldTransformer<T = any> = (value: any, fieldName: string, model: T) => any;
+export type FieldTransformer<T = unknown> = (
+  value: unknown,
+  fieldName: string,
+  model: T
+) => unknown;
 
 export interface TransformConfig<T> {
   fields?: Record<string, FieldTransformer<T>>;
@@ -174,9 +178,9 @@ export const transformPrismaToGraphQL = <TPrisma, TGraphQL>(
     arrayFields = [],
   } = config;
 
-  const result: any = {};
+  const result: Record<string, unknown> = {};
 
-  for (const [key, value] of Object.entries(model as any)) {
+  for (const [key, value] of Object.entries(model as Record<string, unknown>)) {
     // Skip excluded fields
     if (exclude.includes(key)) {
       continue;
@@ -285,7 +289,7 @@ export const toGraphQLConnection = <TPrisma, TGraphQL>(
   const nodes = page.data.map(transformer);
   const edges = nodes.map((node, index) => ({
     node,
-    cursor: encodeCursor(page.data[index]),
+    cursor: encodeCursor(page.data[index]!),
   }));
 
   return {
@@ -305,7 +309,7 @@ export const toGraphQLConnection = <TPrisma, TGraphQL>(
 /**
  * Simple cursor encoding/decoding
  */
-export const encodeCursor = (item: any): string => {
+export const encodeCursor = (item: { id?: string; _id?: string }): string => {
   const id = item.id || item._id || '';
   return Buffer.from(`cursor:${id}`).toString('base64');
 };
@@ -327,7 +331,11 @@ export const decodeCursor = (cursor: string): string => {
 /**
  * Convert Prisma errors to GraphQL errors
  */
-export const handlePrismaError = (error: any): GraphQLError => {
+export const handlePrismaError = (error: {
+  code?: string;
+  message?: string;
+  meta?: { target?: string[] };
+}): GraphQLError => {
   // Unique constraint violation
   if (error.code === 'P2002') {
     const field = error.meta?.target?.[0] || 'field';
@@ -370,15 +378,15 @@ export const handlePrismaError = (error: any): GraphQLError => {
  * Type guards
  */
 
-export const isValidId = (id: any): id is string => {
+export const isValidId = (id: unknown): id is string => {
   return typeof id === 'string' && id.length > 0;
 };
 
-export const isValidDate = (date: any): date is Date => {
+export const isValidDate = (date: unknown): date is Date => {
   return date instanceof Date && !Number.isNaN(date.getTime());
 };
 
-export const isValidEmail = (email: any): email is string => {
+export const isValidEmail = (email: unknown): email is string => {
   if (typeof email !== 'string') return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);

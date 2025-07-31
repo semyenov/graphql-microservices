@@ -5,10 +5,10 @@ import { type ZodError, type ZodSchema, z } from 'zod';
  * Custom error formatter for Zod validation errors
  */
 export const formatZodError = (error: ZodError): ValidationError => {
-  const validationErrors = error.errors.map((err) => ({
+  const validationErrors = error.issues.map((err) => ({
     field: err.path.join('.'),
     message: err.message,
-    value: err.input,
+    value: (err as any).input,
   }));
 
   return new ValidationError('Validation failed', validationErrors);

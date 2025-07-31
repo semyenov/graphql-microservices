@@ -253,7 +253,18 @@ async function seedOrders(
   ];
 
   for (const order of orderData) {
-    const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    // Filter out items with undefined productId or price
+    const validItems = order.items.filter((item) => item.productId && item.price !== undefined);
+
+    if (validItems.length === 0 || !order.userId) {
+      console.warn('Skipping order with invalid data');
+      continue;
+    }
+
+    const subtotal = validItems.reduce(
+      (sum, item) => sum + (item.price as number) * item.quantity,
+      0
+    );
     const tax = subtotal * 0.1;
     const shipping = subtotal > 100 ? 0 : 10;
     const total = subtotal + tax + shipping;
@@ -268,11 +279,11 @@ async function seedOrders(
         status: order.status,
         shippingInfo: order.shippingInfo,
         items: {
-          create: order.items.map((item) => ({
-            productId: item.productId,
+          create: validItems.map((item) => ({
+            productId: item.productId as string,
             quantity: item.quantity,
-            price: item.price,
-            total: item.price * item.quantity,
+            price: item.price as number,
+            total: (item.price as number) * item.quantity,
           })),
         },
       },

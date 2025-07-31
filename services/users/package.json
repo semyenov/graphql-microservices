@@ -15,6 +15,7 @@
     "@graphql-microservices/shared-auth": "workspace:*",
     "@graphql-microservices/shared-cache": "workspace:*",
     "@graphql-microservices/shared-config": "workspace:*",
+    "@graphql-microservices/shared-event-sourcing": "workspace:*",
     "@prisma/client": "^6.13.0",
     "dataloader": "^2.2.3",
     "graphql": "^16.11.0",

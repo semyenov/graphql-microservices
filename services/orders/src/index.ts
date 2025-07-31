@@ -35,7 +35,6 @@ import type {
   Order as GraphQLOrder,
   OrderStatus as GraphQLOrderStatus,
   PaymentInfo as GraphQLPaymentInfo,
-  Resolvers as GraphQLResolvers,
   ShippingInfo as GraphQLShippingInfo,
   MutationCancelOrderArgs,
   MutationCreateOrderArgs,
@@ -284,9 +283,9 @@ async function clearOrderCaches(order: PrismaOrder, cacheService: CacheService) 
 }
 
 // Resolvers
-const resolvers: GraphQLResolvers<Context> = {
+const resolvers = {
   Query: {
-    order: async (_, { id }: QueryOrderArgs, context) => {
+    order: async (_: any, { id }: QueryOrderArgs, context: Context) => {
       try {
         // Check cache first
         const cached = await context.cacheService.get<GraphQLOrder>(`order:${id}`);
@@ -307,7 +306,7 @@ const resolvers: GraphQLResolvers<Context> = {
       }
     },
 
-    orderByNumber: async (_, { orderNumber }: QueryOrderByNumberArgs, context) => {
+    orderByNumber: async (_: any, { orderNumber }: QueryOrderByNumberArgs, context: Context) => {
       try {
         const cached = await context.cacheService.get<GraphQLOrder>(`order:number:${orderNumber}`);
         if (cached) return cached;
@@ -334,7 +333,7 @@ const resolvers: GraphQLResolvers<Context> = {
       }
     },
 
-    orders: async (_, args: QueryOrdersArgs, context) => {
+    orders: async (_: any, args: QueryOrdersArgs, context: Context) => {
       try {
         const { first = 20, after, userId, status, dateFrom, dateTo } = args;
 
@@ -401,7 +400,7 @@ const resolvers: GraphQLResolvers<Context> = {
       }
     },
 
-    myOrders: async (_, args: QueryMyOrdersArgs, context) => {
+    myOrders: async (_: any, args: QueryMyOrdersArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
       try {
@@ -455,7 +454,7 @@ const resolvers: GraphQLResolvers<Context> = {
     },
   },
   Mutation: {
-    createOrder: async (_, { input }: MutationCreateOrderArgs, context) => {
+    createOrder: async (_: any, { input }: MutationCreateOrderArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
       try {
@@ -477,7 +476,9 @@ const resolvers: GraphQLResolvers<Context> = {
           SELECT id, "isActive", stock FROM products WHERE id = ANY(${productIds})
         `;
 
-        const productMap = new Map(products.map((p) => [p.id, p]));
+        const productMap = new Map(
+          products.map((p: { id: string; isActive: boolean; stock: number }) => [p.id, p])
+        );
 
         // Validate each item
         for (const item of validatedInput.items) {
@@ -488,7 +489,7 @@ const resolvers: GraphQLResolvers<Context> = {
           }
 
           // Validate product availability
-          validateProductAvailability(product, item.quantity);
+          validateProductAvailability(product as any, item.quantity);
 
           // Validate price (prevent negative prices)
           if (item.price <= 0) {
@@ -552,7 +553,11 @@ const resolvers: GraphQLResolvers<Context> = {
       }
     },
 
-    updateOrderStatus: async (_, { id, status }: MutationUpdateOrderStatusArgs, context) => {
+    updateOrderStatus: async (
+      _: any,
+      { id, status }: MutationUpdateOrderStatusArgs,
+      context: Context
+    ) => {
       if (!context.user) throw new AuthenticationError();
 
       try {
@@ -599,7 +604,11 @@ const resolvers: GraphQLResolvers<Context> = {
       }
     },
 
-    updateOrderNotes: async (_, { id, notes }: MutationUpdateOrderNotesArgs, context) => {
+    updateOrderNotes: async (
+      _: any,
+      { id, notes }: MutationUpdateOrderNotesArgs,
+      context: Context
+    ) => {
       if (!context.user) throw new AuthenticationError();
 
       try {
@@ -642,7 +651,7 @@ const resolvers: GraphQLResolvers<Context> = {
       }
     },
 
-    cancelOrder: async (_, { id, reason }: MutationCancelOrderArgs, context) => {
+    cancelOrder: async (_: any, { id, reason }: MutationCancelOrderArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
       try {
@@ -696,7 +705,7 @@ const resolvers: GraphQLResolvers<Context> = {
       }
     },
 
-    refundOrder: async (_, { id, reason }: MutationRefundOrderArgs, context) => {
+    refundOrder: async (_: any, { id, reason }: MutationRefundOrderArgs, context: Context) => {
       if (!context.user) throw new AuthenticationError();
 
       try {
@@ -751,9 +760,9 @@ const resolvers: GraphQLResolvers<Context> = {
     },
 
     updateShippingInfo: async (
-      _,
+      _: any,
       { id, shippingInfo }: MutationUpdateShippingInfoArgs,
-      context
+      context: Context
     ) => {
       if (!context.user) throw new AuthenticationError();
 
@@ -802,15 +811,15 @@ const resolvers: GraphQLResolvers<Context> = {
   },
 
   Order: {
-    __resolveReference: async (order: { id: string }, context) => {
+    __resolveReference: async (order: { id: string }, context: Context) => {
       return context.orderLoader.load(order.id);
     },
-    user: (order) => ({
+    user: (order: any) => ({
       __typename: 'User' as const,
       id: order.userId,
       orders: [],
     }),
-    items: async (order, _, context: Context) => {
+    items: async (order: any, _: any, context: Context) => {
       // If items are already loaded, return them
       if (order.items && order.items.length > 0) {
         return order.items;
@@ -832,14 +841,14 @@ const resolvers: GraphQLResolvers<Context> = {
   },
 
   OrderItem: {
-    product: (item) => ({
+    product: (item: any) => ({
       __typename: 'Product' as const,
       id: item.productId,
     }),
   },
 
   User: {
-    orders: async (user, _, context) => {
+    orders: async (user: any, _: any, context: Context) => {
       const orders = await context.prisma.order.findMany({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },

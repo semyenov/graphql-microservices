@@ -5,6 +5,7 @@ import type { AuthService } from '@graphql-microservices/shared-auth';
 import type { CacheService } from '@graphql-microservices/shared-cache';
 import type { PubSubService } from '@graphql-microservices/shared-pubsub';
 import DataLoader from 'dataloader';
+import type { GraphQLSchema } from 'graphql';
 import { graphql } from 'graphql';
 import gql from 'graphql-tag';
 import type { Context } from './index';
@@ -55,7 +56,7 @@ import { typeDefs } from './schema';
 
 describe('Users Service', () => {
   let server: ApolloServer;
-  let schema: any;
+  let schema: GraphQLSchema;
   let context: Context;
 
   beforeAll(() => {
@@ -68,17 +69,17 @@ describe('Users Service', () => {
     // Reset all mocks
     Object.values(mockPrisma.user).forEach((fn) => {
       if (typeof fn === 'function' && 'mockReset' in fn) {
-        (fn as any).mockReset();
+        (fn as { mockReset: () => void }).mockReset();
       }
     });
     Object.values(mockCacheService).forEach((fn) => {
       if (typeof fn === 'function' && 'mockReset' in fn) {
-        (fn as any).mockReset();
+        (fn as { mockReset: () => void }).mockReset();
       }
     });
     Object.values(mockAuthService).forEach((fn) => {
       if (typeof fn === 'function' && 'mockReset' in fn) {
-        (fn as any).mockReset();
+        (fn as { mockReset: () => void }).mockReset();
       }
     });
 
@@ -88,11 +89,11 @@ describe('Users Service', () => {
       authService: mockAuthService,
       cacheService: mockCacheService,
       pubsub: mockPubSubService.getPubSub(),
-      userLoader: new DataLoader<string, any>(async (ids) => {
+      userLoader: new DataLoader<string, PrismaUser | null>(async (ids) => {
         const users = await mockPrisma.user.findMany({
           where: { id: { in: ids as string[] } },
         });
-        return ids.map((id) => users.find((u: any) => u.id === id) || null);
+        return ids.map((id) => users.find((u: PrismaUser) => u.id === id) || null);
       }),
     };
   });
@@ -133,7 +134,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: userQuery.loc?.source.body!,
+          source: userQuery.loc?.source.body ?? '',
           variableValues: { id: '1' },
           contextValue: context,
         });
@@ -166,7 +167,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: userQuery.loc?.source.body!,
+          source: userQuery.loc?.source.body ?? '',
           variableValues: { id: '1' },
           contextValue: context,
         });
@@ -190,7 +191,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: userQuery.loc?.source.body!,
+          source: userQuery.loc?.source.body ?? '',
           variableValues: { id: 'non-existent' },
           contextValue: context,
         });
@@ -202,7 +203,7 @@ describe('Users Service', () => {
       it('should require authentication', async () => {
         const result = await graphql({
           schema,
-          source: userQuery.loc?.source.body!,
+          source: userQuery.loc?.source.body ?? '',
           variableValues: { id: '1' },
           contextValue: context,
         });
@@ -259,7 +260,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: usersQuery.loc?.source.body!,
+          source: usersQuery.loc?.source.body ?? '',
           contextValue: context,
         });
 
@@ -275,7 +276,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: usersQuery.loc?.source.body!,
+          source: usersQuery.loc?.source.body ?? '',
           contextValue: context,
         });
 
@@ -316,7 +317,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: meQuery.loc?.source.body!,
+          source: meQuery.loc?.source.body ?? '',
           contextValue: context,
         });
 
@@ -332,7 +333,7 @@ describe('Users Service', () => {
       it('should return null when not authenticated', async () => {
         const result = await graphql({
           schema,
-          source: meQuery.loc?.source.body!,
+          source: meQuery.loc?.source.body ?? '',
           contextValue: context,
         });
 
@@ -393,7 +394,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signUpMutation.loc?.source.body!,
+          source: signUpMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -423,7 +424,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signUpMutation.loc?.source.body!,
+          source: signUpMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -444,7 +445,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signUpMutation.loc?.source.body!,
+          source: signUpMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -465,7 +466,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signUpMutation.loc?.source.body!,
+          source: signUpMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -491,7 +492,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signUpMutation.loc?.source.body!,
+          source: signUpMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -517,7 +518,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signUpMutation.loc?.source.body!,
+          source: signUpMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -575,7 +576,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signInMutation.loc?.source.body!,
+          source: signInMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -602,7 +603,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signInMutation.loc?.source.body!,
+          source: signInMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -637,7 +638,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signInMutation.loc?.source.body!,
+          source: signInMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -672,7 +673,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: signInMutation.loc?.source.body!,
+          source: signInMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -730,7 +731,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: updateUserMutation.loc?.source.body!,
+          source: updateUserMutation.loc?.source.body ?? '',
           variableValues: { id: '2', input },
           contextValue: context,
         });
@@ -776,7 +777,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: updateUserMutation.loc?.source.body!,
+          source: updateUserMutation.loc?.source.body ?? '',
           variableValues: { id: '1', input },
           contextValue: context,
         });
@@ -812,7 +813,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: updateUserMutation.loc?.source.body!,
+          source: updateUserMutation.loc?.source.body ?? '',
           variableValues: { id: '2', input },
           contextValue: context,
         });
@@ -846,7 +847,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: updateUserMutation.loc?.source.body!,
+          source: updateUserMutation.loc?.source.body ?? '',
           variableValues: { id: '1', input },
           contextValue: context,
         });
@@ -866,7 +867,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: updateUserMutation.loc?.source.body!,
+          source: updateUserMutation.loc?.source.body ?? '',
           variableValues: { id: 'non-existent', input },
           contextValue: context,
         });
@@ -905,7 +906,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: updateUserMutation.loc?.source.body!,
+          source: updateUserMutation.loc?.source.body ?? '',
           variableValues: { id: '1', input },
           contextValue: context,
         });
@@ -957,7 +958,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: changePasswordMutation.loc?.source.body!,
+          source: changePasswordMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -996,7 +997,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: changePasswordMutation.loc?.source.body!,
+          source: changePasswordMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -1014,7 +1015,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: changePasswordMutation.loc?.source.body!,
+          source: changePasswordMutation.loc?.source.body ?? '',
           variableValues: { input },
           contextValue: context,
         });
@@ -1062,7 +1063,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: deactivateUserMutation.loc?.source.body!,
+          source: deactivateUserMutation.loc?.source.body ?? '',
           variableValues: { id: '2' },
           contextValue: context,
         });
@@ -1080,7 +1081,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: deactivateUserMutation.loc?.source.body!,
+          source: deactivateUserMutation.loc?.source.body ?? '',
           variableValues: { id: '2' },
           contextValue: context,
         });
@@ -1110,7 +1111,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: deactivateUserMutation.loc?.source.body!,
+          source: deactivateUserMutation.loc?.source.body ?? '',
           variableValues: { id: '1' },
           contextValue: context,
         });
@@ -1126,7 +1127,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: deactivateUserMutation.loc?.source.body!,
+          source: deactivateUserMutation.loc?.source.body ?? '',
           variableValues: { id: 'non-existent' },
           contextValue: context,
         });
@@ -1182,7 +1183,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: refreshTokenMutation.loc?.source.body!,
+          source: refreshTokenMutation.loc?.source.body ?? '',
           variableValues: { refreshToken: 'valid_refresh_token' },
           contextValue: context,
         });
@@ -1205,7 +1206,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: refreshTokenMutation.loc?.source.body!,
+          source: refreshTokenMutation.loc?.source.body ?? '',
           variableValues: { refreshToken: 'invalid_token' },
           contextValue: context,
         });
@@ -1238,7 +1239,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: refreshTokenMutation.loc?.source.body!,
+          source: refreshTokenMutation.loc?.source.body ?? '',
           variableValues: { refreshToken: 'some_other_token' },
           contextValue: context,
         });
@@ -1271,7 +1272,7 @@ describe('Users Service', () => {
 
         const result = await graphql({
           schema,
-          source: refreshTokenMutation.loc?.source.body!,
+          source: refreshTokenMutation.loc?.source.body ?? '',
           variableValues: { refreshToken: 'valid_refresh_token' },
           contextValue: context,
         });
@@ -1329,7 +1330,7 @@ describe('Users Service', () => {
 
       const result = await graphql({
         schema,
-        source: signInMutation.loc?.source.body!,
+        source: signInMutation.loc?.source.body ?? '',
         variableValues: {
           input: { username: 'test', password: 'test' },
         },

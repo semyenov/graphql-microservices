@@ -2,10 +2,12 @@ import { parseEnv, queryComplexityEnvSchema } from '@graphql-microservices/share
 import { createErrorLogger, QueryComplexityError } from '@graphql-microservices/shared-errors';
 import type {
   ApolloServerPlugin,
+  BaseContext,
   GraphQLRequestContext,
   GraphQLRequestListener,
 } from 'apollo-server-plugin-base';
-import type { GraphQLSchema } from 'graphql';
+import type { DocumentNode, GraphQLSchema } from 'graphql';
+import { parse as parseQuery } from 'graphql';
 import type { ValidationRule } from 'graphql/validation/ValidationContext';
 import depthLimit from 'graphql-depth-limit';
 import {
@@ -93,16 +95,28 @@ const defaultConfig: Required<QueryComplexityConfig> = {
 export const fieldComplexityConfig = {
   // List fields have higher complexity
   list: (_multiplier = 10) => ({
-    complexity: ({ args, childComplexity }: any) => {
-      const limit = args.first || args.limit || 20;
+    complexity: ({
+      args,
+      childComplexity,
+    }: {
+      args: Record<string, unknown>;
+      childComplexity: number;
+    }) => {
+      const limit = (args.first as number) || (args.limit as number) || 20;
       return childComplexity * Math.min(limit, 100);
     },
   }),
 
   // Paginated fields
   connection: (defaultLimit = 20) => ({
-    complexity: ({ args, childComplexity }: any) => {
-      const limit = args.first || args.last || defaultLimit;
+    complexity: ({
+      args,
+      childComplexity,
+    }: {
+      args: Record<string, unknown>;
+      childComplexity: number;
+    }) => {
+      const limit = (args.first as number) || (args.last as number) || defaultLimit;
       return childComplexity * Math.min(limit, 100) + 1; // +1 for pageInfo
     },
   }),
@@ -114,8 +128,8 @@ export const fieldComplexityConfig = {
 
   // Search operations are more expensive
   search: (baseCost = 5) => ({
-    complexity: ({ args }: any) => {
-      const limit = args.limit || 10;
+    complexity: ({ args }: { args: Record<string, unknown> }) => {
+      const limit = (args.limit as number) || 10;
       return baseCost * Math.min(limit, 50);
     },
   }),
@@ -127,10 +141,10 @@ export const fieldComplexityConfig = {
 
   // Mutation operations
   mutation: (baseCost = 10) => ({
-    complexity: ({ args }: any) => {
+    complexity: ({ args }: { args: Record<string, unknown> }) => {
       // Bulk operations are more expensive
       if (args.items || args.updates) {
-        const count = args.items?.length || args.updates?.length || 1;
+        const count = (args.items as any[])?.length || (args.updates as any[])?.length || 1;
         return baseCost * Math.min(count, 100);
       }
       return baseCost;
@@ -156,10 +170,10 @@ export const createComplexityValidationRules = (
   );
 
   // Add complexity rule
-  rules.push({
-    ...getComplexity({
+  rules.push(
+    getComplexity({
       schema,
-      query: {} as any, // Will be set by GraphQL execution
+      query: {} as DocumentNode, // Will be set by GraphQL execution
       variables: {},
       estimators: [
         // Use directive-based complexity if available
@@ -169,11 +183,10 @@ export const createComplexityValidationRules = (
         // Fall back to simple estimation
         simpleEstimator({
           defaultComplexity: 1,
-          scalarCost: finalConfig.scalarCost,
         }),
       ],
       maximumComplexity: finalConfig.maximumComplexity,
-      onComplete: (complexity) => {
+      onComplete: (complexity: any) => {
         if (complexity > finalConfig.maximumComplexity) {
           if (finalConfig.logRejectedQueries) {
             logError(new Error('Query rejected due to complexity'), {
@@ -188,8 +201,8 @@ export const createComplexityValidationRules = (
           );
         }
       },
-    }),
-  } as ValidationRule);
+    }) as ValidationRule
+  );
 
   return rules;
 };
@@ -197,7 +210,7 @@ export const createComplexityValidationRules = (
 /**
  * Apollo Server plugin for query complexity analysis
  */
-export const createQueryComplexityPlugin = <TContext>(
+export const createQueryComplexityPlugin = <TContext extends BaseContext>(
   schema: GraphQLSchema,
   config: QueryComplexityConfig = {}
 ): ApolloServerPlugin<TContext> => {
@@ -228,7 +241,6 @@ export const createQueryComplexityPlugin = <TContext>(
                 fieldExtensionsEstimator(),
                 simpleEstimator({
                   defaultComplexity: 1,
-                  scalarCost: finalConfig.scalarCost,
                 }),
               ],
             });
@@ -256,7 +268,7 @@ export const createQueryComplexityPlugin = <TContext>(
             }
 
             // Add complexity to context for logging/monitoring
-            (requestContext as any).queryComplexity = complexity;
+            (requestContext as { queryComplexity?: number }).queryComplexity = complexity;
           } catch (error) {
             // Re-throw QueryComplexityError
             if (error instanceof QueryComplexityError) {
@@ -273,7 +285,7 @@ export const createQueryComplexityPlugin = <TContext>(
 
         async willSendResponse(requestContext) {
           // Add complexity to response extensions if available
-          const complexity = (requestContext as any).queryComplexity;
+          const complexity = (requestContext as { queryComplexity?: number }).queryComplexity;
           if (complexity && requestContext.response.extensions) {
             requestContext.response.extensions.complexity = complexity;
           }
@@ -346,22 +358,22 @@ export const exampleComplexitySchema = `
 export const estimateQueryComplexity = (
   schema: GraphQLSchema,
   query: string,
-  variables: Record<string, any> = {},
+  variables: Record<string, unknown> = {},
   config: QueryComplexityConfig = {}
 ): number => {
   const finalConfig = { ...defaultConfig, ...config };
 
   try {
+    const parsedQuery = typeof query === 'string' ? parseQuery(query) : query;
     return getComplexity({
       schema,
-      query,
+      query: parsedQuery,
       variables,
       estimators: [
         directiveEstimator({ name: 'complexity' }),
         fieldExtensionsEstimator(),
         simpleEstimator({
           defaultComplexity: 1,
-          scalarCost: finalConfig.scalarCost,
         }),
       ],
     });

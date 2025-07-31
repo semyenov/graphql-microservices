@@ -36,7 +36,7 @@ export const instrumentedResolver = async <TArgs, TResult>(
   operationName: string,
   resolver: (args: TArgs) => Promise<TResult>,
   args: TArgs,
-  attributes?: Record<string, any>
+  attributes?: Record<string, unknown>
 ): Promise<TResult> => {
   return createSpan(`resolver.${operationName}`, async (_span) => {
     // Add custom attributes
@@ -122,9 +122,9 @@ export const instrumentedCacheOperation = async <T>(
  * Example of creating an instrumented Apollo Server
  */
 export const createInstrumentedApolloServer = <TContext extends AuthContext>(
-  schema: any,
+  schema: unknown,
   serviceName: string,
-  formatError?: (error: any) => any
+  formatError?: (error: unknown) => unknown
 ) => {
   const server = new ApolloServer<TContext>({
     schema,
@@ -143,20 +143,24 @@ export const createInstrumentedApolloServer = <TContext extends AuthContext>(
               // Record request metrics
               metrics.recordHistogram('graphql.request.duration', duration, {
                 operationName: requestContext.request.operationName || 'anonymous',
-                hasErrors: !!requestContext.response.errors?.length,
+                hasErrors: !!(requestContext.response as any).errors?.length,
               });
 
-              if (requestContext.response.errors?.length) {
-                metrics.recordCounter('graphql.errors', requestContext.response.errors.length, {
-                  operationName: requestContext.request.operationName || 'anonymous',
-                });
+              if ((requestContext.response as any).errors?.length) {
+                metrics.recordCounter(
+                  'graphql.errors',
+                  (requestContext.response as any).errors.length,
+                  {
+                    operationName: requestContext.request.operationName || 'anonymous',
+                  }
+                );
               }
             },
           };
         },
       },
     ],
-    formatError,
+    formatError: formatError as any,
   });
 
   return server;
@@ -166,11 +170,11 @@ export const createInstrumentedApolloServer = <TContext extends AuthContext>(
  * Example context factory with trace propagation
  */
 export const createInstrumentedContext = async <TContext>(
-  req: any,
+  req: { headers?: Record<string, string> },
   baseContext: () => Promise<TContext> | TContext
 ): Promise<TContext & { traceId?: string }> => {
   // Extract trace context from incoming request
-  const traceContext = extractTraceContext(req.headers);
+  const traceContext = extractTraceContext(req.headers || {});
 
   // Get base context
   const context = await baseContext();
@@ -189,7 +193,7 @@ export const makeInstrumentedRequest = async (
   url: string,
   options: RequestInit = {}
 ): Promise<Response> => {
-  return createSpan('http.request', async (_span) => {
+  return createSpan('http.request', async (_span): Promise<Response> => {
     // Add request attributes
     addSpanAttributes({
       'http.url': url,
@@ -210,7 +214,7 @@ export const makeInstrumentedRequest = async (
     // Add response attributes
     addSpanAttributes({
       'http.status_code': response.status,
-      'http.response_content_length': response.headers.get('content-length'),
+      'http.response_content_length': response.headers.get('content-length') || '',
     });
 
     return response;

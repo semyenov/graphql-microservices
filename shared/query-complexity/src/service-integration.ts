@@ -82,17 +82,17 @@ export const addFieldComplexityToResolvers = (resolvers: any) => {
   // Add complexity to Query fields
   if (resolvers.Query) {
     // Users query with pagination
-    if (resolvers.Query.users) {
-      resolvers.Query.users = {
-        ...resolvers.Query.users,
+    if ((resolvers.Query as any).users) {
+      (resolvers.Query as any).users = {
+        ...(resolvers.Query as any).users,
         ...fieldComplexityConfig.connection(20),
       };
     }
 
     // Search operation
-    if (resolvers.Query.searchProducts) {
-      resolvers.Query.searchProducts = {
-        ...resolvers.Query.searchProducts,
+    if ((resolvers.Query as any).searchProducts) {
+      (resolvers.Query as any).searchProducts = {
+        ...(resolvers.Query as any).searchProducts,
         ...fieldComplexityConfig.search(20),
       };
     }
@@ -101,9 +101,9 @@ export const addFieldComplexityToResolvers = (resolvers: any) => {
   // Add complexity to Mutation fields
   if (resolvers.Mutation) {
     // Bulk operations
-    if (resolvers.Mutation.bulkUpdateStock) {
-      resolvers.Mutation.bulkUpdateStock = {
-        ...resolvers.Mutation.bulkUpdateStock,
+    if ((resolvers.Mutation as any).bulkUpdateStock) {
+      (resolvers.Mutation as any).bulkUpdateStock = {
+        ...(resolvers.Mutation as any).bulkUpdateStock,
         ...fieldComplexityConfig.mutation(5),
       };
     }
@@ -112,9 +112,9 @@ export const addFieldComplexityToResolvers = (resolvers: any) => {
   // Add complexity to type fields
   if (resolvers.User) {
     // Orders field with pagination
-    if (resolvers.User.orders) {
-      resolvers.User.orders = {
-        ...resolvers.User.orders,
+    if ((resolvers.User as any).orders) {
+      (resolvers.User as any).orders = {
+        ...(resolvers.User as any).orders,
         ...fieldComplexityConfig.list(20),
       };
     }
@@ -134,7 +134,7 @@ export const createServerWithComplexityAnalysis = (
   // Build schema
   const schema = buildSubgraphSchema([
     {
-      typeDefs: addComplexityToSchema(typeDefs),
+      typeDefs: addComplexityToSchema(typeDefs) as any,
       resolvers: addFieldComplexityToResolvers(resolvers),
     },
   ]);
@@ -142,7 +142,7 @@ export const createServerWithComplexityAnalysis = (
   // Create server with complexity plugin
   return new ApolloServer({
     schema,
-    plugins: [createQueryComplexityPlugin(schema, complexityConfig)],
+    plugins: [createQueryComplexityPlugin(schema, complexityConfig) as any],
     validationRules: [...createComplexityValidationRules(schema, complexityConfig)],
   });
 };
@@ -248,13 +248,13 @@ export const complexityLoggingPlugin = () => ({
   async requestDidStart() {
     return {
       async willSendResponse(requestContext: any) {
-        const complexity = requestContext.queryComplexity;
+        const complexity = (requestContext as any).queryComplexity;
         if (complexity) {
           // Add to response extensions
-          if (!requestContext.response.extensions) {
-            requestContext.response.extensions = {};
+          if (!(requestContext as any).response.extensions) {
+            (requestContext as any).response.extensions = {};
           }
-          requestContext.response.extensions.queryComplexity = {
+          (requestContext as any).response.extensions.queryComplexity = {
             score: complexity,
             timestamp: new Date().toISOString(),
           };
@@ -263,8 +263,8 @@ export const complexityLoggingPlugin = () => ({
           if (complexity > 500) {
             console.warn('High complexity query executed', {
               complexity,
-              operationName: requestContext.request.operationName,
-              query: requestContext.request.query?.substring(0, 200),
+              operationName: (requestContext as any).request.operationName,
+              query: (requestContext as any).request.query?.substring(0, 200),
             });
           }
         }
