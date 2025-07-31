@@ -1,3 +1,4 @@
+import { generateId } from '@graphql-microservices/shared-errors';
 import { z } from 'zod';
 
 /**
@@ -225,7 +226,7 @@ export const EventFactory = {
     occurredAt?: Date
   ): DomainEvent {
     return {
-      id: id || crypto.randomUUID(),
+      id: id || generateId(),
       type,
       aggregateId,
       aggregateType,

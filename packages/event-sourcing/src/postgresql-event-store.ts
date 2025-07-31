@@ -1,11 +1,12 @@
-import { Pool, type PoolClient } from 'pg';
 import {
-  BaseEventStore,
-  type EventStoreConfig,
-  type EventSubscription,
+  createErrorLogger,
   OptimisticConcurrencyError,
-} from './event-store';
+} from '@graphql-microservices/shared-errors';
+import { Pool, type PoolClient } from 'pg';
+import { BaseEventStore, type EventStoreConfig, type EventSubscription } from './event-store';
 import type { DomainEvent, EventStoreQuery, StoredEvent, StreamPosition } from './types';
+
+const logError = createErrorLogger('event-sourcing-postgresql');
 
 /**
  * PostgreSQL implementation of the event store
@@ -419,7 +420,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
           lastPosition = events[events.length - 1]?.position.globalPosition || BigInt(0);
         }
       } catch (error) {
-        console.error('Error in event subscription:', error);
+        logError(error, { operation: 'eventSubscription' });
       }
     }, 1000); // Poll every second
 

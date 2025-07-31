@@ -107,28 +107,8 @@ export interface EventSubscription {
   isActive(): boolean;
 }
 
-/**
- * Optimistic concurrency exception
- */
-export class OptimisticConcurrencyError extends Error {
-  constructor(aggregateId: string, expectedVersion: number, actualVersion: number) {
-    super(
-      `Optimistic concurrency violation for aggregate ${aggregateId}. ` +
-        `Expected version ${expectedVersion}, but actual version is ${actualVersion}`
-    );
-    this.name = 'OptimisticConcurrencyError';
-  }
-}
-
-/**
- * Aggregate not found exception
- */
-export class AggregateNotFoundError extends Error {
-  constructor(aggregateId: string) {
-    super(`Aggregate with ID ${aggregateId} was not found`);
-    this.name = 'AggregateNotFoundError';
-  }
-}
+// Error classes moved to @graphql-microservices/shared-errors
+// Import them from there instead
 
 /**
  * Event store configuration

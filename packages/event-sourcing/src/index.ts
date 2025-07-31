@@ -1,5 +1,14 @@
 // Core types and interfaces
 
+// Re-export error classes and utilities for backward compatibility
+export {
+  AggregateNotFoundError,
+  generateCausationId,
+  generateCorrelationId,
+  generateDeterministicId,
+  generateId,
+  OptimisticConcurrencyError,
+} from '@graphql-microservices/shared-errors';
 // Event store abstractions
 export * from './event-store';
 // Outbox pattern implementation
@@ -8,6 +17,13 @@ export * from './outbox';
 export { PostgreSQLEventStore } from './postgresql-event-store';
 export { PostgreSQLOutboxStore } from './postgresql-outbox-store';
 export * from './types';
+
+// Import utilities for internal use
+import {
+  generateCausationId,
+  generateCorrelationId,
+  generateDeterministicId,
+} from '@graphql-microservices/shared-errors';
 
 // Version and metadata
 export const VERSION = '1.0.0';
@@ -22,17 +38,16 @@ export const EventSourcingUtils = {
    * @param businessKey Business identifier (e.g., email, order number)
    * @returns UUID-formatted aggregate ID
    */
-  generateAggregateId(_prefix: string, _businessKey: string): string {
-    // In a real implementation, you might use a UUID v5 with a namespace
-    // For now, we'll use crypto.randomUUID() but in practice you'd want deterministic IDs
-    return crypto.randomUUID();
+  generateAggregateId(prefix: string, businessKey: string): string {
+    // Use the standardized deterministic ID generation
+    return generateDeterministicId(prefix, businessKey);
   },
 
   /**
    * Create a correlation ID for event tracing
    */
   generateCorrelationId(): string {
-    return crypto.randomUUID();
+    return generateCorrelationId();
   },
 
   /**
@@ -40,7 +55,7 @@ export const EventSourcingUtils = {
    * @param correlationId The correlation ID to base the causation ID on
    */
   generateCausationId(correlationId?: string): string {
-    return correlationId || crypto.randomUUID();
+    return generateCausationId(correlationId);
   },
 
   /**

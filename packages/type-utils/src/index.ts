@@ -2,7 +2,13 @@
  * Shared type utilities for converting between Prisma and GraphQL types
  */
 
-import { createErrorLogger } from '@graphql-microservices/shared-errors';
+import {
+  createErrorLogger,
+  DatabaseError,
+  ForeignKeyViolationError,
+  NotFoundError,
+  UniqueConstraintError,
+} from '@graphql-microservices/shared-errors';
 import { GraphQLError } from 'graphql';
 
 const logError = createErrorLogger('type-utils');
@@ -345,58 +351,28 @@ export const handlePrismaError = (error: {
   // Unique constraint violation
   if (error.code === 'P2002') {
     const field = error.meta?.target?.[0] || 'field';
-    return new GraphQLError(`A record with this ${field} already exists`, {
-      extensions: {
-        code: 'UNIQUE_CONSTRAINT_VIOLATION',
-        field,
-      },
-    });
+    return new UniqueConstraintError(field);
   }
 
   // Record not found
   if (error.code === 'P2025') {
-    return new GraphQLError('Record not found', {
-      extensions: {
-        code: 'NOT_FOUND',
-      },
-    });
+    return new NotFoundError('Record');
   }
 
   // Foreign key constraint
   if (error.code === 'P2003') {
-    return new GraphQLError('Invalid reference: related record does not exist', {
-      extensions: {
-        code: 'FOREIGN_KEY_VIOLATION',
-      },
-    });
+    const field = error.meta?.target?.[0] || 'field';
+    return new ForeignKeyViolationError(field);
   }
 
-  // Default error
-  return new GraphQLError('Database operation failed', {
-    extensions: {
-      code: 'DATABASE_ERROR',
-      originalError: error.message,
-    },
-  });
+  // Default error - use specific database error instead of generic GraphQL error
+  return new DatabaseError(error.message || 'Database operation failed');
 };
 
 /**
- * Type guards
+ * Type guards - re-exported from shared errors for convenience
  */
-
-export const isValidId = (id: unknown): id is string => {
-  return typeof id === 'string' && id.length > 0;
-};
-
-export const isValidDate = (date: unknown): date is Date => {
-  return date instanceof Date && !Number.isNaN(date.getTime());
-};
-
-export const isValidEmail = (email: unknown): email is string => {
-  if (typeof email !== 'string') return false;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
+export { isValidDate, isValidEmail, isValidId } from '@graphql-microservices/shared-errors';
 
 /**
  * Batch operations helpers
@@ -440,9 +416,6 @@ export default {
   encodeCursor,
   decodeCursor,
   handlePrismaError,
-  isValidId,
-  isValidDate,
-  isValidEmail,
   batchTransform,
   groupBy,
 };

@@ -12,7 +12,10 @@ import {
   createErrorLogger,
   formatError,
   InternalServerError,
+  InvalidTokenError,
   NotFoundError,
+  TokenExpiredError,
+  toGraphQLError,
   ValidationError,
 } from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
@@ -195,6 +198,19 @@ export interface Context {
   pubsub: typeof pubsub;
   userLoader: DataLoader<string, GraphQLUser | null>;
   user?: JWTPayload;
+  authError?: GraphQLError;
+}
+
+// Helper function to check authentication and throw appropriate errors
+function requireAuth(context: Context): asserts context is Context & { user: JWTPayload } {
+  if (!context.user) {
+    // If there's a specific auth error (like token expired), throw that
+    if (context.authError) {
+      throw context.authError;
+    }
+    // Otherwise, throw generic authentication error
+    throw new AuthenticationError();
+  }
 }
 
 // Resolvers
@@ -404,6 +420,11 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
       if (error instanceof AuthenticationError || error instanceof BusinessRuleError) {
         throw error;
       }
+      // Convert JWT errors to appropriate GraphQL errors
+      const graphQLError = toGraphQLError(error);
+      if (graphQLError instanceof TokenExpiredError || graphQLError instanceof InvalidTokenError) {
+        throw graphQLError;
+      }
       // Log and convert other errors
       logError(error, { operation: 'refreshToken' });
       throw new AuthenticationError('Invalid refresh token');
@@ -424,7 +445,7 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
   },
 
   updateUser: async (_, { id, input }, context) => {
-    if (!context.user) throw new AuthenticationError();
+    requireAuth(context);
 
     try {
       // Validate input
@@ -512,7 +533,7 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
   },
 
   updateProfile: async (_, { input }, context) => {
-    if (!context.user) throw new AuthenticationError();
+    requireAuth(context);
 
     // Validate input
     const validatedInput = validateInput(updateProfileInputSchema, input);
@@ -543,7 +564,7 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
   },
 
   changePassword: async (_, { input }, context) => {
-    if (!context.user) throw new AuthenticationError();
+    requireAuth(context);
 
     // Validate input
     const validatedInput = validateInput(changePasswordInputSchema, input);
@@ -575,7 +596,7 @@ const mutationResolvers: GraphQLMutationResolvers<Context> = {
   },
 
   deactivateUser: async (_, { id }, context) => {
-    if (!context.user) throw new AuthenticationError();
+    requireAuth(context);
 
     // Only admins can deactivate users
     if (context.user.role !== 'ADMIN') {
@@ -659,6 +680,7 @@ const { url } = await startStandaloneServer(server, {
     // Extract user from authorization header
     const token = authService.extractTokenFromHeader(req.headers.authorization);
     let user: JWTPayload | null = null;
+    let authError: GraphQLError | undefined;
 
     if (token) {
       try {
@@ -668,6 +690,8 @@ const { url } = await startStandaloneServer(server, {
         if (env.NODE_ENV === 'development') {
           console.debug('Token verification failed:', error);
         }
+        // Store the authentication error for resolvers to handle appropriately
+        authError = toGraphQLError(error);
       }
     }
 
@@ -678,6 +702,7 @@ const { url } = await startStandaloneServer(server, {
       userLoader,
       user,
       pubsub,
+      authError,
     };
   },
 });

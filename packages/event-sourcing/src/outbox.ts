@@ -1,4 +1,7 @@
+import { createErrorLogger } from '@graphql-microservices/shared-errors';
 import type { DomainEvent } from './types';
+
+const logError = createErrorLogger('event-sourcing-outbox');
 
 /**
  * Outbox event status
@@ -216,7 +219,7 @@ export class OutboxProcessor {
     try {
       await Promise.all([this.processPendingEvents(), this.processFailedEvents()]);
     } catch (error) {
-      console.error('Error processing outbox events:', error);
+      logError(error, { operation: 'processEvents' });
     } finally {
       this.isProcessing = false;
     }
@@ -248,7 +251,7 @@ export class OutboxProcessor {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       await this.outboxStore.markAsFailed(eventIds, errorMessage);
-      console.error(`Failed to publish ${pendingEvents.length} events:`, error);
+      logError(error, { operation: 'processPendingEvents', eventCount: pendingEvents.length });
     }
   }
 
@@ -279,7 +282,7 @@ export class OutboxProcessor {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         await this.outboxStore.markAsFailed([event.id], errorMessage);
-        console.error(`Failed to republish event ${event.id}:`, error);
+        logError(error, { operation: 'processFailedEvents', eventId: event.id });
       }
     }
   }

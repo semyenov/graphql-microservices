@@ -20,6 +20,7 @@
     "migrate:status": "bun run src/migration-runner.ts status"
   },
   "dependencies": {
+    "@graphql-microservices/shared-errors": "workspace:*",
     "zod": "^4.0.14",
     "@prisma/client": "^6.13.0",
     "pg": "^8.12.0"
