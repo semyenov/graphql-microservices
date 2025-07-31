@@ -305,15 +305,17 @@ export class User extends AggregateRoot {
    * Change user role (admin only)
    */
   changeRole(
-    newRole: 'USER' | 'ADMIN' | 'MODERATOR',
-    changedBy: string,
+    input: {
+      newRole: 'USER' | 'ADMIN' | 'MODERATOR';
+      changedBy: string;
+    },
     metadata?: { correlationId?: string }
   ): void {
     if (!this.isActive) {
       throw new UserDeactivatedError();
     }
 
-    if (newRole === this.role) {
+    if (input.newRole === this.role) {
       return; // No change needed
     }
 
@@ -322,14 +324,14 @@ export class User extends AggregateRoot {
       this.id,
       'User',
       {
-        newRole,
+        newRole: input.newRole,
         previousRole: this.role,
-        changedBy,
+        changedBy: input.changedBy,
       },
       {
         source: 'users-service',
         correlationId: metadata?.correlationId,
-        userId: changedBy,
+        userId: input.changedBy,
       },
       this.version + 1
     );
@@ -341,9 +343,11 @@ export class User extends AggregateRoot {
    * Change password
    */
   async changePassword(
-    currentPassword: string,
-    newPassword: string,
-    changedBy: string,
+    input: {
+      currentPassword: string;
+      newPassword: string;
+      changedBy: string;
+    },
     metadata?: { correlationId?: string }
   ): Promise<void> {
     if (!this.isActive) {
@@ -351,25 +355,25 @@ export class User extends AggregateRoot {
     }
 
     // Verify current password
-    const isValid = await verifyPassword(currentPassword, this.passwordHash);
+    const isValid = await verifyPassword(input.currentPassword, this.passwordHash);
     if (!isValid) {
       throw new InvalidCredentialsError();
     }
 
     // Hash new password
-    const newPasswordHash = await hashPassword(newPassword);
+    const newPasswordHash = await hashPassword(input.newPassword);
 
     const event = EventFactory.create(
       'UserPasswordChanged',
       this.id,
       'User',
       {
-        changedBy,
+        changedBy: input.changedBy,
       },
       {
         source: 'users-service',
         correlationId: metadata?.correlationId,
-        userId: changedBy,
+        userId: input.changedBy,
       },
       this.version + 1
     );
@@ -382,7 +386,13 @@ export class User extends AggregateRoot {
   /**
    * Deactivate user
    */
-  deactivate(reason: string, deactivatedBy: string, metadata?: { correlationId?: string }): void {
+  deactivate(
+    input: {
+      reason: string;
+      deactivatedBy: string;
+    },
+    metadata?: { correlationId?: string }
+  ): void {
     if (!this.isActive) {
       return; // Already deactivated
     }
@@ -392,13 +402,13 @@ export class User extends AggregateRoot {
       this.id,
       'User',
       {
-        reason,
-        deactivatedBy,
+        reason: input.reason,
+        deactivatedBy: input.deactivatedBy,
       },
       {
         source: 'users-service',
         correlationId: metadata?.correlationId,
-        userId: deactivatedBy,
+        userId: input.deactivatedBy,
       },
       this.version + 1
     );
@@ -409,7 +419,13 @@ export class User extends AggregateRoot {
   /**
    * Reactivate user
    */
-  reactivate(reason: string, reactivatedBy: string, metadata?: { correlationId?: string }): void {
+  reactivate(
+    input: {
+      reason: string;
+      reactivatedBy: string;
+    },
+    metadata?: { correlationId?: string }
+  ): void {
     if (this.isActive) {
       return; // Already active
     }
@@ -419,13 +435,13 @@ export class User extends AggregateRoot {
       this.id,
       'User',
       {
-        reason,
-        reactivatedBy,
+        reason: input.reason,
+        reactivatedBy: input.reactivatedBy,
       },
       {
         source: 'users-service',
         correlationId: metadata?.correlationId,
-        userId: reactivatedBy,
+        userId: input.reactivatedBy,
       },
       this.version + 1
     );
@@ -437,8 +453,10 @@ export class User extends AggregateRoot {
    * Record sign in event
    */
   recordSignIn(
-    ipAddress?: string,
-    userAgent?: string,
+    input: {
+      ipAddress?: string;
+      userAgent?: string;
+    },
     metadata?: { correlationId?: string }
   ): void {
     if (!this.isActive) {
@@ -451,8 +469,8 @@ export class User extends AggregateRoot {
       'User',
       {
         timestamp: new Date(),
-        ipAddress,
-        userAgent,
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
       },
       {
         source: 'users-service',
@@ -488,15 +506,15 @@ export class User extends AggregateRoot {
   /**
    * Set refresh token
    */
-  setRefreshToken(refreshToken: string): void {
-    this.refreshToken = refreshToken;
+  setRefreshToken(input: { refreshToken: string }): void {
+    this.refreshToken = input.refreshToken;
   }
 
   /**
    * Verify credentials
    */
-  async verifyPassword(password: string): Promise<boolean> {
-    return verifyPassword(password, this.passwordHash);
+  async verifyPassword(input: { password: string }): Promise<boolean> {
+    return verifyPassword(input.password, this.passwordHash);
   }
 
   /**

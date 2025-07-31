@@ -1,0 +1,61 @@
+[90m[main 2025-07-31T08:47:03.830Z][0m updateURL https://api2.cursor.sh/updates/api/update/linux-x64/cursor/1.3.5/3d19c3025bb94756cead9f78ef53082405b7be2213d43d275978b3e86d87dd60/prerelease
+[90m[main 2025-07-31T08:47:03.831Z][0m update#setState idle
+[111894:0731/114707.243519:ERROR:nss_util.cc(345)] After loading Root Certs, loaded==false: NSS error code: -8018
+[111894:0731/114717.373995:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x321c059ccd90' has no handler with id '2434'
+[90m[main 2025-07-31T08:47:33.832Z][0m update#setState checking for updates
+[90m[main 2025-07-31T08:47:34.003Z][0m update#setState ready
+[111894:0731/114826.982935:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x321c059c9cd0' has no handler with id '2942'
+[111894:0731/115234.254974:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x321c059c8610' has no handler with id '3650'
+[91m[main 2025-07-31T09:24:43.114Z][0m [UtilityProcess id: 1, type: fileWatcher, pid: 112351]: crashed with code 15 and reason 'killed'
+[90m[main 2025-07-31T09:24:44.887Z][0m Extension host with pid 112382 exited with code: 0, signal: unknown.
+[90m[main 2025-07-31T09:24:44.890Z][0m update#quitAndInstall(): starting updater with command /tmp/.mount_cursorHcgMb0/usr/share/cursor/resources/appimageupdatetool.AppImage -u "zsync|https://downloads.cursor.com/production/5d56108ff2401c28f239aa2a527ef424ce7719a3/linux/x64/Cursor-1.3.7-x86_64.AppImage.zsync" -O "/home/semyenov/Applications/cursor_1_0_0.appimage"; /home/semyenov/Applications/cursor_1_0_0.appimage &
+Checking for updates...
+zsync2: Using CA bundle found on system: /etc/ssl/certs/ca-certificates.crt
+... done!
+Starting update...
+
+Updating from generic server via ZSync
+zsync2: Using CA bundle found on system: /etc/ssl/certs/ca-certificates.crt
+[2K0% done[2K0% done[2K0% done[2K0% done[2K0% done[2K0% done[2K0% done[2K0% done[2K0% done[2K0% done[2K0% done[2K0% done
+zsync2: /home/semyenov/Applications/cursor_1_0_0.appimage found, using as seed file
+zsync2: Target file: /home/semyenov/Applications/cursor_1_0_0.appimage
+zsync2: Reading seed file: /home/semyenov/Applications/cursor_1_0_0.appimage
+[2K20.6669% done (37.77 of 182.75 MiB)...[2K53.51% done (97.79 of 182.75 MiB)...[2K70.19% done (128.28 of 182.75 MiB)...
+zsync2: Usable data from seed files: 94.154109%
+zsync2: Renaming temp file
+zsync2: Fetching remaining blocks
+[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...
+zsync2: Downloading from https://downloads.cursor.com/production/5d56108ff2401c28f239aa2a527ef424ce7719a3/linux/x64/Cursor-1.3.7-x86_64.AppImage
+zsync2: optimized ranges, old requests count 140, new requests count 33
+
+[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.15% done (172.07 of 182.75 MiB)...[2K94.16% done (172.08 of 182.75 MiB)...[2K94.16% done (172.08 of 182.75 MiB)...[2K94.18% done (172.11 of 182.75 MiB)...[2K94.18% done (172.12 of 182.75 MiB)...[2K94.18% done (172.12 of 182.75 MiB)...[2K94.19% done (172.13 of 182.75 MiB)...[2K94.19% done (172.13 of 182.75 MiB)...[2K94.28% done (172.30 of 182.75 MiB)...[2K94.36% done (172.43 of 182.75 MiB)...[2K94.36% done (172.43 of 182.75 MiB)...[2K94.40% done (172.52 of 182.75 MiB)...[2K94.56% done (172.82 of 182.75 MiB)...[2K94.56% done (172.82 of 182.75 MiB)...[2K94.59% done (172.86 of 182.75 MiB)...[2K94.65% done (172.97 of 182.75 MiB)...[2K94.65% done (172.98 of 182.75 MiB)...[2K94.66% done (173.00 of 182.75 MiB)...[2K94.74% done (173.13 of 182.75 MiB)...[2K94.75% done (173.15 of 182.75 MiB)...[2K94.75% done (173.15 of 182.75 MiB)...[2K94.75% done (173.17 of 182.75 MiB)...[2K94.75% done (173.17 of 182.75 MiB)...[2K94.76% done (173.18 of 182.75 MiB)...[2K94.76% done (173.18 of 182.75 MiB)...[2K94.78% done (173.22 of 182.75 MiB)...[2K94.78% done (173.22 of 182.75 MiB)...[2K94.78% done (173.22 of 182.75 MiB)...[2K94.78% done (173.22 of 182.75 MiB)...[2K94.79% done (173.23 of 182.75 MiB)...[2K94.79% done (173.23 of 182.75 MiB)...[2K94.83% done (173.31 of 182.75 MiB)...[2K94.83% done (173.31 of 182.75 MiB)...[2K94.84% done (173.31 of 182.75 MiB)...[2K94.86% done (173.35 of 182.75 MiB)...[2K94.86% done (173.35 of 182.75 MiB)...[2K94.88% done (173.39 of 182.75 MiB)...[2K95.02% done (173.65 of 182.75 MiB)...[2K95.42% done (174.38 of 182.75 MiB)...[2K95.53% done (174.58 of 182.75 MiB)...[2K95.53% done (174.58 of 182.75 MiB)...[2K95.53% done (174.58 of 182.75 MiB)...[2K95.95% done (175.36 of 182.75 MiB)...[2K96.01% done (175.45 of 182.75 MiB)...[2K96.01% done (175.45 of 182.75 MiB)...[2K96.03% done (175.49 of 182.75 MiB)...[2K96.03% done (175.49 of 182.75 MiB)...[2K96.03% done (175.49 of 182.75 MiB)...[2K96.03% done (175.49 of 182.75 MiB)...[2K96.05% done (175.54 of 182.75 MiB)...[2K96.06% done (175.55 of 182.75 MiB)...[2K96.06% done (175.55 of 182.75 MiB)...[2K96.12% done (175.66 of 182.75 MiB)...[2K96.12% done (175.66 of 182.75 MiB)...[2K96.12% done (175.67 of 182.75 MiB)...[2K96.12% done (175.67 of 182.75 MiB)...[2K96.21% done (175.82 of 182.75 MiB)...[2K96.21% done (175.82 of 182.75 MiB)...[2K96.29% done (175.97 of 182.75 MiB)...[2K96.30% done (175.99 of 182.75 MiB)...[2K96.30% done (175.99 of 182.75 MiB)...[2K96.39% done (176.15 of 182.75 MiB)...[2K96.51% done (176.38 of 182.75 MiB)...[2K96.52% done (176.38 of 182.75 MiB)...[2K96.52% done (176.39 of 182.75 MiB)...[2K96.52% done (176.39 of 182.75 MiB)...[2K96.53% done (176.41 of 182.75 MiB)...[2K96.53% done (176.41 of 182.75 MiB)...[2K96.54% done (176.43 of 182.75 MiB)...[2K96.54% done (176.43 of 182.75 MiB)...[2K96.57% done (176.48 of 182.75 MiB)...[2K96.57% done (176.48 of 182.75 MiB)...[2K96.60% done (176.53 of 182.75 MiB)...[2K96.61% done (176.55 of 182.75 MiB)...[2K96.71% done (176.75 of 182.75 MiB)...[2K96.71% done (176.75 of 182.75 MiB)...[2K96.77% done (176.86 of 182.75 MiB)...[2K96.77% done (176.86 of 182.75 MiB)...[2K96.78% done (176.87 of 182.75 MiB)...[2K96.78% done (176.87 of 182.75 MiB)...[2K96.79% done (176.88 of 182.75 MiB)...[2K96.79% done (176.88 of 182.75 MiB)...[2K96.81% done (176.92 of 182.75 MiB)...[2K96.81% done (176.92 of 182.75 MiB)...[2K97.10% done (177.46 of 182.75 MiB)...[2K97.42% done (178.04 of 182.75 MiB)...[2K98.26% done (179.58 of 182.75 MiB)...[2K98.49% done (179.99 of 182.75 MiB)...[2K99.32% done (181.51 of 182.75 MiB)...[2K99.71% done (182.23 of 182.75 MiB)...[2K99.87% done (182.51 of 182.75 MiB)...[2K99.87% done (182.51 of 182.75 MiB)...
+zsync2: Verifying downloaded file
+[2K100.00% done (182.75 of 182.75 MiB)...[2K100.00% done (182.75 of 182.75 MiB)...[2K100.00% done (182.75 of 182.75 MiB)...
+zsync2: checksum matches OK
+[2K0.00% done (0.00 of 182.75 MiB)...
+zsync2: used 180428800 local, fetched 18990272
+[2K100.00% done (182.75 of 182.75 MiB)...
+Validation warning: AppImage not signed
+Update successful. Updated existing file /home/semyenov/Applications/cursor_1_0_0.appimage
+[90m[main 2025-07-31T09:25:00.860Z][0m updateURL https://api2.cursor.sh/updates/api/update/linux-x64/cursor/1.3.7/3d19c3025bb94756cead9f78ef53082405b7be2213d43d275978b3e86d87dd60/prerelease
+[90m[main 2025-07-31T09:25:00.860Z][0m update#setState idle
+[125292:0731/122504.473760:ERROR:nss_util.cc(345)] After loading Root Certs, loaded==false: NSS error code: -8018
+[125292:0731/122516.261183:ERROR:atom_cache.cc(229)] Add chromium/from-privileged to kAtomsToCache
+[125292:0731/122518.263709:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f4000ecc90' has no handler with id '2417'
+[125292:0731/122520.935719:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f4000ee350' has no handler with id '2696'
+[90m[main 2025-07-31T09:25:30.860Z][0m update#setState checking for updates
+[90m[main 2025-07-31T09:25:31.024Z][0m update#setState idle
+[125292:0731/122545.562224:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f403186f10' has no handler with id '3109'
+[125292:0731/122547.581048:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f4000ee350' has no handler with id '3370'
+[125292:0731/122551.296670:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f4000ee350' has no handler with id '3657'
+[125292:0731/122552.834086:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f4000ecc90' has no handler with id '3951'
+[125292:0731/122648.421001:ERROR:atom_cache.cc(229)] Add code/file-list to kAtomsToCache
+[125292:0731/123001.755980:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f40317c950' has no handler with id '4877'
+[125292:0731/132114.671331:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f40317c950' has no handler with id '12664'
+[90m[main 2025-07-31T10:25:30.880Z][0m update#setState checking for updates
+[90m[main 2025-07-31T10:25:31.770Z][0m update#setState idle
+[125292:0731/132959.398836:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f40317cc90' has no handler with id '14076'
+[90m[main 2025-07-31T11:25:30.889Z][0m update#setState checking for updates
+[90m[main 2025-07-31T11:25:31.717Z][0m update#setState idle
+[90m[main 2025-07-31T12:25:30.904Z][0m update#setState checking for updates
+[90m[main 2025-07-31T12:25:31.878Z][0m update#setState idle

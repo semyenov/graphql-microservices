@@ -10,8 +10,8 @@ import {
 import { ApolloServer } from '@apollo/server';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import { startStandaloneServer } from '@apollo/server/standalone';
+import { gatewayEnvSchema, parseEnv } from '@graphql-microservices/config';
 import { CacheService } from '@graphql-microservices/shared-cache';
-import { gatewayEnvSchema, parseEnv } from '@graphql-microservices/shared-config';
 
 // Parse environment variables
 const env = parseEnv(gatewayEnvSchema);
@@ -20,7 +20,7 @@ const env = parseEnv(gatewayEnvSchema);
 const cacheService = new CacheService(env.REDIS_URL || 'redis://localhost:6379');
 
 // Context interface for gateway
-export interface GatewayContext {
+export interface Context {
   req: IncomingMessage;
   cacheService: CacheService;
   correlationId: string;
@@ -28,7 +28,7 @@ export interface GatewayContext {
 
 // Custom data source to forward headers and handle retries
 class AuthenticatedDataSource extends RemoteGraphQLDataSource {
-  override willSendRequest({ request, context }: GraphQLDataSourceProcessOptions<GatewayContext>) {
+  override willSendRequest({ request, context }: GraphQLDataSourceProcessOptions<Context>) {
     // Forward the authorization header from the original request
     if (context.req?.headers?.authorization) {
       request.http?.headers.set('authorization', context.req.headers.authorization);
@@ -90,7 +90,7 @@ const httpServer = createServer(async (req, res) => {
 });
 
 // Create Apollo Server
-const server = new ApolloServer<GatewayContext>({
+const server = new ApolloServer<Context>({
   gateway,
   introspection: env.INTROSPECTION_ENABLED,
   includeStacktraceInErrorResponses: env.NODE_ENV !== 'production',
@@ -135,7 +135,7 @@ const server = new ApolloServer<GatewayContext>({
 // Start server
 const { url } = await startStandaloneServer(server, {
   listen: { port: env.PORT },
-  context: async ({ req }): Promise<GatewayContext> => {
+  context: async ({ req }): Promise<Context> => {
     // Generate correlation ID if not present
     const correlationId =
       (req.headers['x-correlation-id'] as string) ||
@@ -197,7 +197,10 @@ console.log(`📊 GraphQL Playground: ${env.PLAYGROUND_ENABLED ? 'enabled' : 'di
 console.log(`🔍 Introspection: ${env.INTROSPECTION_ENABLED ? 'enabled' : 'disabled'}`);
 console.log(`🔄 Schema polling: ${env.NODE_ENV === 'production' ? '30s' : '10s'}`);
 console.log(`\n📡 Subgraphs:`);
-subgraphConfigs.forEach((sg) => console.log(`   - ${sg.name}: ${sg.url}`));
+
+subgraphConfigs.forEach((sg) => {
+  console.log(`   - ${sg.name}: ${sg.url}`);
+});
 
 // Initial health check
 setTimeout(checkSubgraphHealth, 1000);

@@ -61,25 +61,25 @@ SERVICES=($(ls -d services/*/ | xargs -n1 basename))
 build_service() {
     local service=$1
     local image_name="${REGISTRY}graphql-microservices-${service}"
-    
+
     print_step "Building ${service} service..."
-    
+
     # Build arguments
     BUILD_ARGS=(
         --build-arg BUILD_DATE="${BUILD_DATE}"
         --build-arg VCS_REF="${VCS_REF}"
         --build-arg VERSION="${VERSION}"
     )
-    
+
     # Build with cache
     if [ -n "${REGISTRY}" ]; then
         BUILD_ARGS+=(--cache-from "${image_name}:latest")
         BUILD_ARGS+=(--cache-from "${REGISTRY}graphql-microservices-builder:latest")
     fi
-    
+
     # Add progress output
     BUILD_ARGS+=(--progress=plain)
-    
+
     # Build the image
     if docker build \
         -f "services/${service}/Dockerfile" \
@@ -88,7 +88,7 @@ build_service() {
         "${BUILD_ARGS[@]}" \
         .; then
         print_info "Successfully built ${service} service"
-        
+
         # Push to registry if configured
         if [ -n "${REGISTRY}" ]; then
             print_info "Pushing ${service} to registry..."
@@ -104,23 +104,23 @@ build_service() {
 # Build base image first
 build_base() {
     local image_name="${REGISTRY}graphql-microservices-builder"
-    
+
     print_step "Building base/builder image..."
-    
+
     BUILD_ARGS=(
         --build-arg BUILD_DATE="${BUILD_DATE}"
         --build-arg VCS_REF="${VCS_REF}"
         --build-arg VERSION="${VERSION}"
         --target service-builder
     )
-    
+
     if [ -n "${REGISTRY}" ]; then
         BUILD_ARGS+=(--cache-from "${image_name}:latest")
     fi
-    
+
     # Add progress output
     BUILD_ARGS+=(--progress=plain)
-    
+
     if docker build \
         -f "Dockerfile.base" \
         -t "${image_name}:${VERSION}" \
@@ -128,7 +128,7 @@ build_base() {
         "${BUILD_ARGS[@]}" \
         .; then
         print_info "Successfully built base/builder image"
-        
+
         if [ -n "${REGISTRY}" ]; then
             print_info "Pushing base/builder to registry..."
             docker push "${image_name}:${VERSION}"
@@ -143,13 +143,13 @@ build_base() {
 # Parallel build function
 parallel_build() {
     local pids=()
-    
+
     # Build services in parallel
     for service in "${SERVICES[@]}"; do
         build_service "${service}" &
         pids+=($!)
     done
-    
+
     # Wait for all builds to complete
     local failed=0
     for pid in "${pids[@]}"; do
@@ -157,7 +157,7 @@ parallel_build() {
             failed=$((failed + 1))
         fi
     done
-    
+
     return $failed
 }
 
@@ -199,7 +199,7 @@ else
     done
 fi
 
-# Generate docker-compose override file with image tags
+# Generate docker compose override file with image tags
 cat > docker-compose.override.yml <<EOF
 # Auto-generated file - DO NOT EDIT
 # Generated on ${BUILD_DATE}
@@ -223,7 +223,7 @@ print_info "Generated docker-compose.override.yml with image tags"
 # Optionally run tests
 if [ "${RUN_TESTS:-false}" = "true" ]; then
     print_info "Running integration tests..."
-    docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from tests
+    docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from tests
 fi
 
 # Print summary

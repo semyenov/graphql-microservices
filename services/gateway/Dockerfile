@@ -4,6 +4,10 @@
 FROM oven/bun:1.2 AS deps
 WORKDIR /app
 
+ENV NODE_ENV=production \
+    PORT=4000 \
+    SERVICE_NAME=gateway
+
 # Copy workspace package files
 COPY package.json bun.lock ./
 COPY packages/*/package.json ./packages/
@@ -12,11 +16,15 @@ COPY services/*/package.json ./services/
 COPY client/package.json ./client/
 
 # Install all dependencies
-RUN bun install
+RUN bun install --production
 
 # Build packages stage
 FROM deps AS package-builder
 WORKDIR /app
+
+ENV NODE_ENV=production \
+    PORT=4000 \
+    SERVICE_NAME=gateway
 
 # Copy package source code
 COPY packages/ ./packages/

@@ -11,7 +11,7 @@
     "@apollo/server": "^5.0.0",
     "@apollo/subgraph": "^2.11.2",
     "@graphql-microservices/shared-cache": "workspace:*",
-    "@graphql-microservices/shared-config": "workspace:*",
+    "@graphql-microservices/config": "workspace:*",
     "graphql": "^16.11.0"
   },
   "devDependencies": {

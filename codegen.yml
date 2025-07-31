@@ -2,47 +2,47 @@ overwrite: true
 generates:
   # Generate types for each service using individual cleaned schemas
   services/users/generated/graphql.ts:
-    schema: services/users/schema-clean.graphql
+    schema: services/users/schema.graphql
     plugins:
       - typescript
       - typescript-resolvers
     config:
-      contextType: ../src/index#Context
+      contextType: "@graphql-microservices/users#Context"
       scalars:
         DateTime: string
-        
+
   services/products/generated/graphql.ts:
-    schema: services/products/schema-clean.graphql
+    schema: services/products/schema.graphql
     plugins:
       - typescript
       - typescript-resolvers
     config:
-      contextType: ../src/index#Context
+      contextType: "@graphql-microservices/products#Context"
       scalars:
         DateTime: string
         Decimal: number
-        
+
   services/orders/generated/graphql.ts:
-    schema: services/orders/schema-clean.graphql
+    schema: services/orders/schema.graphql
     plugins:
       - typescript
       - typescript-resolvers
     config:
-      contextType: ../src/index#Context
+      contextType: "@graphql-microservices/orders#Context"
       scalars:
         DateTime: string
         Decimal: number
-        
+
   # Generate client types using combined schema
   shared/graphql/generated/client-types.ts:
     schema:
-      - schemas/users-clean.graphql
-      - schemas/products-clean.graphql
-      - schemas/orders-clean.graphql
+      - schemas/users.graphql
+      - schemas/products.graphql
+      - schemas/orders.graphql
     documents:
       # Look for GraphQL operations in client code
       - client/src/**/*.ts
-      - client/src/**/*.graphql
+      - client/src/**/*.gql
     plugins:
       - typescript
       - typescript-operations

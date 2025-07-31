@@ -137,296 +137,296 @@ ws://localhost:4000/graphql
 
 ```graphql
 enum OrderStatus {
-  PENDING
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  CANCELLED
-  REFUNDED
-}
+    PENDING
+    PROCESSING
+    SHIPPED
+    DELIVERED
+    CANCELLED
+    REFUNDED
+  }
 ```
 
 #### Role
 
 ```graphql
 enum Role {
-  USER
-  ADMIN
-  MODERATOR
-}
+    USER
+    ADMIN
+    MODERATOR
+  }
 ```
 
 #### ChangePasswordInput
 
 ```graphql
 input ChangePasswordInput {
-  currentPassword: String!
-  newPassword: String!
-}
+    currentPassword: String!
+    newPassword: String!
+  }
 ```
 
 #### CreateOrderInput
 
 ```graphql
 input CreateOrderInput {
-  items: [OrderItemInput!]!
-  shippingInfo: ShippingInfoInput!
-  notes: String
-}
+    items: [OrderItemInput!]!
+    shippingInfo: ShippingInfoInput!
+    notes: String
+  }
 ```
 
 #### CreateProductInput
 
 ```graphql
 input CreateProductInput {
-  name: String!
-  description: String!
-  price: Float!
-  stock: Int!
-  sku: String!
-  category: String!
-  tags: [String!]
-  imageUrl: String
-}
+    name: String!
+    description: String!
+    price: Float!
+    stock: Int!
+    sku: String!
+    category: String!
+    tags: [String!]
+    imageUrl: String
+  }
 ```
 
 #### OrderItemInput
 
 ```graphql
 input OrderItemInput {
-  productId: ID!
-  quantity: Int!
-  price: Float!
-}
+    productId: ID!
+    quantity: Int!
+    price: Float!
+  }
 ```
 
 #### ShippingInfoInput
 
 ```graphql
 input ShippingInfoInput {
-  address: String!
-  city: String!
-  state: String!
-  zipCode: String!
-  country: String!
-  phone: String
-}
+    address: String!
+    city: String!
+    state: String!
+    zipCode: String!
+    country: String!
+    phone: String
+  }
 ```
 
 #### SignInInput
 
 ```graphql
 input SignInInput {
-  username: String!
-  password: String!
-}
+    username: String!
+    password: String!
+  }
 ```
 
 #### SignUpInput
 
 ```graphql
 input SignUpInput {
-  username: String!
-  email: String!
-  password: String!
-  name: String!
-  phoneNumber: String
-}
+    username: String!
+    email: String!
+    password: String!
+    name: String!
+    phoneNumber: String
+  }
 ```
 
 #### StockUpdate
 
 ```graphql
 input StockUpdate {
-  productId: ID!
-  quantity: Int!
-}
+    productId: ID!
+    quantity: Int!
+  }
 ```
 
 #### UpdateProductInput
 
 ```graphql
 input UpdateProductInput {
-  name: String
-  description: String
-  price: Float
-  stock: Int
-  category: String
-  tags: [String!]
-  imageUrl: String
-}
+    name: String
+    description: String
+    price: Float
+    stock: Int
+    category: String
+    tags: [String!]
+    imageUrl: String
+  }
 ```
 
 #### UpdateProfileInput
 
 ```graphql
 input UpdateProfileInput {
-  name: String
-  phoneNumber: String
-}
+    name: String
+    phoneNumber: String
+  }
 ```
 
 #### UpdateUserInput
 
 ```graphql
 input UpdateUserInput {
-  username: String
-  email: String
-  name: String
-  phoneNumber: String
-  role: Role
-}
+    username: String
+    email: String
+    name: String
+    phoneNumber: String
+    role: Role
+  }
 ```
 
 #### AuthPayload
 
 ```graphql
 type AuthPayload {
-  user: User!
-  accessToken: String!
-  refreshToken: String!
-}
+    user: User!
+    accessToken: String!
+    refreshToken: String!
+  }
 ```
 
 #### Order
 
 ```graphql
 type Order  {
-  id: ID!
-  userId: ID!
-  user: User
-  orderNumber: String!
-  items: [OrderItem!]!
-  subtotal: Float!
-  tax: Float!
-  shipping: Float!
-  total: Float!
-  status: OrderStatus!
-  shippingInfo: ShippingInfo
-  paymentInfo: PaymentInfo
-  notes: String
-  createdAt: String!
-  updatedAt: String!
-}
+    id: ID!
+    userId: ID!
+    user: User
+    orderNumber: String!
+    items: [OrderItem!]!
+    subtotal: Float!
+    tax: Float!
+    shipping: Float!
+    total: Float!
+    status: OrderStatus!
+    shippingInfo: ShippingInfo
+    paymentInfo: PaymentInfo
+    notes: String
+    createdAt: String!
+    updatedAt: String!
+  }
 ```
 
 #### OrderItem
 
 ```graphql
 type OrderItem {
-  id: ID!
-  productId: ID!
-  product: Product
-  quantity: Int!
-  price: Float!
-  total: Float!
-}
+    id: ID!
+    productId: ID!
+    product: Product
+    quantity: Int!
+    price: Float!
+    total: Float!
+  }
 ```
 
 #### OrdersPage
 
 ```graphql
 type OrdersPage {
-  orders: [Order!]!
-  totalCount: Int!
-  pageInfo: PageInfo!
-}
+    orders: [Order!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
+  }
 ```
 
 #### PageInfo
 
 ```graphql
 type PageInfo  {
-  hasNextPage: Boolean!
-  hasPreviousPage: Boolean!
-  startCursor: String
-  endCursor: String
-}
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+  }
 ```
 
 #### PaymentInfo
 
 ```graphql
 type PaymentInfo {
-  method: String!
-  transactionId: String
-  paidAt: String
-}
+    method: String!
+    transactionId: String
+    paidAt: String
+  }
 ```
 
 #### Product
 
 ```graphql
 type Product  {
-  id: ID!
-  name: String!
-  description: String!
-  price: Float!
-  stock: Int!
-  sku: String!
-  category: String!
-  tags: [String!]!
-  imageUrl: String
-  isActive: Boolean!
-  createdAt: String!
-  updatedAt: String!
-}
+    id: ID!
+    name: String!
+    description: String!
+    price: Float!
+    stock: Int!
+    sku: String!
+    category: String!
+    tags: [String!]!
+    imageUrl: String
+    isActive: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
 ```
 
 #### Product
 
 ```graphql
 type Product  {
-  id: ID! 
-}
+    id: ID! 
+  }
 ```
 
 #### ProductsPage
 
 ```graphql
 type ProductsPage {
-  products: [Product!]!
-  totalCount: Int!
-  pageInfo: PageInfo!
-}
+    products: [Product!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
+  }
 ```
 
 #### ShippingInfo
 
 ```graphql
 type ShippingInfo {
-  address: String!
-  city: String!
-  state: String!
-  zipCode: String!
-  country: String!
-  phone: String
-}
+    address: String!
+    city: String!
+    state: String!
+    zipCode: String!
+    country: String!
+    phone: String
+  }
 ```
 
 #### User
 
 ```graphql
 type User  {
-  id: ID!
-  username: String!
-  email: String!
-  name: String!
-  phoneNumber: String
-  role: Role!
-  isActive: Boolean!
-  createdAt: String!
-  updatedAt: String!
-}
+    id: ID!
+    username: String!
+    email: String!
+    name: String!
+    phoneNumber: String
+    role: Role!
+    isActive: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
 ```
 
 #### User
 
 ```graphql
 type User  {
-  id: ID! 
-  orders: [Order!]!
-}
+    id: ID! 
+    orders: [Order!]!
+  }
 ```
 
 ## Examples

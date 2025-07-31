@@ -29,7 +29,7 @@ COPY services/*/package.json ./services/
 COPY client/package.json ./client/
 
 # Install all dependencies
-RUN bun install
+RUN bun install --production
 
 # Build packages stage
 FROM deps AS package-builder

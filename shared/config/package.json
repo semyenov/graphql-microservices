@@ -1,9 +1,0 @@
-{
-  "name": "@graphql-microservices/shared-config",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "index.ts",
-  "dependencies": {
-    "zod": "^4.0.14"
-  }
-}

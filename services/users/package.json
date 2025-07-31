@@ -14,7 +14,7 @@
     "@apollo/subgraph": "^2.11.2",
     "@graphql-microservices/shared-auth": "workspace:*",
     "@graphql-microservices/shared-cache": "workspace:*",
-    "@graphql-microservices/shared-config": "workspace:*",
+    "@graphql-microservices/config": "workspace:*",
     "@graphql-microservices/event-sourcing": "workspace:*",
     "@prisma/client": "^6.13.0",
     "dataloader": "^2.2.3",

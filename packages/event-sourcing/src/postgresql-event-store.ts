@@ -5,7 +5,13 @@ import {
   type EventSubscription,
   OptimisticConcurrencyError,
 } from './event-store';
-import type { DomainEvent, EventStoreQuery, StoredEvent, StreamPosition } from './types';
+import type {
+  DomainEvent,
+  EventMetadata,
+  EventStoreQuery,
+  StoredEvent,
+  StreamPosition,
+} from './types';
 
 /**
  * PostgreSQL implementation of the event store
@@ -16,10 +22,10 @@ export class PostgreSQLEventStore extends BaseEventStore {
   constructor(config: EventStoreConfig) {
     super(config);
     this.pool = new Pool({
-      connectionString: config.connectionString,
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
+      connectionString: config.connectionString,
     });
   }
 
@@ -105,9 +111,14 @@ export class PostgreSQLEventStore extends BaseEventStore {
     }
   }
 
-  async appendToStream(
+  async appendToStream<
+    TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(
     aggregateId: string,
-    events: DomainEvent[],
+    events: DomainEvent<TType, TData, TContext, TMetadata>[],
     expectedVersion?: number
   ): Promise<StreamPosition[]> {
     if (events.length === 0) {
@@ -131,10 +142,15 @@ export class PostgreSQLEventStore extends BaseEventStore {
 
       // Insert events
       for (let i = 0; i < events.length; i++) {
-        const event = events[i];
         const streamPosition = currentVersion + i + 1;
 
-        const result = await client.query(
+        const event = events[i];
+        if (!event) throw new Error('Event is undefined');
+
+        const result = await client.query<
+          { global_position: string },
+          [string, string, string, string, number, string, string, Date, number]
+        >(
           `
           INSERT INTO ${this.config.eventsTable} 
           (id, type, aggregate_id, aggregate_type, stream_position, data, metadata, occurred_at, version)
@@ -155,7 +171,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
         );
 
         positions.push({
-          globalPosition: BigInt(result.rows[0].global_position),
+          globalPosition: BigInt(result.rows[0]?.global_position || '0'),
           streamPosition,
         });
       }
@@ -170,11 +186,16 @@ export class PostgreSQLEventStore extends BaseEventStore {
     }
   }
 
-  async readStream(
+  async readStream<
+    TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(
     aggregateId: string,
     fromVersion: number = 1,
     toVersion?: number
-  ): Promise<StoredEvent[]> {
+  ): Promise<StoredEvent<TType, TData, TContext, TMetadata>[]> {
     const client = await this.pool.connect();
 
     try {
@@ -192,13 +213,18 @@ export class PostgreSQLEventStore extends BaseEventStore {
       query += ' ORDER BY stream_position ASC';
 
       const result = await client.query(query, params);
-      return result.rows.map(this.mapRowToStoredEvent);
+      return result.rows.map(this.mapRowToStoredEvent<TType, TData, TContext, TMetadata>);
     } finally {
       client.release();
     }
   }
 
-  async readEvents(query: EventStoreQuery): Promise<StoredEvent[]> {
+  async readEvents<
+    TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(query: EventStoreQuery): Promise<StoredEvent<TType, TData, TContext, TMetadata>[]> {
     const client = await this.pool.connect();
 
     try {
@@ -250,13 +276,21 @@ export class PostgreSQLEventStore extends BaseEventStore {
       }
 
       const result = await client.query(sql, params);
-      return result.rows.map(this.mapRowToStoredEvent);
+      return result.rows.map(this.mapRowToStoredEvent<TType, TData, TContext, TMetadata>);
     } finally {
       client.release();
     }
   }
 
-  async readAllEvents(fromPosition?: bigint, limit?: number): Promise<StoredEvent[]> {
+  async readAllEvents<
+    TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(
+    fromPosition?: bigint,
+    limit?: number
+  ): Promise<StoredEvent<TType, TData, TContext, TMetadata>[]> {
     const client = await this.pool.connect();
 
     try {
@@ -277,13 +311,18 @@ export class PostgreSQLEventStore extends BaseEventStore {
       }
 
       const result = await client.query(query, params);
-      return result.rows.map(this.mapRowToStoredEvent);
+      return result.rows.map(this.mapRowToStoredEvent<TType, TData, TContext, TMetadata>);
     } finally {
       client.release();
     }
   }
 
-  async getCurrentVersion(aggregateId: string): Promise<number> {
+  async getCurrentVersion<
+    _TType extends string = string,
+    _TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    _TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(aggregateId: string): Promise<number> {
     const client = await this.pool.connect();
 
     try {
@@ -309,11 +348,16 @@ export class PostgreSQLEventStore extends BaseEventStore {
     return parseInt(result.rows[0].version);
   }
 
-  async aggregateExists(aggregateId: string): Promise<boolean> {
+  async aggregateExists<
+    _TType extends string = string,
+    _TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    _TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(aggregateId: string): Promise<boolean> {
     const client = await this.pool.connect();
 
     try {
-      const result = await client.query(
+      const result = await client.query<Record<string, unknown>, [string]>(
         `
         SELECT 1 FROM ${this.config.eventsTable}
         WHERE aggregate_id = $1
@@ -328,12 +372,12 @@ export class PostgreSQLEventStore extends BaseEventStore {
     }
   }
 
-  async saveSnapshot(
-    aggregateId: string,
-    aggregateType: string,
-    snapshot: Record<string, unknown>,
-    version: number
-  ): Promise<void> {
+  async saveSnapshot<
+    _TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    _TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(aggregateId: string, aggregateType: string, snapshot: TData, version: number): Promise<void> {
     if (!this.config.enableSnapshots) {
       throw new Error('Snapshots are not enabled');
     }
@@ -360,8 +404,15 @@ export class PostgreSQLEventStore extends BaseEventStore {
     }
   }
 
-  async loadSnapshot(aggregateId: string): Promise<{
-    data: Record<string, unknown>;
+  async loadSnapshot<
+    _TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    _TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(
+    aggregateId: string
+  ): Promise<{
+    data: TData;
     version: number;
   } | null> {
     if (!this.config.enableSnapshots) {
@@ -371,7 +422,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
     const client = await this.pool.connect();
 
     try {
-      const result = await client.query(
+      const result = await client.query<{ data: string; version: number }, [string]>(
         `
         SELECT data, version FROM ${this.config.snapshotsTable}
         WHERE aggregate_id = $1
@@ -384,6 +435,10 @@ export class PostgreSQLEventStore extends BaseEventStore {
       }
 
       const row = result.rows[0];
+      if (!row) {
+        return null;
+      }
+
       return {
         data: JSON.parse(row.data),
         version: row.version,
@@ -393,8 +448,13 @@ export class PostgreSQLEventStore extends BaseEventStore {
     }
   }
 
-  async subscribe(
-    callback: (events: StoredEvent[]) => Promise<void>,
+  async subscribe<
+    TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(
+    callback: (events: StoredEvent<TType, TData, TContext, TMetadata>[]) => Promise<void>,
     query?: EventStoreQuery
   ): Promise<EventSubscription> {
     // This is a simple implementation using polling
@@ -415,7 +475,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
         });
 
         if (events.length > 0) {
-          await callback(events);
+          await callback(events as StoredEvent<TType, TData, TContext, TMetadata>[]);
           lastPosition = events[events.length - 1]?.position.globalPosition || BigInt(0);
         }
       } catch (error) {
@@ -442,9 +502,14 @@ export class PostgreSQLEventStore extends BaseEventStore {
   /**
    * Map database row to StoredEvent
    */
-  private mapRowToStoredEvent(row: {
+  private mapRowToStoredEvent<
+    TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(row: {
     id: string;
-    type: string;
+    type: TType;
     aggregate_id: string;
     aggregate_type: string;
     data: string;
@@ -454,21 +519,34 @@ export class PostgreSQLEventStore extends BaseEventStore {
     global_position: string;
     stream_position: number;
     stored_at: string;
-  }): StoredEvent {
-    return {
-      id: row.id,
-      type: row.type,
-      aggregateId: row.aggregate_id,
-      aggregateType: row.aggregate_type,
-      data: JSON.parse(row.data),
-      metadata: JSON.parse(row.metadata),
-      occurredAt: new Date(row.occurred_at),
-      version: row.version,
-      position: {
-        globalPosition: BigInt(row.global_position),
-        streamPosition: row.stream_position,
-      },
-      storedAt: new Date(row.stored_at),
+  }): StoredEvent<TType, TData, TContext, TMetadata> {
+    const aggregateId = row.aggregate_id;
+    const aggregateType = row.aggregate_type;
+    const type = row.type;
+    const id = row.id;
+    const version = row.version;
+    const data = JSON.parse(row.data) as TData;
+    const metadata = JSON.parse(row.metadata) as TMetadata;
+    const storedAt = new Date(row.stored_at);
+    const occurredAt = new Date(row.occurred_at);
+    const position: StreamPosition = {
+      globalPosition: BigInt(row.global_position),
+      streamPosition: row.stream_position,
     };
+
+    const event: StoredEvent<TType, TData, TContext, TMetadata> = {
+      id,
+      type,
+      aggregateId,
+      aggregateType,
+      data,
+      metadata,
+      occurredAt,
+      version,
+      position,
+      storedAt,
+    };
+
+    return event;
   }
 }

@@ -2,7 +2,10 @@ import type { CacheService } from '@graphql-microservices/shared-cache';
 import type { PubSubService } from '@graphql-microservices/shared-pubsub';
 import type { PrismaClient } from '../../generated/prisma';
 import { UserEventDispatcher } from '../application/event-handlers';
-import { createProjectionService, type ProjectionService } from '../application/projection-service';
+import {
+  createProjectionService,
+  type UserProjectionService,
+} from '../application/projection-service';
 import { CQRSInfrastructure, type CQRSInfrastructureConfig } from './cqrs-integration';
 import { createUserEventSubscriber, type RedisEventSubscriber } from './redis-event-subscriber';
 
@@ -24,7 +27,7 @@ export class EventDrivenIntegration {
   private readonly cqrsInfrastructure: CQRSInfrastructure;
   private readonly eventDispatcher: UserEventDispatcher;
   private readonly eventSubscriber?: RedisEventSubscriber;
-  private readonly projectionService?: ProjectionService;
+  private readonly projectionService?: UserProjectionService;
   private isInitialized = false;
 
   constructor(

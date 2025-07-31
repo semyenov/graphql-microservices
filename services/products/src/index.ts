@@ -1,13 +1,13 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
+import { parseEnv, productServiceEnvSchema } from '@graphql-microservices/config';
 import {
   type AuthContext,
   AuthService,
   extractAndVerifyUser,
 } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
-import { parseEnv, productServiceEnvSchema } from '@graphql-microservices/shared-config';
 import {
   AuthenticationError,
   BusinessRuleError,

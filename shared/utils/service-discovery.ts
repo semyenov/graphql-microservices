@@ -7,7 +7,13 @@ export interface ServiceConfig {
   port: number;
   priority: number; // Lower priority starts first
   packageJson?: Record<string, unknown> & {
+    name: string;
+    version: string;
+    description: string;
+    main: string;
     scripts?: Record<string, string>;
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
   };
 }
 
@@ -37,8 +43,10 @@ export async function discoverServices(): Promise<ServiceConfig[]> {
     try {
       const packageContent = await readFile(packagePath, 'utf-8');
       const packageJson = JSON.parse(packageContent);
-      const serviceName = packageJson.name?.split('/').pop() || basename(dirname(packagePath));
       const servicePath = dirname(packagePath);
+      const serviceName = packageJson.name
+        ? packageJson.name.split('/').pop()
+        : basename(servicePath);
 
       // Gateway gets special treatment - always port 4000 and starts last
       if (serviceName === 'gateway') {

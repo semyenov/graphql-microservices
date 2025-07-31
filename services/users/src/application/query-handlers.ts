@@ -313,18 +313,10 @@ export class GetUserEventsQueryHandler extends BaseQueryHandler<
         filteredEvents = events.filter((event) => eventTypes.includes(event.type));
       }
 
-      // Apply pagination
-      const paginatedEvents = filteredEvents.slice(offset, offset + limit);
-
       return {
-        items: paginatedEvents.map((event) => ({
-          id: event.id,
-          type: event.type,
-          aggregateId: event.aggregateId,
-          data: event.data,
-          metadata: event.metadata as unknown as Record<string, unknown>,
-          occurredAt: event.occurredAt,
-          version: event.version,
+        items: filteredEvents.slice(offset, offset + limit).map((event) => ({
+          ...event,
+          metadata: event.metadata,
         })),
         totalCount: filteredEvents.length,
         offset,
@@ -431,7 +423,6 @@ export class UserQueryBus {
    */
   async execute<T extends UserQuery, R = unknown>(query: T): Promise<QueryResult<R>> {
     const handler = this.handlers.get(query.type) as QueryHandler<T, R>;
-
     if (!handler) {
       throw new Error(`No handler found for query type: ${query.type}`);
     }

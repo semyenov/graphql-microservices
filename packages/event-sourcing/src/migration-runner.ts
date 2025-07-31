@@ -88,7 +88,7 @@ export class MigrationRunner {
    * Get list of applied migrations
    */
   private async getAppliedMigrations(client: Client): Promise<string[]> {
-    const result = await client.query(
+    const result = await client.query<{ filename: string }>(
       'SELECT filename FROM event_sourcing_migrations ORDER BY applied_at ASC'
     );
 

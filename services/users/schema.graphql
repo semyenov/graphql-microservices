@@ -3,9 +3,7 @@ extend schema
         url: "https://specs.apollo.dev/federation/v2.0"
         import: ["@key", "@shareable"]
     )
-
 # Auth directive imported from shared module
-
 type User @key(fields: "id") {
   id: ID!
   username: String!
@@ -17,38 +15,33 @@ type User @key(fields: "id") {
   createdAt: String!
   updatedAt: String!
 }
-
 type AuthPayload {
   user: User!
   accessToken: String!
   refreshToken: String!
 }
-
 enum Role {
   USER
   ADMIN
   MODERATOR
 }
-
 type Query {
-  user(id: ID!): User @auth
-  users: [User!]! @auth(requires: ADMIN)
-  me: User @auth
-  userByUsername(username: String!): User @auth
-  userByEmail(email: String!): User @auth(requires: ADMIN)
+  user(id: ID!): User
+  users: [User!]!
+  me: User
+  userByUsername(username: String!): User
+  userByEmail(email: String!): User
 }
-
 type Mutation {
-  signUp(input: SignUpInput!): AuthPayload! @public
-  signIn(input: SignInInput!): AuthPayload! @public
-  refreshToken(refreshToken: String!): AuthPayload! @public
-  signOut: Boolean! @auth
-  updateUser(id: ID!, input: UpdateUserInput!): User! @auth
-  updateProfile(input: UpdateProfileInput!): User! @auth
-  changePassword(input: ChangePasswordInput!): Boolean! @auth
-  deactivateUser(id: ID!): User! @auth(requires: ADMIN)
+  signUp(input: SignUpInput!): AuthPayload!
+  signIn(input: SignInInput!): AuthPayload!
+  refreshToken(refreshToken: String!): AuthPayload!
+  signOut: Boolean!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  updateProfile(input: UpdateProfileInput!): User!
+  changePassword(input: ChangePasswordInput!): Boolean!
+  deactivateUser(id: ID!): User!
 }
-
 input SignUpInput {
   username: String!
   email: String!
@@ -56,12 +49,10 @@ input SignUpInput {
   name: String!
   phoneNumber: String
 }
-
 input SignInInput {
   username: String!
   password: String!
 }
-
 input UpdateUserInput {
   username: String
   email: String
@@ -69,19 +60,16 @@ input UpdateUserInput {
   phoneNumber: String
   role: Role
 }
-
 input UpdateProfileInput {
   name: String
   phoneNumber: String
 }
-
 input ChangePasswordInput {
   currentPassword: String!
   newPassword: String!
 }
-
 type Subscription {
-  userCreated: User! @auth(requires: ADMIN)
-  userUpdated(userId: ID): User! @auth
-  userDeactivated: User! @auth(requires: ADMIN)
+  userCreated: User!
+  userUpdated(userId: ID): User!
+  userDeactivated: User!
 }

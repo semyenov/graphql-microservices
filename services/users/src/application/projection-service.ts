@@ -27,7 +27,7 @@ export interface ProjectionConfig {
 /**
  * Projection service manages read model projections
  */
-export class ProjectionService {
+export class UserProjectionService {
   private readonly runningProjections = new Map<string, boolean>();
   private readonly projectionConfigs = new Map<string, ProjectionConfig>();
 
@@ -442,8 +442,8 @@ export function createProjectionService(
   eventStore: EventStore,
   eventDispatcher: UserEventDispatcher,
   prisma: PrismaClient
-): ProjectionService {
-  const projectionService = new ProjectionService(eventStore, eventDispatcher, prisma);
+): UserProjectionService {
+  const projectionService = new UserProjectionService(eventStore, eventDispatcher, prisma);
 
   // Register default projections
   for (const config of defaultUserProjectionConfigs) {

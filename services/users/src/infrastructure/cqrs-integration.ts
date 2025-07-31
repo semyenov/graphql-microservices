@@ -64,7 +64,15 @@ export class CQRSInfrastructure {
     //   batchSize: 10,
     //   processingInterval: config.outboxProcessingInterval || 5000,
     // });
-    this.outboxProcessor = {} as any; // Temporary placeholder
+    // TODO: Implement OutboxProcessor when available
+    this.outboxProcessor = {
+      start: () => {
+        console.log('⚠️  Outbox processor start - not implemented');
+      },
+      stop: () => {
+        console.log('⚠️  Outbox processor stop - not implemented');
+      },
+    } as OutboxProcessor;
 
     // Initialize CQRS buses
     this.commandBus = new UserCommandBus(this.eventStore, this.outboxStore);

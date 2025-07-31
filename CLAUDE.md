@@ -44,6 +44,10 @@ bun test --watch        # Run tests in watch mode
 # Database
 bun run docker:dev      # Start PostgreSQL and Redis
 bun run docker:dev:down # Stop containers
+
+# Production build
+bun run build           # Build all services and packages
+bun run docker:build    # Build Docker images for production
 ```
 
 ## Architecture
@@ -182,6 +186,31 @@ Run tests with `bun test`. Each service should have:
 - Unit tests for resolvers
 - Integration tests for GraphQL operations
 - Federation tests for cross-service queries
+
+### Test Structure
+
+Tests follow a consistent pattern using mocked dependencies:
+```typescript
+// Mock all external dependencies (Prisma, Redis, Auth)
+const mockPrisma = { user: { findUnique: mock() } };
+const mockCacheService = { get: mock(), set: mock() };
+
+// Test GraphQL operations directly
+const result = await graphql({
+  schema,
+  source: query,
+  variableValues: { id: '1' },
+  contextValue: mockContext,
+});
+```
+
+### Running Single Tests
+
+```bash
+bun test services/users/src/index.test.ts  # Test specific file
+bun test --watch services/users            # Watch mode for service
+bun test -t "should create user"           # Run tests matching pattern
+```
 
 ## Critical Workflow: Schema Changes
 
@@ -385,6 +414,31 @@ main().catch((error) => {
 });
 ```
 
+## Code Style and Conventions
+
+### Biome Configuration
+The project uses Biome for linting and formatting with the following key settings:
+- **Quote Style**: Single quotes
+- **Trailing Commas**: ES5 style
+- **Indent**: 2 spaces
+- **Line Width**: 100 characters
+- **Files Ignored**: `dist/`, `generated/`, `node_modules/`, `.turbo/`, `coverage/`
+
+### TypeScript Configuration
+- **Target**: ESNext with Bun's bundler module resolution
+- **Strict Mode**: Enabled with additional checks
+  - `noUncheckedIndexedAccess`: true
+  - `noImplicitOverride`: true
+  - `noUnusedLocals`: true
+  - `noUnusedParameters`: true
+- **gql-tada Plugin**: Configured for type-safe GraphQL queries
+
+### Bun-Specific Patterns
+Based on Cursor rules configuration:
+- Use `bun` instead of `node`, `npm`, `yarn`, or `pnpm`
+- Bun automatically loads `.env` files (no dotenv needed)
+- Use built-in APIs when available (e.g., `Bun.serve()`, `bun:sqlite`)
+
 ## Performance Considerations
 
 - Bun provides fast startup and hot reload
@@ -472,6 +526,13 @@ bun run schema:update
 # - client/src/graphql-env.d.ts - gql.tada types
 ```
 
+### GraphQL Codegen Configuration
+
+The `codegen.yml` file defines type generation:
+- Service-specific types with proper context types
+- Client types combining all service schemas
+- Custom scalar mappings (DateTime → string, Decimal → number)
+
 ## Environment Configuration
 
 Each service validates environment variables using Zod schemas:
@@ -509,3 +570,16 @@ bun run docs:generate
 - Set up monitoring with correlation IDs
 - Use health checks for container orchestration
 - Configure Redis with persistence for rate limiting state
+
+## Docker Production Build
+
+```bash
+# Build production Docker images
+bun run docker:build
+
+# The script uses multi-stage builds with:
+# - Shared base image for consistency
+# - Minimal production images
+# - Health checks for each service
+# - Proper signal handling for graceful shutdown
+```

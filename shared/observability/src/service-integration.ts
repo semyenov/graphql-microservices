@@ -2,7 +2,7 @@
  * Example of how to integrate OpenTelemetry observability into a GraphQL microservice
  */
 
-import { ApolloServer } from '@apollo/server';
+import { ApolloServer, type GraphQLResponse } from '@apollo/server';
 import type { AuthContext } from '@graphql-microservices/shared-auth';
 import {
   addSpanAttributes,
@@ -143,13 +143,13 @@ export const createInstrumentedApolloServer = <TContext extends AuthContext>(
               // Record request metrics
               metrics.recordHistogram('graphql.request.duration', duration, {
                 operationName: requestContext.request.operationName || 'anonymous',
-                hasErrors: !!(requestContext.response as any).errors?.length,
+                hasErrors: !!(requestContext.response as GraphQLResponse).errors?.length,
               });
 
-              if ((requestContext.response as any).errors?.length) {
+              if ((requestContext.response as GraphQLResponse).errors?.length) {
                 metrics.recordCounter(
                   'graphql.errors',
-                  (requestContext.response as any).errors.length,
+                  (requestContext.response as GraphQLResponse).errors.length,
                   {
                     operationName: requestContext.request.operationName || 'anonymous',
                   }
@@ -160,7 +160,7 @@ export const createInstrumentedApolloServer = <TContext extends AuthContext>(
         },
       },
     ],
-    formatError: formatError as any,
+    formatError,
   });
 
   return server;

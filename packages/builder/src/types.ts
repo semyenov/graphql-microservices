@@ -4,7 +4,8 @@ export interface BuildOptions {
   format?: 'esm' | 'cjs' | ('esm' | 'cjs')[];
   minify?: boolean;
   sourcemap?: boolean;
-  dts?: boolean; // Enable/disable TypeScript declaration file generation
+  dts?: boolean;
+  tsconfig?: string;
 }
 
 export interface ServiceBuildConfig {

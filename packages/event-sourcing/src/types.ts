@@ -3,12 +3,17 @@ import { z } from 'zod';
 /**
  * Base domain event interface
  */
-export interface DomainEvent {
+export interface DomainEvent<
+  TType extends string = string,
+  TData extends Record<string, unknown> = Record<string, unknown>,
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+> {
   /** Unique event identifier */
   readonly id: string;
 
   /** Type of the event (e.g., 'UserCreated', 'OrderShipped') */
-  readonly type: string;
+  readonly type: TType;
 
   /** Aggregate ID this event belongs to */
   readonly aggregateId: string;
@@ -17,10 +22,10 @@ export interface DomainEvent {
   readonly aggregateType: string;
 
   /** Event payload/data */
-  readonly data: Record<string, unknown>;
+  readonly data: TData;
 
   /** Event metadata */
-  readonly metadata: EventMetadata;
+  readonly metadata: TMetadata;
 
   /** Timestamp when the event occurred */
   readonly occurredAt: Date;
@@ -32,7 +37,7 @@ export interface DomainEvent {
 /**
  * Event metadata for tracing and auditing
  */
-export interface EventMetadata {
+export interface EventMetadata<TContext extends Record<string, unknown> = Record<string, unknown>> {
   /** User ID who triggered the event */
   readonly userId?: string;
 
@@ -46,7 +51,7 @@ export interface EventMetadata {
   readonly source: string;
 
   /** Additional context information */
-  readonly context?: Record<string, unknown>;
+  readonly context?: TContext;
 }
 
 /**
@@ -63,7 +68,12 @@ export interface StreamPosition {
 /**
  * Stored event with position information
  */
-export interface StoredEvent extends DomainEvent {
+export interface StoredEvent<
+  TType extends string = string,
+  TData extends Record<string, unknown> = Record<string, unknown>,
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+> extends DomainEvent<TType, TData, TContext, TMetadata> {
   /** Position in the event stream */
   readonly position: StreamPosition;
 
@@ -91,19 +101,21 @@ export interface EventStoreQuery {
   limit?: number;
 
   /** Filter by time range */
-  timeRange?: {
-    from?: Date;
-    to?: Date;
-  };
+  timeRange?: { from?: Date; to?: Date };
 }
 
 /**
  * Aggregate root base class
  */
-export abstract class AggregateRoot {
+export abstract class AggregateRoot<
+  TType extends string = string,
+  TData extends Record<string, unknown> = Record<string, unknown>,
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+> {
   protected readonly _id: string;
   protected _version: number = 0;
-  protected readonly _uncommittedEvents: DomainEvent[] = [];
+  protected readonly _uncommittedEvents: DomainEvent<TType, TData, TContext, TMetadata>[] = [];
 
   constructor(id: string, version: number = 0) {
     this._id = id;
@@ -118,14 +130,14 @@ export abstract class AggregateRoot {
     return this._version;
   }
 
-  get uncommittedEvents(): readonly DomainEvent[] {
+  get uncommittedEvents(): readonly DomainEvent<TType, TData, TContext, TMetadata>[] {
     return this._uncommittedEvents;
   }
 
   /**
    * Apply an event to this aggregate
    */
-  protected applyEvent(event: DomainEvent): void {
+  protected applyEvent(event: DomainEvent<TType, TData, TContext, TMetadata>): void {
     this._uncommittedEvents.push(event);
     this._version++;
     this.applyEventData(event);
@@ -134,15 +146,23 @@ export abstract class AggregateRoot {
   /**
    * Apply event data to aggregate state (to be implemented by subclasses)
    */
-  protected abstract applyEventData(event: DomainEvent): void;
+  protected abstract applyEventData(event: DomainEvent<TType, TData, TContext, TMetadata>): void;
 
   /**
    * Load aggregate from historical events
    */
-  public static fromEvents<T extends AggregateRoot>(
-    AggregateConstructor: new (id: string, version: number) => T,
-    events: DomainEvent[]
-  ): T {
+  public static fromEvents<
+    TType extends string = string,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(
+    AggregateConstructor: new (
+      id: string,
+      version: number
+    ) => AggregateRoot<TType, TData, TContext, TMetadata>,
+    events: DomainEvent<TType, TData, TContext, TMetadata>[]
+  ): AggregateRoot<TType, TData, TContext, TMetadata> {
     if (events.length === 0) {
       throw new Error('Cannot create aggregate from empty event stream');
     }
@@ -151,8 +171,8 @@ export abstract class AggregateRoot {
     if (!firstEvent) {
       throw new Error('Cannot create aggregate from empty event stream');
     }
-    const aggregate = new AggregateConstructor(firstEvent.aggregateId, 0);
 
+    const aggregate = new AggregateConstructor(firstEvent.aggregateId, 0);
     for (const event of events) {
       aggregate.applyEventData(event);
       aggregate._version = event.version;
@@ -181,9 +201,9 @@ export const eventMetadataSchema = z.object({
 });
 
 export const domainEventSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.string().min(1),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   aggregateType: z.string().min(1),
   data: z.record(z.string(), z.unknown()),
   metadata: eventMetadataSchema,
@@ -202,11 +222,21 @@ export const storedEventSchema = domainEventSchema.extend({
 /**
  * Type guards and utilities
  */
-export function isDomainEvent(obj: unknown): obj is DomainEvent {
+export function isDomainEvent<
+  TType extends string = string,
+  TData extends Record<string, unknown> = Record<string, unknown>,
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+>(obj: unknown): obj is DomainEvent<TType, TData, TContext, TMetadata> {
   return domainEventSchema.safeParse(obj).success;
 }
 
-export function isStoredEvent(obj: unknown): obj is StoredEvent {
+export function isStoredEvent<
+  TType extends string = string,
+  TData extends Record<string, unknown> = Record<string, unknown>,
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+>(obj: unknown): obj is StoredEvent<TType, TData, TContext, TMetadata> {
   return storedEventSchema.safeParse(obj).success;
 }
 
@@ -214,16 +244,21 @@ export function isStoredEvent(obj: unknown): obj is StoredEvent {
  * Event factory for creating events with proper metadata
  */
 export const EventFactory = {
-  create(
-    type: string,
+  create<
+    TType extends string = string,
+    TContext extends Record<string, unknown> = Record<string, unknown>,
+    TData extends Record<string, unknown> = Record<string, unknown>,
+    TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
+  >(
+    type: TType,
     aggregateId: string,
     aggregateType: string,
-    data: Record<string, unknown>,
-    metadata: Partial<EventMetadata>,
+    data: TData,
+    metadata: Partial<TMetadata>,
     version: number,
     id?: string,
     occurredAt?: Date
-  ): DomainEvent {
+  ): DomainEvent<TType, TData, TContext, TMetadata> {
     return {
       id: id || crypto.randomUUID(),
       type,
@@ -233,7 +268,7 @@ export const EventFactory = {
       metadata: {
         source: metadata.source || 'unknown',
         ...metadata,
-      },
+      } as TMetadata,
       occurredAt: occurredAt || new Date(),
       version,
     };

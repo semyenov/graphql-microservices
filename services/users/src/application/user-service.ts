@@ -35,7 +35,7 @@ import type { UserQueryBus } from './query-handlers';
 /**
  * User service interface - bridges GraphQL resolvers with CQRS
  */
-export interface UserServiceInterface {
+export interface IUserService {
   // Authentication operations
   signUp(input: SignUpInput, metadata?: CommandMetadata): Promise<AuthResult>;
   signIn(input: SignInInput, metadata?: CommandMetadata): Promise<AuthResult>;
@@ -126,13 +126,13 @@ export interface Pagination {
 export interface CommandMetadata {
   correlationId?: string;
   userId?: string;
-  source?: string;
+  source: string;
 }
 
 /**
  * CQRS-based User Service implementation
  */
-export class UserService implements UserServiceInterface {
+export class UserService implements IUserService {
   constructor(
     private readonly commandBus: UserCommandBus,
     private readonly queryBus: UserQueryBus,
@@ -311,6 +311,11 @@ export class UserService implements UserServiceInterface {
         metadata: {
           source: 'graphql-api',
         },
+        payload: {
+          ipAddress: '127.0.0.1',
+          userAgent:
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
       };
 
       await this.commandBus.execute(command);
@@ -455,7 +460,6 @@ export class UserService implements UserServiceInterface {
     };
 
     const result = await this.commandBus.execute(command);
-
     if (!result.success) {
       throw new InternalServerError(result.error || 'Failed to update user profile');
     }
@@ -480,7 +484,7 @@ export class UserService implements UserServiceInterface {
     userId: string,
     input: UpdateUserInput,
     currentUserId: string,
-    currentUserRole: string,
+    currentUserRole: GraphQLRole,
     metadata?: CommandMetadata
   ): Promise<GraphQLUser> {
     // Authorization check

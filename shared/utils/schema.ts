@@ -29,10 +29,7 @@ export async function fetchSchema(
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
+      headers: [['Content-Type', 'application/json'], ...Object.entries(headers)],
       body: JSON.stringify({ query }),
       signal: controller.signal,
     });
@@ -43,7 +40,9 @@ export async function fetchSchema(
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return (await response.json()) as { data?: Record<string, unknown>; errors?: unknown };
+    const data = await response.json();
+
+    return data;
   } catch (error: unknown) {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {

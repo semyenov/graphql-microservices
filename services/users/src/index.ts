@@ -1,9 +1,9 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
+import { parseEnv, userServiceEnvSchema } from '@graphql-microservices/config';
 import { AuthService, authDirective, type JWTPayload } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
-import { parseEnv, userServiceEnvSchema } from '@graphql-microservices/shared-config';
 import {
   AlreadyExistsError,
   AuthenticationError,

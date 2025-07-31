@@ -35,3 +35,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Generated schemas
 schemas/
+
+# Example config files (users should create their own)
+/*.config.ts
+/*.config.js
+!shared/base.config.ts

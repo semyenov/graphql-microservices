@@ -4,7 +4,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@graphql-microservices/shared-config": "workspace:*",
+    "@graphql-microservices/config": "workspace:*",
     "@graphql-microservices/shared-errors": "workspace:*",
     "@opentelemetry/api": "^1.8.0",
     "@opentelemetry/auto-instrumentations-node": "^0.41.0",

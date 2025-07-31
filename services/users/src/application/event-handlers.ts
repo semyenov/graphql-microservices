@@ -6,7 +6,6 @@ import type {
   UserCreatedEvent,
   UserCredentialsUpdatedEvent,
   UserDeactivatedEvent,
-  UserDomainEvent,
   UserPasswordChangedEvent,
   UserProfileUpdatedEvent,
   UserReactivatedEvent,
@@ -14,19 +13,18 @@ import type {
   UserSignedInEvent,
   UserSignedOutEvent,
 } from '../domain/user-aggregate';
-
 /**
  * Event handler interface
  */
-export interface EventHandler<T extends DomainEvent = DomainEvent> {
+export interface IEventHandler<T extends DomainEvent> {
   handle(event: T): Promise<void>;
-  canHandle(event: DomainEvent): boolean;
+  canHandle(event: T): boolean;
 }
 
 /**
  * Base event handler with common functionality
  */
-abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandler<T> {
+abstract class BaseEventHandler<T extends DomainEvent> implements IEventHandler<T> {
   constructor(
     protected readonly prisma: PrismaClient,
     protected readonly cacheService?: CacheService,
@@ -34,7 +32,7 @@ abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandl
   ) {}
 
   abstract handle(event: T): Promise<void>;
-  abstract canHandle(event: DomainEvent): boolean;
+  abstract canHandle(event: T): boolean;
 
   /**
    * Invalidate user cache
@@ -48,17 +46,17 @@ abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandl
 
     await Promise.all([
       this.cacheService.delete(`user:${userId}`),
-      username ? this.cacheService.delete(`user:username:${username}`) : Promise.resolve(),
-      email ? this.cacheService.delete(`user:email:${email}`) : Promise.resolve(),
+      username && this.cacheService.delete(`user:username:${username}`),
+      email && this.cacheService.delete(`user:email:${email}`),
     ]);
   }
 
   /**
    * Publish GraphQL subscription event
    */
-  protected async publishSubscriptionEvent(
-    eventType: string,
-    payload: Record<string, unknown>
+  protected async publishSubscriptionEvent<TType extends string>(
+    eventType: TType,
+    payload: Record<string, unknown> | Record<string, unknown>[]
   ): Promise<void> {
     if (!this.pubSubService) return;
 
@@ -74,7 +72,7 @@ abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandl
    * Log event processing
    */
   protected logEventProcessing(
-    event: DomainEvent,
+    event: T,
     status: 'started' | 'completed' | 'failed',
     error?: Error | string
   ): void {
@@ -101,7 +99,7 @@ abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandl
  * Updates read model and publishes subscription events
  */
 export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserCreatedEvent): boolean {
     return event.type === 'UserCreated';
   }
 
@@ -148,7 +146,9 @@ export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> 
         updatedAt: event.occurredAt.toISOString(),
       };
 
-      await this.publishSubscriptionEvent('userCreated', { userCreated: userPayload });
+      await this.publishSubscriptionEvent('userCreated', {
+        userCreated: userPayload,
+      });
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
@@ -162,7 +162,7 @@ export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> 
  * User Profile Updated Event Handler
  */
 export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfileUpdatedEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserProfileUpdatedEvent): boolean {
     return event.type === 'UserProfileUpdated';
   }
 
@@ -171,7 +171,9 @@ export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfile
 
     try {
       // Update read model
-      const updateData: Record<string, unknown> = { updatedAt: event.occurredAt };
+      const updateData: Record<string, unknown> = {
+        updatedAt: event.occurredAt,
+      };
 
       if (event.data.name !== undefined) {
         updateData.name = event.data.name;
@@ -215,7 +217,7 @@ export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfile
  * User Credentials Updated Event Handler
  */
 export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCredentialsUpdatedEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserCredentialsUpdatedEvent): boolean {
     return event.type === 'UserCredentialsUpdated';
   }
 
@@ -224,7 +226,9 @@ export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCre
 
     try {
       // Update read model
-      const updateData: Record<string, unknown> = { updatedAt: event.occurredAt };
+      const updateData: Record<string, unknown> = {
+        updatedAt: event.occurredAt,
+      };
 
       if (event.data.username !== undefined) {
         updateData.username = event.data.username;
@@ -276,7 +280,7 @@ export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCre
  * User Role Changed Event Handler
  */
 export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChangedEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserRoleChangedEvent): boolean {
     return event.type === 'UserRoleChanged';
   }
 
@@ -323,7 +327,7 @@ export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChange
  * User Password Changed Event Handler
  */
 export class UserPasswordChangedEventHandler extends BaseEventHandler<UserPasswordChangedEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserPasswordChangedEvent): boolean {
     return event.type === 'UserPasswordChanged';
   }
 
@@ -358,7 +362,7 @@ export class UserPasswordChangedEventHandler extends BaseEventHandler<UserPasswo
  * User Deactivated Event Handler
  */
 export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivatedEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserDeactivatedEvent): boolean {
     return event.type === 'UserDeactivated';
   }
 
@@ -406,7 +410,7 @@ export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivate
  * User Reactivated Event Handler
  */
 export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivatedEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserReactivatedEvent): boolean {
     return event.type === 'UserReactivated';
   }
 
@@ -454,7 +458,7 @@ export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivate
  * Tracks user activity and updates last sign in timestamp
  */
 export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserSignedInEvent): boolean {
     return event.type === 'UserSignedIn';
   }
 
@@ -497,7 +501,7 @@ export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent
  * User Sign Out Event Handler
  */
 export class UserSignedOutEventHandler extends BaseEventHandler<UserSignedOutEvent> {
-  canHandle(event: DomainEvent): boolean {
+  canHandle(event: UserSignedOutEvent): boolean {
     return event.type === 'UserSignedOut';
   }
 
@@ -529,7 +533,7 @@ export class UserSignedOutEventHandler extends BaseEventHandler<UserSignedOutEve
  * Event Dispatcher - Routes events to appropriate handlers
  */
 export class UserEventDispatcher {
-  private readonly handlers: EventHandler[] = [];
+  private readonly handlers: IEventHandler<DomainEvent>[] = [];
 
   constructor(prisma: PrismaClient, cacheService?: CacheService, pubSubService?: PubSubService) {
     // Register all event handlers
@@ -549,7 +553,7 @@ export class UserEventDispatcher {
   /**
    * Dispatch an event to appropriate handlers
    */
-  async dispatch(event: DomainEvent): Promise<void> {
+  async dispatch<T extends DomainEvent>(event: T): Promise<void> {
     const applicableHandlers = this.handlers.filter((handler) => handler.canHandle(event));
 
     if (applicableHandlers.length === 0) {
@@ -571,7 +575,7 @@ export class UserEventDispatcher {
   /**
    * Dispatch multiple events
    */
-  async dispatchBatch(events: DomainEvent[]): Promise<void> {
+  async dispatchBatch<T extends DomainEvent>(events: T[]): Promise<void> {
     const promises = events.map((event) => this.dispatch(event));
     await Promise.all(promises);
   }
@@ -579,14 +583,14 @@ export class UserEventDispatcher {
   /**
    * Register a custom event handler
    */
-  registerHandler(handler: EventHandler): void {
+  registerHandler(handler: IEventHandler<DomainEvent>): void {
     this.handlers.push(handler);
   }
 
   /**
    * Get registered handlers
    */
-  getHandlers(): EventHandler[] {
+  getHandlers(): IEventHandler<DomainEvent>[] {
     return [...this.handlers];
   }
 }

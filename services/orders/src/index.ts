@@ -1,13 +1,13 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
+import { orderServiceEnvSchema, parseEnv } from '@graphql-microservices/config';
 import {
   type AuthContext,
   AuthService,
   extractAndVerifyUser,
 } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheTTL } from '@graphql-microservices/shared-cache';
-import { orderServiceEnvSchema, parseEnv } from '@graphql-microservices/shared-config';
 import {
   AuthenticationError,
   AuthorizationError,
@@ -96,7 +96,7 @@ export interface Context extends AuthContext {
 // GraphQL schema
 const typeDefs = gql`
   extend schema @link(
-    url: "https://specs.apollo.dev/federation/v2.0", 
+    url: "https://specs.apollo.dev/federation/v2.0",
     import: ["@key", "@shareable", "@external"]
   )
 

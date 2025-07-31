@@ -12,17 +12,17 @@ function cleanSchema(schema: string): string {
 
   // Clean up extra whitespace
   cleaned = cleaned.replace(/\s+\n/g, '\n');
-  cleaned = cleaned.replace(/\n\n\n+/g, '\n\n');
+  // cleaned = cleaned.replace(/\n\n\n+/g, '\n\n');
 
   return cleaned;
 }
 
-async function cleanSchemaFile(inputPath: string, outputPath: string) {
+async function cleanSchemaFile(inputPath: string) {
   try {
     const content = await readFile(inputPath, 'utf-8');
     const cleaned = cleanSchema(content);
-    await writeFile(outputPath, cleaned);
-    logSuccess(`Cleaned schema: ${basename(inputPath)} -> ${basename(outputPath)}`);
+    await writeFile(inputPath, cleaned, { encoding: 'utf-8', flag: 'w' });
+    logSuccess(`Cleaned schema: ${basename(inputPath)} -> ${basename(inputPath)}`);
   } catch (error) {
     logError(`Failed to clean ${basename(inputPath)}: ${error}`);
   }
@@ -37,20 +37,15 @@ async function main() {
 
   // Clean schemas in the main schemas directory
   for (const schema of schemas) {
-    await cleanSchemaFile(
-      join('./schemas', `${schema}.graphql`),
-      join('./schemas', `${schema}-clean.graphql`)
-    );
+    await cleanSchemaFile(join('./schemas', `${schema}.graphql`));
   }
 
   // Also create individual clean schema files in each service directory
   console.log('\nCreating individual service clean schemas...');
   for (const schema of schemas) {
     const serviceSchemaPath = join('services', schema, 'schema.graphql');
-    const serviceCleanSchemaPath = join('services', schema, 'schema-clean.graphql');
-
     try {
-      await cleanSchemaFile(serviceSchemaPath, serviceCleanSchemaPath);
+      await cleanSchemaFile(serviceSchemaPath);
     } catch (error) {
       logError(`Failed to create clean schema for ${schema} service: ${error}`);
     }

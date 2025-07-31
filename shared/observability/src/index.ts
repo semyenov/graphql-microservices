@@ -1,4 +1,4 @@
-import { observabilityEnvSchema, parseEnv } from '@graphql-microservices/shared-config';
+import { observabilityEnvSchema, parseEnv } from '@graphql-microservices/config';
 import { createErrorLogger } from '@graphql-microservices/shared-errors';
 import { context, type Span, type SpanContext, SpanStatusCode, trace } from '@opentelemetry/api';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';

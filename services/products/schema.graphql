@@ -3,7 +3,6 @@ extend schema
     url: "https://specs.apollo.dev/federation/v2.0"
     import: ["@key", "@shareable"]
   )
-
 type Product @key(fields: "id") {
   id: ID!
   name: String!
@@ -18,20 +17,17 @@ type Product @key(fields: "id") {
   createdAt: String!
   updatedAt: String!
 }
-
 type ProductsPage {
   products: [Product!]!
   totalCount: Int!
   pageInfo: PageInfo!
 }
-
 type PageInfo @shareable {
   hasNextPage: Boolean!
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
 }
-
 type Query {
   product(id: ID!): Product
   productBySku(sku: String!): Product
@@ -46,7 +42,6 @@ type Query {
   categories: [String!]!
   searchProducts(query: String!, limit: Int = 10): [Product!]!
 }
-
 type Mutation {
   createProduct(input: CreateProductInput!): Product!
   updateProduct(id: ID!, input: UpdateProductInput!): Product!
@@ -55,14 +50,12 @@ type Mutation {
   activateProduct(id: ID!): Product!
   bulkUpdateStock(updates: [StockUpdate!]!): [Product!]!
 }
-
 type Subscription {
   productCreated: Product!
   productUpdated(productId: ID): Product!
   productStockChanged(productId: ID): Product!
   productDeactivated: Product!
 }
-
 input CreateProductInput {
   name: String!
   description: String!
@@ -73,7 +66,6 @@ input CreateProductInput {
   tags: [String!]
   imageUrl: String
 }
-
 input UpdateProductInput {
   name: String
   description: String
@@ -83,7 +75,6 @@ input UpdateProductInput {
   tags: [String!]
   imageUrl: String
 }
-
 input StockUpdate {
   productId: ID!
   quantity: Int!
