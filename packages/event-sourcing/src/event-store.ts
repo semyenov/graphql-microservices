@@ -3,7 +3,7 @@ import type { DomainEvent, EventStoreQuery, StoredEvent, StreamPosition } from '
 /**
  * Event store interface for persisting and retrieving domain events
  */
-export interface EventStore {
+export interface IEventStore {
   /**
    * Append events to an aggregate stream
    * @param aggregateId The aggregate identifier
@@ -156,7 +156,7 @@ export interface EventStoreConfig {
 /**
  * Abstract base class for event store implementations
  */
-export abstract class BaseEventStore implements EventStore {
+export abstract class BaseEventStore implements IEventStore {
   protected readonly config: Required<EventStoreConfig>;
 
   constructor(config: EventStoreConfig) {

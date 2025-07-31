@@ -1,78 +1,79 @@
 import type { AuthService } from '@graphql-microservices/shared-auth';
 import type { CacheService } from '@graphql-microservices/shared-cache';
-import {
-  AlreadyExistsError,
-  AuthenticationError,
-  AuthorizationError,
-  BusinessRuleError,
-  InternalServerError,
-  ValidationError,
-} from '@graphql-microservices/shared-errors';
-import { GraphQLError } from 'graphql';
 import type { GraphQLRole, GraphQLUser } from '../types';
 import type { UserCommandBus } from './command-handlers';
-import type {
-  ChangeUserPasswordCommand,
-  ChangeUserRoleCommand,
-  CreateUserCommand,
-  DeactivateUserCommand,
-  RecordUserSignInCommand,
-  RecordUserSignOutCommand,
-  UpdateUserCredentialsCommand,
-  UpdateUserProfileCommand,
-} from './commands';
-import type {
-  GetAllUsersQuery,
-  GetUserByEmailQuery,
-  GetUserByIdQuery,
-  GetUserByUsernameQuery,
-  GetUsersByIdsQuery,
-  PaginatedResult,
-  UserViewModel,
-} from './queries';
+import { createCommand } from './commands';
+import { createQuery, type PaginatedResult, type UserViewModel } from './queries';
 import type { UserQueryBus } from './query-handlers';
+import { isOk, isErr } from '@graphql-microservices/shared-type-utils';
+import {
+  type AccessToken,
+  type AggregateId,
+  type CommandMetadata,
+  type Email,
+  type Pagination,
+  type RefreshToken,
+  ok,
+  err,
+  type UserFilter,
+  type UserId,
+  type Username,
+  type UserRole,
+} from './types';
+
+/**
+ * Service error types
+ */
+export interface ServiceError {
+  code: 'VALIDATION' | 'NOT_FOUND' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'CONFLICT' | 'INTERNAL';
+  message: string;
+  details?: unknown;
+}
 
 /**
  * User service interface - bridges GraphQL resolvers with CQRS
  */
 export interface IUserService {
   // Authentication operations
-  signUp(input: SignUpInput, metadata?: CommandMetadata): Promise<AuthResult>;
-  signIn(input: SignInInput, metadata?: CommandMetadata): Promise<AuthResult>;
-  refreshToken(refreshToken: string): Promise<AuthResult>;
-  signOut(userId: string): Promise<boolean>;
+  signUp(input: SignUpInput, metadata?: CommandMetadata): Promise<Result<AuthResult, ServiceError>>;
+  signIn(input: SignInInput, metadata?: CommandMetadata): Promise<Result<AuthResult, ServiceError>>;
+  refreshToken(refreshToken: RefreshToken): Promise<Result<AuthResult, ServiceError>>;
+  signOut(userId: UserId): Promise<Result<boolean, ServiceError>>;
 
   // User operations
-  getUserById(id: string): Promise<GraphQLUser | null>;
-  getUserByUsername(username: string): Promise<GraphQLUser | null>;
-  getUserByEmail(email: string): Promise<GraphQLUser | null>;
-  getAllUsers(filter?: UserFilter, pagination?: Pagination): Promise<GraphQLUser[]>;
-  getUsersByIds(ids: string[]): Promise<GraphQLUser[]>;
+  getUserById(id: UserId): Promise<Result<GraphQLUser | null, ServiceError>>;
+  getUserByUsername(username: Username): Promise<Result<GraphQLUser | null, ServiceError>>;
+  getUserByEmail(email: Email): Promise<Result<GraphQLUser | null, ServiceError>>;
+  getAllUsers(
+    filter?: UserFilter,
+    pagination?: Pagination
+  ): Promise<Result<PaginatedResult<GraphQLUser>, ServiceError>>;
+  getUsersByIds(ids: UserId[]): Promise<Result<GraphQLUser[], ServiceError>>;
 
   // User mutations
   updateUserProfile(
-    userId: string,
+    userId: UserId,
     input: UpdateProfileInput,
     metadata?: CommandMetadata
-  ): Promise<GraphQLUser>;
+  ): Promise<Result<GraphQLUser, ServiceError>>;
   updateUser(
-    userId: string,
+    userId: UserId,
     input: UpdateUserInput,
-    currentUserId: string,
-    currentUserRole: string,
+    currentUserId: UserId,
+    currentUserRole: UserRole,
     metadata?: CommandMetadata
-  ): Promise<GraphQLUser>;
+  ): Promise<Result<GraphQLUser, ServiceError>>;
   changePassword(
-    userId: string,
+    userId: UserId,
     input: ChangePasswordInput,
     metadata?: CommandMetadata
-  ): Promise<boolean>;
+  ): Promise<Result<boolean, ServiceError>>;
   deactivateUser(
-    userId: string,
+    userId: UserId,
     reason: string,
-    deactivatedBy: string,
+    deactivatedBy: UserId,
     metadata?: CommandMetadata
-  ): Promise<GraphQLUser>;
+  ): Promise<Result<GraphQLUser, ServiceError>>;
 }
 
 // Input types
@@ -99,7 +100,7 @@ export interface UpdateUserInput {
   email?: string;
   name?: string;
   phoneNumber?: string;
-  role?: GraphQLRole;
+  role?: UserRole;
 }
 
 export interface ChangePasswordInput {
@@ -107,26 +108,11 @@ export interface ChangePasswordInput {
   newPassword: string;
 }
 
+// Result types
 export interface AuthResult {
   user: GraphQLUser;
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface UserFilter {
-  role?: GraphQLRole;
-  isActive?: boolean;
-}
-
-export interface Pagination {
-  offset?: number;
-  limit?: number;
-}
-
-export interface CommandMetadata {
-  correlationId?: string;
-  userId?: string;
-  source: string;
+  accessToken: AccessToken;
+  refreshToken: RefreshToken;
 }
 
 /**
@@ -143,545 +129,730 @@ export class UserService implements IUserService {
   /**
    * Sign up a new user
    */
-  async signUp(input: SignUpInput, metadata?: CommandMetadata): Promise<AuthResult> {
+  async signUp(
+    input: SignUpInput,
+    metadata?: CommandMetadata
+  ): Promise<Result<AuthResult, ServiceError>> {
     try {
-      const userId = crypto.randomUUID();
+      // Check if user already exists
+      const existingUserByUsername = await this.queryBus.execute(
+        createQuery.getUserByUsername(input.username as Username)
+      );
+
+      if (isOk(existingUserByUsername) && existingUserByUsername.data.data) {
+        return err({
+          code: 'CONFLICT',
+          message: 'Username already exists',
+          details: { field: 'username' },
+        });
+      }
+
+      const existingUserByEmail = await this.queryBus.execute(
+        createQuery.getUserByEmail(input.email as Email)
+      );
+
+      if (isOk(existingUserByEmail) && existingUserByEmail.data.data) {
+        return err({
+          code: 'CONFLICT',
+          message: 'Email already exists',
+          details: { field: 'email' },
+        });
+      }
+
+      // Hash password
+      const hashedPassword = await this.authService.hashPassword(input.password);
 
       // Create user command
-      const command: CreateUserCommand = {
-        type: 'CreateUser',
-        aggregateId: userId,
-        payload: {
+      const userId = crypto.randomUUID() as AggregateId;
+      const userCommand = createCommand.createUser(
+        userId,
+        {
           username: input.username,
           email: input.email,
-          password: input.password,
+          password: hashedPassword,
           name: input.name,
           phoneNumber: input.phoneNumber,
         },
-        metadata: {
-          ...metadata,
-          source: metadata?.source || 'graphql-api',
-        },
-      };
+        metadata
+      );
 
-      // Execute command
-      const result = await this.commandBus.execute(command);
+      const commandResult = await this.commandBus.execute(userCommand);
 
-      if (!result.success) {
-        if (result.error?.includes('already exists')) {
-          if (result.error.includes('username')) {
-            throw new AlreadyExistsError('User', 'username', input.username);
-          }
-          if (result.error.includes('email')) {
-            throw new AlreadyExistsError('User', 'email', input.email);
-          }
-        }
-        throw new InternalServerError(result.error || 'Failed to create user');
+      if (!isOk(commandResult)) {
+        return err({
+          code: 'INTERNAL',
+          message: commandResult.error.message,
+          details: commandResult.error.details,
+        });
       }
 
-      // Get the created user
-      const user = await this.getUserById(userId);
-      if (!user) {
-        throw new InternalServerError('User was created but could not be retrieved');
+      // Get created user
+      const userResult = await this.queryBus.execute(createQuery.getUserById(userId as UserId));
+
+      if (!isOk(userResult) || !userResult.data.data) {
+        return err({
+          code: 'INTERNAL',
+          message: 'Failed to retrieve created user',
+        });
       }
+
+      const user = this.transformToGraphQLUser(userResult.data.data);
 
       // Generate tokens
-      const accessToken = this.authService.generateAccessToken({
+      const accessToken = this.authService.signAccessToken({
         userId: user.id,
-        email: user.email,
+        username: user.username,
         role: user.role,
-      });
+      }) as AccessToken;
 
-      const refreshToken = this.authService.generateRefreshToken({
+      const refreshToken = this.authService.signRefreshToken({
         userId: user.id,
-        tokenId: user.id,
-      });
+        username: user.username,
+      }) as RefreshToken;
 
-      // Record sign in event
-      await this.recordSignIn(userId, metadata);
+      // Store refresh token
+      await this.storeRefreshToken(user.id as UserId, refreshToken);
 
-      return {
+      return ok({
         user,
         accessToken,
         refreshToken,
-      };
+      });
     } catch (error) {
-      if (error instanceof GraphQLError) {
-        throw error;
-      }
-      throw new InternalServerError(`Sign up failed: ${error}`);
+      console.error('SignUp failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred during sign up',
+        details: error,
+      });
     }
   }
 
   /**
    * Sign in an existing user
    */
-  async signIn(input: SignInInput, metadata?: CommandMetadata): Promise<AuthResult> {
+  async signIn(
+    input: SignInInput,
+    metadata?: CommandMetadata
+  ): Promise<Result<AuthResult, ServiceError>> {
     try {
       // Get user by username
-      const user = await this.getUserByUsername(input.username);
+      const userResult = await this.queryBus.execute(
+        createQuery.getUserByUsername(input.username as Username)
+      );
 
-      if (!user) {
-        throw new AuthenticationError('Invalid credentials');
+      if (!isOk(userResult) || !userResult.data.data) {
+        return err({
+          code: 'UNAUTHORIZED',
+          message: 'Invalid credentials',
+        });
       }
 
-      if (!user.isActive) {
-        throw new BusinessRuleError('Account is deactivated');
-      }
+      const userViewModel = userResult.data.data;
 
-      // Verify password (this would need to be implemented in query handlers or a separate service)
-      // For now, we'll create a specialized query or use the existing Prisma approach
-      const isValidPassword = await this.verifyUserPassword(user.id, input.password);
+      // Verify password
+      const isValidPassword = await this.authService.verifyPassword(
+        input.password,
+        userViewModel.password // Note: This assumes password is included in the view model
+      );
 
       if (!isValidPassword) {
-        throw new AuthenticationError('Invalid credentials');
+        return err({
+          code: 'UNAUTHORIZED',
+          message: 'Invalid credentials',
+        });
       }
 
+      // Check if user is active
+      if (!userViewModel.isActive) {
+        return err({
+          code: 'FORBIDDEN',
+          message: 'Account is deactivated',
+        });
+      }
+
+      // Record sign in
+      const signInCommand = createCommand.recordUserSignIn(
+        userViewModel.id as AggregateId,
+        {
+          ipAddress: metadata?.ipAddress,
+          userAgent: metadata?.userAgent,
+        },
+        metadata
+      );
+
+      await this.commandBus.execute(signInCommand);
+
+      const user = this.transformToGraphQLUser(userViewModel);
+
       // Generate tokens
-      const accessToken = this.authService.generateAccessToken({
+      const accessToken = this.authService.signAccessToken({
         userId: user.id,
-        email: user.email,
+        username: user.username,
         role: user.role,
-      });
+      }) as AccessToken;
 
-      const refreshToken = this.authService.generateRefreshToken({
+      const refreshToken = this.authService.signRefreshToken({
         userId: user.id,
-        tokenId: user.id,
-      });
+        username: user.username,
+      }) as RefreshToken;
 
-      // Record sign in event
-      await this.recordSignIn(user.id, metadata);
+      // Store refresh token
+      await this.storeRefreshToken(user.id as UserId, refreshToken);
 
-      return {
+      return ok({
         user,
         accessToken,
         refreshToken,
-      };
+      });
     } catch (error) {
-      if (error instanceof GraphQLError) {
-        throw error;
-      }
-      throw new AuthenticationError('Sign in failed');
+      console.error('SignIn failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred during sign in',
+        details: error,
+      });
     }
   }
 
   /**
-   * Refresh authentication token
+   * Refresh access token
    */
-  async refreshToken(refreshToken: string): Promise<AuthResult> {
+  async refreshToken(refreshToken: RefreshToken): Promise<Result<AuthResult, ServiceError>> {
     try {
+      // Verify refresh token
       const payload = this.authService.verifyRefreshToken(refreshToken);
 
-      const user = await this.getUserById(payload.userId);
-
-      if (!user || !user.isActive) {
-        throw new AuthenticationError('Invalid refresh token');
+      if (!payload) {
+        return err({
+          code: 'UNAUTHORIZED',
+          message: 'Invalid refresh token',
+        });
       }
 
+      // Get user
+      const userResult = await this.queryBus.execute(
+        createQuery.getUserById(payload.userId as UserId)
+      );
+
+      if (!isOk(userResult) || !userResult.data.data) {
+        return err({
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        });
+      }
+
+      const userViewModel = userResult.data.data;
+
+      // Check if user is active
+      if (!userViewModel.isActive) {
+        return err({
+          code: 'FORBIDDEN',
+          message: 'Account is deactivated',
+        });
+      }
+
+      // Verify stored refresh token matches
+      const storedToken = await this.getStoredRefreshToken(userViewModel.id as UserId);
+      if (storedToken !== refreshToken) {
+        return err({
+          code: 'UNAUTHORIZED',
+          message: 'Invalid refresh token',
+        });
+      }
+
+      const user = this.transformToGraphQLUser(userViewModel);
+
       // Generate new tokens
-      const newAccessToken = this.authService.generateAccessToken({
+      const newAccessToken = this.authService.signAccessToken({
         userId: user.id,
-        email: user.email,
+        username: user.username,
         role: user.role,
-      });
+      }) as AccessToken;
 
-      const newRefreshToken = this.authService.generateRefreshToken({
+      const newRefreshToken = this.authService.signRefreshToken({
         userId: user.id,
-        tokenId: user.id,
-      });
+        username: user.username,
+      }) as RefreshToken;
 
-      return {
+      // Store new refresh token
+      await this.storeRefreshToken(user.id as UserId, newRefreshToken);
+
+      return ok({
         user,
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
-      };
-    } catch (_error) {
-      throw new AuthenticationError('Token refresh failed');
+      });
+    } catch (error) {
+      console.error('RefreshToken failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred during token refresh',
+        details: error,
+      });
     }
   }
 
   /**
    * Sign out user
    */
-  async signOut(userId: string): Promise<boolean> {
+  async signOut(userId: UserId): Promise<Result<boolean, ServiceError>> {
     try {
-      const command: RecordUserSignOutCommand = {
-        type: 'RecordUserSignOut',
-        aggregateId: userId,
-        metadata: {
-          source: 'graphql-api',
-        },
-        payload: {
-          ipAddress: '127.0.0.1',
-          userAgent:
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        },
-      };
+      // Record sign out
+      const signOutCommand = createCommand.recordUserSignOut(userId as AggregateId, {});
 
-      await this.commandBus.execute(command);
+      const commandResult = await this.commandBus.execute(signOutCommand);
 
-      // Clear cache
-      if (this.cacheService) {
-        await this.cacheService.delete(`user:${userId}`);
+      if (!isOk(commandResult)) {
+        return err({
+          code: 'INTERNAL',
+          message: commandResult.error.message,
+          details: commandResult.error.details,
+        });
       }
 
-      return true;
+      // Clear refresh token
+      await this.clearRefreshToken(userId);
+
+      return ok(true);
     } catch (error) {
-      console.error('Sign out error:', error);
-      return true; // Always return true for sign out
+      console.error('SignOut failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred during sign out',
+        details: error,
+      });
     }
   }
 
   /**
    * Get user by ID
    */
-  async getUserById(id: string): Promise<GraphQLUser | null> {
-    const query: GetUserByIdQuery = {
-      type: 'GetUserById',
-      payload: { userId: id },
-    };
+  async getUserById(id: UserId): Promise<Result<GraphQLUser | null, ServiceError>> {
+    try {
+      const result = await this.queryBus.execute(createQuery.getUserById(id));
 
-    const result = await this.queryBus.execute<GetUserByIdQuery, UserViewModel | null>(query);
+      if (!isOk(result)) {
+        return err({
+          code: 'INTERNAL',
+          message: result.error.message,
+          details: result.error.details,
+        });
+      }
 
-    if (!result.success || !result.data) {
-      return null;
+      if (!result.data.data) {
+        return ok(null);
+      }
+
+      return ok(this.transformToGraphQLUser(result.data.data));
+    } catch (error) {
+      console.error('GetUserById failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
     }
-
-    return this.transformToGraphQLUser(result.data as UserViewModel);
   }
 
   /**
    * Get user by username
    */
-  async getUserByUsername(username: string): Promise<GraphQLUser | null> {
-    const query: GetUserByUsernameQuery = {
-      type: 'GetUserByUsername',
-      payload: { username },
-    };
+  async getUserByUsername(username: Username): Promise<Result<GraphQLUser | null, ServiceError>> {
+    try {
+      const result = await this.queryBus.execute(createQuery.getUserByUsername(username));
 
-    const result = await this.queryBus.execute<GetUserByUsernameQuery, UserViewModel | null>(query);
+      if (!isOk(result)) {
+        return err({
+          code: 'INTERNAL',
+          message: result.error.message,
+          details: result.error.details,
+        });
+      }
 
-    if (!result.success || !result.data) {
-      return null;
+      if (!result.data.data) {
+        return ok(null);
+      }
+
+      return ok(this.transformToGraphQLUser(result.data.data));
+    } catch (error) {
+      console.error('GetUserByUsername failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
     }
-
-    return this.transformToGraphQLUser(result.data as UserViewModel);
   }
 
   /**
    * Get user by email
    */
-  async getUserByEmail(email: string): Promise<GraphQLUser | null> {
-    const query: GetUserByEmailQuery = {
-      type: 'GetUserByEmail',
-      payload: { email },
-    };
+  async getUserByEmail(email: Email): Promise<Result<GraphQLUser | null, ServiceError>> {
+    try {
+      const result = await this.queryBus.execute(createQuery.getUserByEmail(email));
 
-    const result = await this.queryBus.execute<GetUserByEmailQuery, UserViewModel | null>(query);
+      if (!isOk(result)) {
+        return err({
+          code: 'INTERNAL',
+          message: result.error.message,
+          details: result.error.details,
+        });
+      }
 
-    if (!result.success || !result.data) {
-      return null;
+      if (!result.data.data) {
+        return ok(null);
+      }
+
+      return ok(this.transformToGraphQLUser(result.data.data));
+    } catch (error) {
+      console.error('GetUserByEmail failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
     }
-
-    return this.transformToGraphQLUser(result.data);
   }
 
   /**
    * Get all users with filtering and pagination
    */
-  async getAllUsers(filter?: UserFilter, pagination?: Pagination): Promise<GraphQLUser[]> {
-    const query: GetAllUsersQuery = {
-      type: 'GetAllUsers',
-      payload: {
-        filter: filter
-          ? {
-              role: filter.role,
-              isActive: filter.isActive,
-            }
-          : undefined,
-        pagination: pagination
-          ? {
-              offset: pagination.offset,
-              limit: pagination.limit,
-            }
-          : undefined,
-      },
-    };
+  async getAllUsers(
+    filter?: UserFilter,
+    pagination?: Pagination
+  ): Promise<Result<PaginatedResult<GraphQLUser>, ServiceError>> {
+    try {
+      const result = await this.queryBus.execute(createQuery.getAllUsers({ filter, pagination }));
 
-    const result = await this.queryBus.execute<GetAllUsersQuery, PaginatedResult<UserViewModel>>(
-      query
-    );
+      if (!isOk(result)) {
+        return err({
+          code: 'INTERNAL',
+          message: result.error.message,
+          details: result.error.details,
+        });
+      }
 
-    if (!result.success || !result.data) {
-      return [];
+      const paginatedResult = result.data.data;
+
+      return ok({
+        ...paginatedResult,
+        items: paginatedResult.items.map((user) => this.transformToGraphQLUser(user)),
+      });
+    } catch (error) {
+      console.error('GetAllUsers failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
     }
-
-    return result.data.items.map((user) => this.transformToGraphQLUser(user));
   }
 
   /**
-   * Get users by IDs (for DataLoader)
+   * Get users by IDs
    */
-  async getUsersByIds(ids: string[]): Promise<GraphQLUser[]> {
-    const query: GetUsersByIdsQuery = {
-      type: 'GetUsersByIds',
-      payload: { userIds: ids },
-    };
+  async getUsersByIds(ids: UserId[]): Promise<Result<GraphQLUser[], ServiceError>> {
+    try {
+      const result = await this.queryBus.execute(createQuery.getUsersByIds(ids));
 
-    const result = await this.queryBus.execute<GetUsersByIdsQuery, UserViewModel[]>(query);
+      if (!isOk(result)) {
+        return err({
+          code: 'INTERNAL',
+          message: result.error.message,
+          details: result.error.details,
+        });
+      }
 
-    if (!result.success || !result.data) {
-      return [];
+      const users = result.data.data.map((user) => this.transformToGraphQLUser(user));
+
+      return ok(users);
+    } catch (error) {
+      console.error('GetUsersByIds failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
     }
-
-    return result.data.map((user) => this.transformToGraphQLUser(user));
   }
 
   /**
    * Update user profile
    */
   async updateUserProfile(
-    userId: string,
+    userId: UserId,
     input: UpdateProfileInput,
     metadata?: CommandMetadata
-  ): Promise<GraphQLUser> {
-    const command: UpdateUserProfileCommand = {
-      type: 'UpdateUserProfile',
-      aggregateId: userId,
-      payload: {
-        name: input.name,
-        phoneNumber: input.phoneNumber,
-      },
-      metadata: {
-        ...metadata,
-        userId,
-        source: metadata?.source || 'graphql-api',
-      },
-    };
+  ): Promise<Result<GraphQLUser, ServiceError>> {
+    try {
+      const command = createCommand.updateUserProfile(userId as AggregateId, input, metadata);
 
-    const result = await this.commandBus.execute(command);
-    if (!result.success) {
-      throw new InternalServerError(result.error || 'Failed to update user profile');
+      const commandResult = await this.commandBus.execute(command);
+
+      if (!isOk(commandResult)) {
+        return err({
+          code: 'INTERNAL',
+          message: commandResult.error.message,
+          details: commandResult.error.details,
+        });
+      }
+
+      // Get updated user
+      const userResult = await this.getUserById(userId);
+
+      if (!isOk(userResult) || !userResult.data) {
+        return err({
+          code: 'NOT_FOUND',
+          message: 'User not found after update',
+        });
+      }
+
+      return ok(userResult.data);
+    } catch (error) {
+      console.error('UpdateUserProfile failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
     }
-
-    // Clear cache and return updated user
-    if (this.cacheService) {
-      await this.cacheService.delete(`user:${userId}`);
-    }
-
-    const updatedUser = await this.getUserById(userId);
-    if (!updatedUser) {
-      throw new InternalServerError('User was updated but could not be retrieved');
-    }
-
-    return updatedUser;
   }
 
   /**
    * Update user (admin operation)
    */
   async updateUser(
-    userId: string,
+    userId: UserId,
     input: UpdateUserInput,
-    currentUserId: string,
-    currentUserRole: GraphQLRole,
+    currentUserId: UserId,
+    currentUserRole: UserRole,
     metadata?: CommandMetadata
-  ): Promise<GraphQLUser> {
-    // Authorization check
-    if (currentUserRole !== 'ADMIN' && currentUserId !== userId) {
-      throw new AuthorizationError('You can only update your own profile');
-    }
+  ): Promise<Result<GraphQLUser, ServiceError>> {
+    try {
+      // Check permissions
+      if (currentUserRole !== 'ADMIN' && currentUserId !== userId) {
+        return err({
+          code: 'FORBIDDEN',
+          message: 'Insufficient permissions',
+        });
+      }
 
-    // Handle profile vs credentials updates
-    if (input.name !== undefined || input.phoneNumber !== undefined) {
-      await this.updateUserProfile(
-        userId,
-        {
-          name: input.name,
-          phoneNumber: input.phoneNumber,
-        },
-        metadata
-      );
-    }
-
-    if (input.username !== undefined || input.email !== undefined) {
-      const command: UpdateUserCredentialsCommand = {
-        type: 'UpdateUserCredentials',
-        aggregateId: userId,
-        payload: {
-          username: input.username,
-          email: input.email,
-        },
-        metadata: {
-          ...metadata,
-          userId: currentUserId,
-          source: metadata?.source || 'graphql-api',
-        },
-      };
-
-      const result = await this.commandBus.execute(command);
-
-      if (!result.success) {
-        if (result.error?.includes('already exists')) {
-          if (result.error.includes('username')) {
-            throw new AlreadyExistsError('User', 'username', input.username || '');
-          }
-          if (result.error.includes('email')) {
-            throw new AlreadyExistsError('User', 'email', input.email || '');
-          }
+      // Handle role change
+      if (input.role && input.role !== undefined) {
+        if (currentUserRole !== 'ADMIN') {
+          return err({
+            code: 'FORBIDDEN',
+            message: 'Only admins can change user roles',
+          });
         }
-        throw new InternalServerError(result.error || 'Failed to update user credentials');
+
+        const roleCommand = createCommand.changeUserRole(
+          userId as AggregateId,
+          {
+            newRole: input.role,
+            changedBy: currentUserId,
+          },
+          metadata
+        );
+
+        const roleResult = await this.commandBus.execute(roleCommand);
+
+        if (!wrap(roleResult).isOk()) {
+          return err({
+            code: 'INTERNAL',
+            message: roleerror.message,
+            details: roleerror.details,
+          });
+        }
       }
-    }
 
-    if (input.role !== undefined && currentUserRole === 'ADMIN') {
-      const command: ChangeUserRoleCommand = {
-        type: 'ChangeUserRole',
-        aggregateId: userId,
-        payload: {
-          newRole: input.role,
-          changedBy: currentUserId,
-        },
-        metadata: {
-          ...metadata,
-          userId: currentUserId,
-          source: metadata?.source || 'graphql-api',
-        },
-      };
+      // Handle credentials update
+      if (input.username || input.email) {
+        const credentialsCommand = createCommand.updateUserCredentials(
+          userId as AggregateId,
+          {
+            username: input.username,
+            email: input.email,
+          },
+          metadata
+        );
 
-      const result = await this.commandBus.execute(command);
+        const credentialsResult = await this.commandBus.execute(credentialsCommand);
 
-      if (!result.success) {
-        throw new InternalServerError(result.error || 'Failed to change user role');
+        if (!wrap(credentialsResult).isOk()) {
+          return err({
+            code: 'INTERNAL',
+            message: credentialserror.message,
+            details: credentialserror.details,
+          });
+        }
       }
-    }
 
-    // Clear cache and return updated user
-    if (this.cacheService) {
-      await this.cacheService.delete(`user:${userId}`);
-    }
+      // Handle profile update
+      if (input.name !== undefined || input.phoneNumber !== undefined) {
+        const profileCommand = createCommand.updateUserProfile(
+          userId as AggregateId,
+          {
+            name: input.name,
+            phoneNumber: input.phoneNumber,
+          },
+          metadata
+        );
 
-    const updatedUser = await this.getUserById(userId);
-    if (!updatedUser) {
-      throw new InternalServerError('User was updated but could not be retrieved');
-    }
+        const profileResult = await this.commandBus.execute(profileCommand);
 
-    return updatedUser;
+        if (!wrap(profileResult).isOk()) {
+          return err({
+            code: 'INTERNAL',
+            message: profileerror.message,
+            details: profileerror.details,
+          });
+        }
+      }
+
+      // Get updated user
+      const userResult = await this.getUserById(userId);
+
+      if (!isOk(userResult) || !userResult.data) {
+        return err({
+          code: 'NOT_FOUND',
+          message: 'User not found after update',
+        });
+      }
+
+      return ok(userResult.data);
+    } catch (error) {
+      console.error('UpdateUser failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
+    }
   }
 
   /**
    * Change user password
    */
   async changePassword(
-    userId: string,
+    userId: UserId,
     input: ChangePasswordInput,
     metadata?: CommandMetadata
-  ): Promise<boolean> {
-    const command: ChangeUserPasswordCommand = {
-      type: 'ChangeUserPassword',
-      aggregateId: userId,
-      payload: {
-        currentPassword: input.currentPassword,
-        newPassword: input.newPassword,
-        changedBy: userId,
-      },
-      metadata: {
-        ...metadata,
-        userId,
-        source: metadata?.source || 'graphql-api',
-      },
-    };
+  ): Promise<Result<boolean, ServiceError>> {
+    try {
+      // Get user to verify current password
+      const userResult = await this.queryBus.execute(createQuery.getUserById(userId));
 
-    const result = await this.commandBus.execute(command);
-
-    if (!result.success) {
-      if (result.error?.includes('Invalid credentials')) {
-        throw new ValidationError('Invalid current password', [
-          { field: 'currentPassword', message: 'Current password is incorrect' },
-        ]);
+      if (!isOk(userResult) || !userResult.data.data) {
+        return err({
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        });
       }
-      throw new InternalServerError(result.error || 'Failed to change password');
-    }
 
-    return true;
+      // Verify current password
+      const isValidPassword = await this.authService.verifyPassword(
+        input.currentPassword,
+        userResult.data.data.password
+      );
+
+      if (!isValidPassword) {
+        return err({
+          code: 'UNAUTHORIZED',
+          message: 'Current password is incorrect',
+        });
+      }
+
+      // Hash new password
+      const hashedPassword = await this.authService.hashPassword(input.newPassword);
+
+      // Change password command
+      const command = createCommand.changeUserPassword(
+        userId as AggregateId,
+        {
+          currentPassword: input.currentPassword,
+          newPassword: hashedPassword,
+          changedBy: userId,
+        },
+        metadata
+      );
+
+      const commandResult = await this.commandBus.execute(command);
+
+      if (!isOk(commandResult)) {
+        return err({
+          code: 'INTERNAL',
+          message: commandResult.error.message,
+          details: commandResult.error.details,
+        });
+      }
+
+      // Clear refresh token to force re-authentication
+      await this.clearRefreshToken(userId);
+
+      return ok(true);
+    } catch (error) {
+      console.error('ChangePassword failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
+    }
   }
 
   /**
    * Deactivate user
    */
   async deactivateUser(
-    userId: string,
+    userId: UserId,
     reason: string,
-    deactivatedBy: string,
+    deactivatedBy: UserId,
     metadata?: CommandMetadata
-  ): Promise<GraphQLUser> {
-    const command: DeactivateUserCommand = {
-      type: 'DeactivateUser',
-      aggregateId: userId,
-      payload: {
-        reason,
-        deactivatedBy,
-      },
-      metadata: {
-        ...metadata,
-        userId: deactivatedBy,
-        source: metadata?.source || 'graphql-api',
-      },
-    };
+  ): Promise<Result<GraphQLUser, ServiceError>> {
+    try {
+      const command = createCommand.deactivateUser(
+        userId as AggregateId,
+        {
+          reason,
+          deactivatedBy,
+        },
+        metadata
+      );
 
-    const result = await this.commandBus.execute(command);
+      const commandResult = await this.commandBus.execute(command);
 
-    if (!result.success) {
-      throw new InternalServerError(result.error || 'Failed to deactivate user');
+      if (!isOk(commandResult)) {
+        return err({
+          code: 'INTERNAL',
+          message: commandResult.error.message,
+          details: commandResult.error.details,
+        });
+      }
+
+      // Clear refresh token
+      await this.clearRefreshToken(userId);
+
+      // Get updated user
+      const userResult = await this.getUserById(userId);
+
+      if (!isOk(userResult) || !userResult.data) {
+        return err({
+          code: 'NOT_FOUND',
+          message: 'User not found after deactivation',
+        });
+      }
+
+      return ok(userResult.data);
+    } catch (error) {
+      console.error('DeactivateUser failed:', error);
+      return err({
+        code: 'INTERNAL',
+        message: 'An unexpected error occurred',
+        details: error,
+      });
     }
-
-    // Clear cache and return updated user
-    if (this.cacheService) {
-      await this.cacheService.delete(`user:${userId}`);
-    }
-
-    const deactivatedUser = await this.getUserById(userId);
-    if (!deactivatedUser) {
-      throw new InternalServerError('User was deactivated but could not be retrieved');
-    }
-
-    return deactivatedUser;
-  }
-
-  /**
-   * Record user sign in event
-   */
-  private async recordSignIn(userId: string, metadata?: CommandMetadata): Promise<void> {
-    const command: RecordUserSignInCommand = {
-      type: 'RecordUserSignIn',
-      aggregateId: userId,
-      payload: {
-        // These would typically come from request context
-        ipAddress: metadata?.source,
-        userAgent: 'GraphQL API',
-      },
-      metadata: {
-        ...metadata,
-        userId,
-        source: metadata?.source || 'graphql-api',
-      },
-    };
-
-    await this.commandBus.execute(command);
-  }
-
-  /**
-   * Verify user password (temporary implementation - should be moved to proper place)
-   */
-  private async verifyUserPassword(_userId: string, _password: string): Promise<boolean> {
-    // This is a placeholder - in a real implementation, this would either:
-    // 1. Be handled by the User aggregate loaded from event store
-    // 2. Be a specialized query that accesses the password hash securely
-    // 3. Be part of the existing Prisma-based approach during transition
-
-    // For now, return true (this should be implemented properly)
-    console.warn('⚠️  Password verification is not properly implemented yet');
-    return true;
   }
 
   /**
@@ -699,5 +870,38 @@ export class UserService implements IUserService {
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * Store refresh token
+   */
+  private async storeRefreshToken(userId: UserId, refreshToken: RefreshToken): Promise<void> {
+    if (this.cacheService) {
+      await this.cacheService.set(
+        `user:refresh:${userId}` as `${string}:${string}`,
+        refreshToken,
+        7 * 24 * 60 * 60 // 7 days
+      );
+    }
+  }
+
+  /**
+   * Get stored refresh token
+   */
+  private async getStoredRefreshToken(userId: UserId): Promise<RefreshToken | null> {
+    if (!this.cacheService) {
+      return null;
+    }
+
+    return this.cacheService.get<RefreshToken>(`user:refresh:${userId}` as `${string}:${string}`);
+  }
+
+  /**
+   * Clear refresh token
+   */
+  private async clearRefreshToken(userId: UserId): Promise<void> {
+    if (this.cacheService) {
+      await this.cacheService.delete(`user:refresh:${userId}` as `${string}:${string}`);
+    }
   }
 }

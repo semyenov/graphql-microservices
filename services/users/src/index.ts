@@ -61,11 +61,6 @@ const refreshKeyPair = AuthService.loadKeyPairFromEnv(
   'JWT_REFRESH_PUBLIC_KEY'
 );
 
-const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
-  algorithm: 'RS256' as const,
-  expiresIn: env.JWT_EXPIRES_IN,
-});
-
 const cacheService = new CacheService(env.REDIS_URL as string);
 const pubSubService = new PubSubService({ redisUrl: env.REDIS_URL });
 const pubsub = pubSubService.getPubSub();
@@ -657,6 +652,11 @@ const { url } = await startStandaloneServer(server, {
     const userLoader = createUserLoader();
 
     // Extract user from authorization header
+    const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
+      algorithm: 'RS256' as const,
+      expiresIn: env.JWT_EXPIRES_IN,
+    });
+    
     const token = authService.extractTokenFromHeader(req.headers.authorization);
     let user: JWTPayload | null = null;
 

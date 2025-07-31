@@ -6,6 +6,7 @@ import type {
   UserCreatedEvent,
   UserCredentialsUpdatedEvent,
   UserDeactivatedEvent,
+  UserDomainEvent,
   UserPasswordChangedEvent,
   UserProfileUpdatedEvent,
   UserReactivatedEvent,
@@ -13,18 +14,23 @@ import type {
   UserSignedInEvent,
   UserSignedOutEvent,
 } from '../domain/user-aggregate';
+
+import { cacheKey, type Email, type UserId, type Username } from './types';
 /**
- * Event handler interface
+ * Event handler interface with improved typing
  */
-export interface IEventHandler<T extends DomainEvent> {
+export interface IEventHandler<T extends DomainEvent = DomainEvent> {
+  readonly eventType: T['type'];
   handle(event: T): Promise<void>;
-  canHandle(event: T): boolean;
+  canHandle(event: DomainEvent): event is T;
 }
 
 /**
  * Base event handler with common functionality
  */
 abstract class BaseEventHandler<T extends DomainEvent> implements IEventHandler<T> {
+  abstract readonly eventType: T['type'];
+
   constructor(
     protected readonly prisma: PrismaClient,
     protected readonly cacheService?: CacheService,
@@ -32,23 +38,28 @@ abstract class BaseEventHandler<T extends DomainEvent> implements IEventHandler<
   ) {}
 
   abstract handle(event: T): Promise<void>;
-  abstract canHandle(event: T): boolean;
+
+  canHandle(event: DomainEvent): event is T {
+    return event.type === this.eventType;
+  }
 
   /**
-   * Invalidate user cache
+   * Invalidate user cache with type-safe keys
    */
   protected async invalidateUserCache(
-    userId: string,
-    username?: string,
-    email?: string
+    userId: UserId,
+    username?: Username,
+    email?: Email
   ): Promise<void> {
     if (!this.cacheService) return;
 
-    await Promise.all([
-      this.cacheService.delete(`user:${userId}`),
-      username && this.cacheService.delete(`user:username:${username}`),
-      email && this.cacheService.delete(`user:email:${email}`),
-    ]);
+    const cacheKeys = [
+      cacheKey.user(userId),
+      username && cacheKey.userByUsername(username),
+      email && cacheKey.userByEmail(email),
+    ].filter(Boolean) as `${string}:${string}`[];
+
+    await Promise.all(cacheKeys.map((key) => this.cacheService?.delete(key)));
   }
 
   /**
@@ -83,7 +94,7 @@ abstract class BaseEventHandler<T extends DomainEvent> implements IEventHandler<
       version: event.version,
       status,
       timestamp: new Date().toISOString(),
-      ...(error && { error: handleError(error).message }),
+      ...(error && { error: error instanceof Error ? error.message : String(error) }),
     };
 
     if (status === 'failed') {
@@ -99,9 +110,7 @@ abstract class BaseEventHandler<T extends DomainEvent> implements IEventHandler<
  * Updates read model and publishes subscription events
  */
 export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> {
-  canHandle(event: UserCreatedEvent): boolean {
-    return event.type === 'UserCreated';
-  }
+  readonly eventType = 'UserCreated' as const;
 
   async handle(event: UserCreatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -152,7 +161,11 @@ export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> 
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -162,9 +175,7 @@ export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> 
  * User Profile Updated Event Handler
  */
 export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfileUpdatedEvent> {
-  canHandle(event: UserProfileUpdatedEvent): boolean {
-    return event.type === 'UserProfileUpdated';
-  }
+  readonly eventType = 'UserProfileUpdated' as const;
 
   async handle(event: UserProfileUpdatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -188,7 +199,11 @@ export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfile
       });
 
       // Invalidate cache
-      await this.invalidateUserCache(event.aggregateId, updatedUser.username, updatedUser.email);
+      await this.invalidateUserCache(
+        event.aggregateId as UserId,
+        updatedUser.username as Username,
+        updatedUser.email as Email
+      );
 
       // Publish GraphQL subscription
       await this.publishSubscriptionEvent('userUpdated', {
@@ -207,7 +222,11 @@ export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfile
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -217,9 +236,7 @@ export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfile
  * User Credentials Updated Event Handler
  */
 export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCredentialsUpdatedEvent> {
-  canHandle(event: UserCredentialsUpdatedEvent): boolean {
-    return event.type === 'UserCredentialsUpdated';
-  }
+  readonly eventType = 'UserCredentialsUpdated' as const;
 
   async handle(event: UserCredentialsUpdatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -243,7 +260,11 @@ export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCre
       });
 
       // Invalidate cache (including old username/email if changed)
-      await this.invalidateUserCache(event.aggregateId, updatedUser.username, updatedUser.email);
+      await this.invalidateUserCache(
+        event.aggregateId as UserId,
+        updatedUser.username as Username,
+        updatedUser.email as Email
+      );
 
       // Also invalidate old cache keys
       if (event.data.previousUsername) {
@@ -270,7 +291,11 @@ export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCre
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -280,9 +305,7 @@ export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCre
  * User Role Changed Event Handler
  */
 export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChangedEvent> {
-  canHandle(event: UserRoleChangedEvent): boolean {
-    return event.type === 'UserRoleChanged';
-  }
+  readonly eventType = 'UserRoleChanged' as const;
 
   async handle(event: UserRoleChangedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -298,7 +321,11 @@ export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChange
       });
 
       // Invalidate cache
-      await this.invalidateUserCache(event.aggregateId, updatedUser.username, updatedUser.email);
+      await this.invalidateUserCache(
+        event.aggregateId as UserId,
+        updatedUser.username as Username,
+        updatedUser.email as Email
+      );
 
       // Publish GraphQL subscription
       await this.publishSubscriptionEvent('userUpdated', {
@@ -317,7 +344,11 @@ export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChange
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -327,9 +358,7 @@ export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChange
  * User Password Changed Event Handler
  */
 export class UserPasswordChangedEventHandler extends BaseEventHandler<UserPasswordChangedEvent> {
-  canHandle(event: UserPasswordChangedEvent): boolean {
-    return event.type === 'UserPasswordChanged';
-  }
+  readonly eventType = 'UserPasswordChanged' as const;
 
   async handle(event: UserPasswordChangedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -345,14 +374,22 @@ export class UserPasswordChangedEventHandler extends BaseEventHandler<UserPasswo
       });
 
       // Invalidate cache
-      await this.invalidateUserCache(event.aggregateId, updatedUser.username, updatedUser.email);
+      await this.invalidateUserCache(
+        event.aggregateId as UserId,
+        updatedUser.username as Username,
+        updatedUser.email as Email
+      );
 
       // Note: We don't publish this to GraphQL subscriptions for security reasons
       // Password changes are sensitive operations
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -362,9 +399,7 @@ export class UserPasswordChangedEventHandler extends BaseEventHandler<UserPasswo
  * User Deactivated Event Handler
  */
 export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivatedEvent> {
-  canHandle(event: UserDeactivatedEvent): boolean {
-    return event.type === 'UserDeactivated';
-  }
+  readonly eventType = 'UserDeactivated' as const;
 
   async handle(event: UserDeactivatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -381,7 +416,11 @@ export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivate
       });
 
       // Invalidate cache
-      await this.invalidateUserCache(event.aggregateId, updatedUser.username, updatedUser.email);
+      await this.invalidateUserCache(
+        event.aggregateId as UserId,
+        updatedUser.username as Username,
+        updatedUser.email as Email
+      );
 
       // Publish GraphQL subscription
       await this.publishSubscriptionEvent('userDeactivated', {
@@ -400,7 +439,11 @@ export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivate
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -410,9 +453,7 @@ export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivate
  * User Reactivated Event Handler
  */
 export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivatedEvent> {
-  canHandle(event: UserReactivatedEvent): boolean {
-    return event.type === 'UserReactivated';
-  }
+  readonly eventType = 'UserReactivated' as const;
 
   async handle(event: UserReactivatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -428,7 +469,11 @@ export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivate
       });
 
       // Invalidate cache
-      await this.invalidateUserCache(event.aggregateId, updatedUser.username, updatedUser.email);
+      await this.invalidateUserCache(
+        event.aggregateId as UserId,
+        updatedUser.username as Username,
+        updatedUser.email as Email
+      );
 
       // Publish GraphQL subscription
       await this.publishSubscriptionEvent('userUpdated', {
@@ -447,7 +492,11 @@ export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivate
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -458,9 +507,7 @@ export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivate
  * Tracks user activity and updates last sign in timestamp
  */
 export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent> {
-  canHandle(event: UserSignedInEvent): boolean {
-    return event.type === 'UserSignedIn';
-  }
+  readonly eventType = 'UserSignedIn' as const;
 
   async handle(event: UserSignedInEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -487,11 +534,15 @@ export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent
       // });
 
       // Invalidate cache
-      await this.invalidateUserCache(event.aggregateId);
+      await this.invalidateUserCache(event.aggregateId as UserId);
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -501,9 +552,7 @@ export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent
  * User Sign Out Event Handler
  */
 export class UserSignedOutEventHandler extends BaseEventHandler<UserSignedOutEvent> {
-  canHandle(event: UserSignedOutEvent): boolean {
-    return event.type === 'UserSignedOut';
-  }
+  readonly eventType = 'UserSignedOut' as const;
 
   async handle(event: UserSignedOutEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
@@ -519,11 +568,15 @@ export class UserSignedOutEventHandler extends BaseEventHandler<UserSignedOutEve
       });
 
       // Invalidate cache
-      await this.invalidateUserCache(event.aggregateId);
+      await this.invalidateUserCache(event.aggregateId as UserId);
 
       this.logEventProcessing(event, 'completed');
     } catch (error) {
-      this.logEventProcessing(event, 'failed', handleError(error));
+      this.logEventProcessing(
+        event,
+        'failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -554,7 +607,8 @@ export class UserEventDispatcher {
    * Dispatch an event to appropriate handlers
    */
   async dispatch<T extends DomainEvent>(event: T): Promise<void> {
-    const applicableHandlers = this.handlers.filter((handler) => handler.canHandle(event));
+    const applicableHandlers = this.handlers
+      .filter((handler) => handler.canHandle(event)) as IEventHandler<T>[];
 
     if (applicableHandlers.length === 0) {
       console.warn(`No handlers found for event type: ${event.type}`);
@@ -593,16 +647,4 @@ export class UserEventDispatcher {
   getHandlers(): IEventHandler<DomainEvent>[] {
     return [...this.handlers];
   }
-}
-
-function isError(error: unknown): error is Error {
-  return error instanceof Error;
-}
-
-function handleError(error: unknown): Error {
-  if (isError(error)) {
-    return error;
-  }
-
-  return new Error(error as string);
 }

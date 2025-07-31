@@ -1,7 +1,9 @@
-import type { EventStore, EventStoreQuery } from '@graphql-microservices/event-sourcing';
-import type { CacheService } from '@graphql-microservices/shared-cache';
-import type { PrismaClient } from '../../generated/prisma';
+import type { EventStoreQuery } from "@graphql-microservices/event-sourcing";
+import type { PostgreSQLEventStore } from "@graphql-microservices/event-sourcing";
+import type { CacheService } from "@graphql-microservices/shared-cache";
+import type { PrismaClient } from "../../generated/prisma";
 import {
+  createPaginatedResult,
   type GetAllUsersQuery,
   type GetUserByEmailQuery,
   type GetUserByIdQuery,
@@ -10,31 +12,55 @@ import {
   type GetUsersByIdsQuery,
   type PaginatedResult,
   type QueryResult,
+  QueryType,
   type SearchUsersQuery,
   type UserEventViewModel,
   type UserQuery,
   type UserViewModel,
   validateQuery,
-} from './queries';
+} from "./queries";
+import {
+  type CacheKeyTemplate,
+  cacheKey,
+  type Email,
+  type UserId,
+  type Username,
+  type UserRole,
+  type EventId,
+  err,
+  ok,
+} from "./types";
+
+export { type Result } from "@graphql-microservices/shared-type-utils";
 
 /**
- * Query handler interface
+ * Query handler interface with improved typing
  */
 export interface QueryHandler<T extends UserQuery, R = unknown> {
+  readonly queryType: T["type"];
   handle(query: T): Promise<QueryResult<R>>;
+  canHandle(query: UserQuery): query is T;
 }
 
 /**
  * Base query handler with common functionality
  */
-abstract class BaseQueryHandler<T extends UserQuery, R = unknown> implements QueryHandler<T, R> {
+abstract class BaseQueryHandler<T extends UserQuery, R = unknown>
+  implements QueryHandler<T, R>
+{
+  abstract readonly queryType: T["type"];
+
   constructor(
     protected readonly prisma: PrismaClient,
-    protected readonly eventStore: EventStore,
+    protected readonly eventStore: PostgreSQLEventStore,
     protected readonly cacheService?: CacheService
   ) {}
 
   abstract handle(query: T): Promise<QueryResult<R>>;
+
+  canHandle(query: UserQuery): query is T {
+    return query.type === this.queryType;
+  }
 
   /**
    * Transform Prisma user to view model
@@ -51,12 +77,12 @@ abstract class BaseQueryHandler<T extends UserQuery, R = unknown> implements Que
     updatedAt: Date;
   }): UserViewModel {
     return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
+      id: user.id as UserId,
+      username: user.username as Username,
+      email: user.email as Email,
       name: user.name,
       phoneNumber: user.phoneNumber ?? undefined,
-      role: user.role as 'USER' | 'ADMIN' | 'MODERATOR',
+      role: user.role as UserRole,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -67,7 +93,7 @@ abstract class BaseQueryHandler<T extends UserQuery, R = unknown> implements Que
    * Execute query with caching support
    */
   protected async executeWithCache<T>(
-    cacheKey: string,
+    key: CacheKeyTemplate,
     queryFn: () => Promise<T>,
     ttl: number = 300 // 5 minutes
   ): Promise<T> {
@@ -76,14 +102,14 @@ abstract class BaseQueryHandler<T extends UserQuery, R = unknown> implements Que
     }
 
     // Try cache first
-    const cached = await this.cacheService.get<T>(`user:${cacheKey}` as `${string}:${string}`);
+    const cached = await this.cacheService.get<T>(key as `${string}:${string}`);
     if (cached !== null) {
       return cached;
     }
 
     // Execute query and cache result
     const result = await queryFn();
-    await this.cacheService.set(`user:${cacheKey}` as `${string}:${string}`, result, ttl);
+    await this.cacheService.set(key as `${string}:${string}`, result, ttl);
 
     return result;
   }
@@ -91,38 +117,38 @@ abstract class BaseQueryHandler<T extends UserQuery, R = unknown> implements Que
   /**
    * Handle common query execution pattern
    */
-  protected async executeQuery<T>(
-    query: UserQuery,
-    queryFn: () => Promise<T>
-  ): Promise<QueryResult<T>> {
-    const startTime = Date.now();
-
+  protected async executeQuery<T extends UserQuery, R = unknown>(
+    query: T,
+    queryFn: () => Promise<R>
+  ): Promise<QueryResult<R>> {
     try {
       // Validate query
       validateQuery(query);
 
       // Execute query
       const data = await queryFn();
-
-      return {
-        success: true,
-        data,
-        metadata: {
-          executionTime: Date.now() - startTime,
-          source: 'query-handler',
-        },
-      };
+      if (data === null || data === undefined) {
+        return err(new Error("Query returned null or undefined"));
+      }
+      return ok(data);
     } catch (error) {
       console.error(`Query ${query.type} failed:`, error);
 
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        metadata: {
-          executionTime: Date.now() - startTime,
-          source: 'query-handler',
-        },
-      };
+      let errorCode:
+        | "NOT_FOUND"
+        | "VALIDATION_ERROR"
+        | "PERMISSION_DENIED"
+        | "INTERNAL_ERROR";
+
+      if (error instanceof Error && error.message.includes("not found")) {
+        errorCode = "NOT_FOUND";
+      } else {
+        errorCode = "INTERNAL_ERROR";
+      }
+
+      return err(
+        new Error(error instanceof Error ? error.message : "Unknown error")
+      );
     }
   }
 }
@@ -134,11 +160,14 @@ export class GetUserByIdQueryHandler extends BaseQueryHandler<
   GetUserByIdQuery,
   UserViewModel | null
 > {
-  async handle(query: GetUserByIdQuery): Promise<QueryResult<UserViewModel | null>> {
+  readonly queryType = QueryType.GET_USER_BY_ID;
+  async handle(
+    query: GetUserByIdQuery
+  ): Promise<QueryResult<UserViewModel | null>> {
     return this.executeQuery(query, async () => {
-      const cacheKey = `user:${query.payload.userId}`;
+      const key = cacheKey.user(query.payload.userId as UserId);
 
-      return this.executeWithCache(cacheKey, async () => {
+      return this.executeWithCache(key, async () => {
         const user = await this.prisma.user.findUnique({
           where: { id: query.payload.userId },
         });
@@ -156,11 +185,14 @@ export class GetUserByUsernameQueryHandler extends BaseQueryHandler<
   GetUserByUsernameQuery,
   UserViewModel | null
 > {
-  async handle(query: GetUserByUsernameQuery): Promise<QueryResult<UserViewModel | null>> {
+  readonly queryType = QueryType.GET_USER_BY_USERNAME;
+  async handle(
+    query: GetUserByUsernameQuery
+  ): Promise<QueryResult<UserViewModel | null>> {
     return this.executeQuery(query, async () => {
-      const cacheKey = `user:username:${query.payload.username}`;
+      const key = cacheKey.userByUsername(query.payload.username as Username);
 
-      return this.executeWithCache(cacheKey, async () => {
+      return this.executeWithCache(key, async () => {
         const user = await this.prisma.user.findUnique({
           where: { username: query.payload.username },
         });
@@ -178,11 +210,14 @@ export class GetUserByEmailQueryHandler extends BaseQueryHandler<
   GetUserByEmailQuery,
   UserViewModel | null
 > {
-  async handle(query: GetUserByEmailQuery): Promise<QueryResult<UserViewModel | null>> {
+  readonly queryType = QueryType.GET_USER_BY_EMAIL;
+  async handle(
+    query: GetUserByEmailQuery
+  ): Promise<QueryResult<UserViewModel | null>> {
     return this.executeQuery(query, async () => {
-      const cacheKey = `user:email:${query.payload.email}`;
+      const key = cacheKey.userByEmail(query.payload.email as Email);
 
-      return this.executeWithCache(cacheKey, async () => {
+      return this.executeWithCache(key, async () => {
         const user = await this.prisma.user.findUnique({
           where: { email: query.payload.email },
         });
@@ -200,7 +235,10 @@ export class GetAllUsersQueryHandler extends BaseQueryHandler<
   GetAllUsersQuery,
   PaginatedResult<UserViewModel>
 > {
-  async handle(query: GetAllUsersQuery): Promise<QueryResult<PaginatedResult<UserViewModel>>> {
+  readonly queryType = QueryType.GET_ALL_USERS;
+  async handle(
+    query: GetAllUsersQuery
+  ): Promise<QueryResult<PaginatedResult<UserViewModel>>> {
     return this.executeQuery(query, async () => {
       const { filter, pagination, sorting } = query.payload;
 
@@ -218,7 +256,7 @@ export class GetAllUsersQueryHandler extends BaseQueryHandler<
       if (sorting) {
         orderBy[sorting.field] = sorting.direction.toLowerCase();
       } else {
-        orderBy.createdAt = 'desc'; // Default sorting
+        orderBy.createdAt = "desc"; // Default sorting
       }
 
       // Pagination
@@ -236,13 +274,12 @@ export class GetAllUsersQueryHandler extends BaseQueryHandler<
         this.prisma.user.count({ where }),
       ]);
 
-      return {
-        items: users.map((user) => this.transformUserToViewModel(user)),
+      return createPaginatedResult(
+        users.map((user) => this.transformUserToViewModel(user)),
         totalCount,
         offset,
-        limit,
-        hasMore: offset + limit < totalCount,
-      };
+        limit
+      );
     });
   }
 }
@@ -254,7 +291,10 @@ export class GetUsersByIdsQueryHandler extends BaseQueryHandler<
   GetUsersByIdsQuery,
   UserViewModel[]
 > {
-  async handle(query: GetUsersByIdsQuery): Promise<QueryResult<UserViewModel[]>> {
+  readonly queryType = QueryType.GET_USERS_BY_IDS;
+  async handle(
+    query: GetUsersByIdsQuery
+  ): Promise<QueryResult<UserViewModel[]>> {
     return this.executeQuery(query, async () => {
       const users = await this.prisma.user.findMany({
         where: {
@@ -280,16 +320,18 @@ export class GetUserEventsQueryHandler extends BaseQueryHandler<
   GetUserEventsQuery,
   PaginatedResult<UserEventViewModel>
 > {
+  readonly queryType = QueryType.GET_USER_EVENTS;
   async handle(
     query: GetUserEventsQuery
   ): Promise<QueryResult<PaginatedResult<UserEventViewModel>>> {
     return this.executeQuery(query, async () => {
-      const { userId, eventTypes, fromDate, toDate, pagination } = query.payload;
+      const { userId, eventTypes, fromDate, toDate, pagination } =
+        query.payload;
 
       // Build event store query
       const eventQuery: EventStoreQuery = {
         aggregateId: userId,
-        aggregateType: 'User',
+        aggregateType: "User",
       };
 
       if (fromDate || toDate) {
@@ -310,19 +352,24 @@ export class GetUserEventsQueryHandler extends BaseQueryHandler<
       // Filter by event types if specified
       let filteredEvents = events;
       if (eventTypes && eventTypes.length > 0) {
-        filteredEvents = events.filter((event) => eventTypes.includes(event.type));
+        filteredEvents = events.filter((event) =>
+          eventTypes.includes(event.type)
+        );
       }
 
-      return {
-        items: filteredEvents.slice(offset, offset + limit).map((event) => ({
-          ...event,
+      const items = filteredEvents
+        .slice(offset, offset + limit)
+        .map((event) => ({
+          id: event.id as EventId,
+          type: event.type,
+          aggregateId: event.aggregateId as UserId,
+          data: event.data,
           metadata: event.metadata,
-        })),
-        totalCount: filteredEvents.length,
-        offset,
-        limit,
-        hasMore: offset + limit < filteredEvents.length,
-      };
+          occurredAt: event.occurredAt,
+          version: event.version,
+        }));
+
+      return createPaginatedResult(items, filteredEvents.length, offset, limit);
     });
   }
 }
@@ -334,19 +381,22 @@ export class SearchUsersQueryHandler extends BaseQueryHandler<
   SearchUsersQuery,
   PaginatedResult<UserViewModel>
 > {
-  async handle(query: SearchUsersQuery): Promise<QueryResult<PaginatedResult<UserViewModel>>> {
+  readonly queryType = QueryType.SEARCH_USERS;
+  async handle(
+    query: SearchUsersQuery
+  ): Promise<QueryResult<PaginatedResult<UserViewModel>>> {
     return this.executeQuery(query, async () => {
       const { searchTerm, searchFields, filter, pagination } = query.payload;
 
       // Build search conditions
       const searchConditions: Record<string, unknown>[] = [];
-      const fieldsToSearch = searchFields || ['username', 'email', 'name'];
+      const fieldsToSearch = searchFields || ["username", "email", "name"];
 
       for (const field of fieldsToSearch) {
         searchConditions.push({
           [field]: {
             contains: searchTerm,
-            mode: 'insensitive',
+            mode: "insensitive",
           },
         });
       }
@@ -371,20 +421,19 @@ export class SearchUsersQueryHandler extends BaseQueryHandler<
       const [users, totalCount] = await Promise.all([
         this.prisma.user.findMany({
           where,
-          orderBy: { username: 'asc' },
+          orderBy: { username: "asc" },
           skip: offset,
           take: limit,
         }),
         this.prisma.user.count({ where }),
       ]);
 
-      return {
-        items: users.map((user) => this.transformUserToViewModel(user)),
+      return createPaginatedResult(
+        users.map((user) => this.transformUserToViewModel(user)),
         totalCount,
         offset,
-        limit,
-        hasMore: offset + limit < totalCount,
-      };
+        limit
+      );
     });
   }
 }
@@ -393,35 +442,36 @@ export class SearchUsersQueryHandler extends BaseQueryHandler<
  * Query Bus - Routes queries to appropriate handlers
  */
 export class UserQueryBus {
-  private readonly handlers = new Map<string, QueryHandler<UserQuery, unknown>>();
+  private readonly handlers: Map<QueryType, QueryHandler<UserQuery, any>> =
+    new Map();
 
-  constructor(prisma: PrismaClient, eventStore: EventStore, cacheService?: CacheService) {
-    // Register query handlers
-    this.handlers.set('GetUserById', new GetUserByIdQueryHandler(prisma, eventStore, cacheService));
-    this.handlers.set(
-      'GetUserByUsername',
-      new GetUserByUsernameQueryHandler(prisma, eventStore, cacheService)
-    );
-    this.handlers.set(
-      'GetUserByEmail',
-      new GetUserByEmailQueryHandler(prisma, eventStore, cacheService)
-    );
-    this.handlers.set('GetAllUsers', new GetAllUsersQueryHandler(prisma, eventStore, cacheService));
-    this.handlers.set(
-      'GetUsersByIds',
-      new GetUsersByIdsQueryHandler(prisma, eventStore, cacheService)
-    );
-    this.handlers.set(
-      'GetUserEvents',
-      new GetUserEventsQueryHandler(prisma, eventStore, cacheService)
-    );
-    this.handlers.set('SearchUsers', new SearchUsersQueryHandler(prisma, eventStore, cacheService));
+  constructor(
+    prisma: PrismaClient,
+    eventStore: PostgreSQLEventStore,
+    cacheService?: CacheService
+  ) {
+    // Register query handlers with type safety
+    const handlers: QueryHandler<UserQuery, unknown>[] = [
+      new GetUserByIdQueryHandler(prisma, eventStore, cacheService),
+      new GetUserByUsernameQueryHandler(prisma, eventStore, cacheService),
+      new GetUserByEmailQueryHandler(prisma, eventStore, cacheService),
+      new GetAllUsersQueryHandler(prisma, eventStore, cacheService),
+      new GetUsersByIdsQueryHandler(prisma, eventStore, cacheService),
+      new GetUserEventsQueryHandler(prisma, eventStore, cacheService),
+      new SearchUsersQueryHandler(prisma, eventStore, cacheService),
+    ];
+
+    handlers.forEach((handler) => {
+      this.handlers.set(handler.queryType, handler);
+    });
   }
 
   /**
    * Execute a query
    */
-  async execute<T extends UserQuery, R = unknown>(query: T): Promise<QueryResult<R>> {
+  async execute<T extends UserQuery, R = unknown>(
+    query: T
+  ): Promise<QueryResult<R>> {
     const handler = this.handlers.get(query.type) as QueryHandler<T, R>;
     if (!handler) {
       throw new Error(`No handler found for query type: ${query.type}`);
@@ -431,10 +481,7 @@ export class UserQueryBus {
       return await handler.handle(query);
     } catch (error) {
       console.error(`Query execution failed:`, error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return err(new Error(error instanceof Error ? error.message : "Unknown error"));
     }
   }
 
@@ -442,7 +489,7 @@ export class UserQueryBus {
    * Register a custom query handler
    */
   registerHandler<T extends UserQuery, R = unknown>(
-    queryType: string,
+    queryType: QueryType,
     handler: QueryHandler<T, R>
   ): void {
     this.handlers.set(queryType, handler);

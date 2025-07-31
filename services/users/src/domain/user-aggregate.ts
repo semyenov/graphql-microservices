@@ -490,12 +490,8 @@ export class User extends AggregateRoot {
       'UserSignedOut',
       this.id,
       'User',
-      {
-        timestamp: new Date(),
-      },
-      {
-        source: 'users-service',
-      },
+      { timestamp: new Date() },
+      { source: 'users-service' },
       this.version + 1
     );
 

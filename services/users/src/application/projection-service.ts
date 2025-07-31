@@ -1,4 +1,4 @@
-import type { EventStore } from '@graphql-microservices/event-sourcing';
+import type { PostgreSQLEventStore } from '@graphql-microservices/event-sourcing';
 import type { PrismaClient } from '../../generated/prisma';
 import type { UserEventDispatcher } from './event-handlers';
 
@@ -32,7 +32,7 @@ export class UserProjectionService {
   private readonly projectionConfigs = new Map<string, ProjectionConfig>();
 
   constructor(
-    private readonly eventStore: EventStore,
+    private readonly eventStore: PostgreSQLEventStore,
     private readonly eventDispatcher: UserEventDispatcher,
     private readonly prisma: PrismaClient
   ) {}
@@ -439,7 +439,7 @@ export const defaultUserProjectionConfigs: ProjectionConfig[] = [
  * Factory function to create projection service with default configurations
  */
 export function createProjectionService(
-  eventStore: EventStore,
+  eventStore: PostgreSQLEventStore,
   eventDispatcher: UserEventDispatcher,
   prisma: PrismaClient
 ): UserProjectionService {

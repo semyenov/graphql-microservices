@@ -7,57 +7,24 @@ import {
   AuthService,
   extractAndVerifyUser,
 } from '@graphql-microservices/shared-auth';
-import { CacheService, cacheTTL } from '@graphql-microservices/shared-cache';
-import {
-  AuthenticationError,
-  AuthorizationError,
-  BusinessRuleError,
-  createErrorLogger,
-  formatError,
-  InternalServerError,
-  NotFoundError,
-  toGraphQLError,
-  ValidationError,
-} from '@graphql-microservices/shared-errors';
+import { CacheService } from '@graphql-microservices/shared-cache';
+import { AuthenticationError, formatError } from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
-import {
-  createOrderInputSchema,
-  orderStatusSchema,
-  shippingInfoSchema,
-  validateInput,
-  validateOrderStatusTransition,
-} from '@graphql-microservices/validation';
-import DataLoader from 'dataloader';
 import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
 import type {
   Order as GraphQLOrder,
-  OrderStatus as GraphQLOrderStatus,
-  PaymentInfo as GraphQLPaymentInfo,
-  ShippingInfo as GraphQLShippingInfo,
   MutationResolvers,
-  OrderItem,
   OrderItemResolvers,
   OrderResolvers,
   QueryResolvers,
   Resolvers,
-  User,
   UserResolvers,
 } from '../generated/graphql';
-import {
-  type OrderStatus,
-  type Prisma,
-  PrismaClient,
-  type Order as PrismaOrder,
-  type OrderItem as PrismaOrderItem,
-} from '../generated/prisma';
-import {
-  publishOrderCancelled,
-  publishOrderCreated,
-  publishOrderRefunded,
-  publishOrderStatusChanged,
-  subscriptionResolvers,
-} from './subscriptions';
+import { PrismaClient } from '../generated/prisma';
+import { OrderService } from './application/order-service';
+import { isOk, isErr } from '@graphql-microservices/shared-type-utils';
+import { subscriptionResolvers } from './subscriptions';
 
 // Parse and validate environment variables
 const env = parseEnv(orderServiceEnvSchema);
@@ -66,7 +33,9 @@ const env = parseEnv(orderServiceEnvSchema);
 const prisma = new PrismaClient();
 const cacheService = new CacheService(env.REDIS_URL || 'redis://localhost:6379');
 const pubSubService = new PubSubService({ redisUrl: env.REDIS_URL });
-const pubsub = pubSubService.getPubSub();
+
+// Initialize order service
+const orderService = new OrderService(prisma, cacheService, pubSubService);
 
 // Initialize auth service with same keys as users service
 const jwtKeyPair = AuthService.loadKeyPairFromEnv(
@@ -82,15 +51,9 @@ const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
   algorithm: 'RS256' as const,
 });
 
-// Create error logger for this service
-const logError = createErrorLogger('orders-service');
-
 // Context type for orders service
 export interface Context extends AuthContext {
-  prisma: PrismaClient;
-  cacheService: CacheService;
-  pubsub: typeof pubsub;
-  orderLoader: DataLoader<string, GraphQLOrder | null>;
+  orderService: OrderService;
 }
 
 // GraphQL schema
@@ -102,17 +65,19 @@ const typeDefs = gql`
 
   type Order @key(fields: "id") {
     id: ID!
+    orderNumber: String!
     userId: ID!
     user: User
-    orderNumber: String!
+    status: OrderStatus!
     items: [OrderItem!]!
     subtotal: Float!
     tax: Float!
     shipping: Float!
-    total: Float!
-    status: OrderStatus!
+    discount: Float!
+    totalAmount: Float!
+    shippingAddress: ShippingAddress!
+    paymentInfo: PaymentInfo!
     shippingInfo: ShippingInfo
-    paymentInfo: PaymentInfo
     notes: String
     createdAt: String!
     updatedAt: String!
@@ -120,30 +85,37 @@ const typeDefs = gql`
 
   type OrderItem {
     id: ID!
+    orderId: ID!
     productId: ID!
-    product: Product
     quantity: Int!
-    price: Float!
-    total: Float!
+    unitPrice: Float!
+    totalPrice: Float!
   }
 
-  type ShippingInfo {
-    address: String!
+  type ShippingAddress {
+    street: String!
     city: String!
     state: String!
-    zipCode: String!
     country: String!
-    phone: String
+    postalCode: String!
   }
 
   type PaymentInfo {
-    method: String!
+    method: PaymentMethod!
+    status: PaymentStatus!
     transactionId: String
-    paidAt: String
+  }
+
+  type ShippingInfo {
+    carrier: String
+    trackingNumber: String
+    estimatedDeliveryDate: String
+    deliveredAt: String
   }
 
   enum OrderStatus {
     PENDING
+    CONFIRMED
     PROCESSING
     SHIPPED
     DELIVERED
@@ -151,16 +123,26 @@ const typeDefs = gql`
     REFUNDED
   }
 
+  enum PaymentMethod {
+    CARD
+    PAYPAL
+    STRIPE
+    BANK_TRANSFER
+  }
+
+  enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
+  }
+
   extend type User @key(fields: "id") {
     id: ID! @external
-    orders: [Order!]!
+    orders(first: Int, after: String, status: OrderStatus): OrderConnection!
   }
 
-  extend type Product @key(fields: "id") {
-    id: ID! @external
-  }
-
-  type OrdersPage {
+  type OrderConnection {
     orders: [Order!]!
     totalCount: Int!
     pageInfo: PageInfo!
@@ -179,709 +161,375 @@ const typeDefs = gql`
     orders(
       first: Int
       after: String
+      status: OrderStatus
       userId: ID
-      status: OrderStatus
-      dateFrom: String
-      dateTo: String
-    ): OrdersPage!
-    myOrders(
-      first: Int
-      after: String
-      status: OrderStatus
-    ): OrdersPage!
+    ): OrderConnection!
   }
 
   type Mutation {
     createOrder(input: CreateOrderInput!): Order!
-    updateOrderStatus(id: ID!, status: OrderStatus!): Order!
-    updateOrderNotes(id: ID!, notes: String!): Order!
-    cancelOrder(id: ID!, reason: String): Order!
-    refundOrder(id: ID!, reason: String!): Order!
-    updateShippingInfo(id: ID!, shippingInfo: ShippingInfoInput!): Order!
+    updateOrderStatus(id: ID!, status: OrderStatus!, reason: String): Order!
+    cancelOrder(id: ID!, reason: String!): Order!
+    refundOrder(id: ID!, amount: Float!, reason: String!): Order!
+    updateShippingInfo(id: ID!, input: ShippingInfoInput!): Order!
   }
 
   type Subscription {
     orderCreated(userId: ID): Order!
-    orderStatusChanged(userId: ID): Order!
-    orderCancelled: Order!
-    orderRefunded: Order!
+    orderStatusChanged(orderId: ID, userId: ID): OrderStatusChangedEvent!
+    orderCancelled(userId: ID): OrderCancelledEvent!
+    orderRefunded(userId: ID): OrderRefundedEvent!
+  }
+
+  type OrderStatusChangedEvent {
+    order: Order!
+    previousStatus: OrderStatus!
+    newStatus: OrderStatus!
+    reason: String
+  }
+
+  type OrderCancelledEvent {
+    order: Order!
+    reason: String!
+    cancelledBy: String!
+    refundAmount: Float
+  }
+
+  type OrderRefundedEvent {
+    order: Order!
+    refundAmount: Float!
+    reason: String!
+    processedBy: String!
   }
 
   input CreateOrderInput {
     items: [OrderItemInput!]!
-    shippingInfo: ShippingInfoInput!
+    shippingAddress: ShippingAddressInput!
+    paymentMethod: PaymentMethod!
     notes: String
   }
 
   input OrderItemInput {
     productId: ID!
     quantity: Int!
-    price: Float!
+    unitPrice: Float!
+  }
+
+  input ShippingAddressInput {
+    street: String!
+    city: String!
+    state: String!
+    country: String!
+    postalCode: String!
   }
 
   input ShippingInfoInput {
-    address: String!
-    city: String!
-    state: String!
-    zipCode: String!
-    country: String!
-    phone: String
+    carrier: String!
+    trackingNumber: String!
+    estimatedDeliveryDate: String
   }
 `;
 
-// Helper function to transform Prisma order to GraphQL format
-const transformOrder = (order: PrismaOrder & { items?: PrismaOrderItem[] }): GraphQLOrder => {
-  const shippingInfo = order.shippingInfo as GraphQLShippingInfo | null;
-  const paymentInfo = order.paymentInfo as GraphQLPaymentInfo | null;
+// Helper function to transform view model to GraphQL format
+const transformToGraphQL = (order: any): GraphQLOrder => ({
+  ...order,
+  createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : order.createdAt,
+  updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : order.updatedAt,
+  subtotal: Number(order.subtotal),
+  tax: Number(order.tax),
+  shipping: Number(order.shipping),
+  discount: Number(order.discount),
+  totalAmount: Number(order.totalAmount),
+});
 
-  return {
-    id: order.id,
-    userId: order.userId,
-    orderNumber: order.orderNumber,
-    items:
-      order.items?.map((item) => ({
-        id: item.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        price: Number(item.price),
-        total: Number(item.total),
-      })) || [],
-    subtotal: Number(order.subtotal),
-    tax: Number(order.tax),
-    shipping: Number(order.shipping),
-    total: Number(order.total),
-    status: order.status as GraphQLOrderStatus,
-    shippingInfo,
-    paymentInfo,
-    notes: order.notes,
-    createdAt: order.createdAt.toISOString(),
-    updatedAt: order.updatedAt.toISOString(),
-  };
-};
+// Helper to handle service errors
+function handleServiceError(result: any): never {
+  if (!isErr(result)) {
+    throw new Error('Expected error result');
+  }
 
-// DataLoader for batch loading orders
-const createOrderLoader = () =>
-  new DataLoader<string, GraphQLOrder | null>(async (ids) => {
-    const orders = await prisma.order.findMany({
-      where: { id: { in: ids as string[] } },
-      include: { items: true },
-    });
-    const orderMap = new Map(orders.map((order) => [order.id, transformOrder(order)]));
-    return ids.map((id) => orderMap.get(id) || null);
-  });
+  const { code, message, details } = result.error;
 
-// Helper function to clear order caches
-async function clearOrderCaches(order: PrismaOrder, cacheService: CacheService) {
-  await Promise.all([
-    cacheService.delete(`order:${order.id}`),
-    cacheService.delete(`order:number:${order.orderNumber}`),
-    cacheService.invalidatePattern(`orders:user:${order.userId}:*`),
-  ]);
+  switch (code) {
+    case 'VALIDATION':
+      throw new GraphQLError(message, {
+        extensions: { code: 'BAD_USER_INPUT', details },
+      });
+    case 'NOT_FOUND':
+      throw new GraphQLError(message, {
+        extensions: { code: 'NOT_FOUND', details },
+      });
+    case 'CONFLICT':
+      throw new GraphQLError(message, {
+        extensions: { code: 'CONFLICT', details },
+      });
+    case 'INSUFFICIENT_STOCK':
+      throw new GraphQLError(message, {
+        extensions: { code: 'INSUFFICIENT_STOCK', details },
+      });
+    case 'INVALID_STATUS_TRANSITION':
+      throw new GraphQLError(message, {
+        extensions: { code: 'INVALID_STATUS_TRANSITION', details },
+      });
+    default:
+      throw new GraphQLError(message || 'Internal server error', {
+        extensions: { code: 'INTERNAL_SERVER_ERROR', details },
+      });
+  }
 }
 
 // Resolvers
-const queryResolvers: QueryResolvers<Context> = {
-  order: async (_, { id }, context) => {
-    try {
-      // Check cache first
-      const cached = await context.cacheService.get<GraphQLOrder>(`order:${id}`);
-      if (cached) return cached;
+const resolvers: Resolvers<Context> = {
+  Query: {
+    order: async (_, { id }, context) => {
+      const result = await context.orderService.getOrderById(id);
 
-      // Load from database
-      const order = await context.orderLoader.load(id);
-
-      // Cache the result
-      if (order) {
-        await context.cacheService.set(`order:${id}`, order, cacheTTL.product);
+      if (isErr(result)) {
+        handleServiceError(result);
       }
 
-      return order;
-    } catch (error) {
-      logError(error, { operation: 'order', orderId: id });
-      throw toGraphQLError(error, 'Failed to fetch order');
-    }
-  },
+      return result.value ? transformToGraphQL(result.value) : null;
+    },
 
-  orderByNumber: async (_, { orderNumber }, context) => {
-    try {
-      const cached = await context.cacheService.get<GraphQLOrder>(`order:number:${orderNumber}`);
-      if (cached) return cached;
+    orderByNumber: async (_, { orderNumber }, context) => {
+      const result = await context.orderService.getOrderByNumber(orderNumber);
 
-      const order = await context.prisma.order.findUnique({
-        where: { orderNumber },
-        include: { items: true },
-      });
-
-      if (order) {
-        const transformedOrder = transformOrder(order);
-        await context.cacheService.set(
-          `order:number:${orderNumber}`,
-          transformedOrder,
-          cacheTTL.product
-        );
-        return transformedOrder;
+      if (isErr(result)) {
+        handleServiceError(result);
       }
 
-      return null;
-    } catch (error) {
-      logError(error, { operation: 'orderByNumber', orderNumber });
-      throw toGraphQLError(error, 'Failed to fetch order by number');
-    }
-  },
+      return result.value ? transformToGraphQL(result.value) : null;
+    },
 
-  orders: async (_, args, context) => {
-    try {
-      const { first = 20, after, userId, status, dateFrom, dateTo } = args;
+    orders: async (_, args, context) => {
+      const { first = 20, after, status, userId } = args;
 
-      // Validate pagination
-      if (first && first > 100) {
-        throw new ValidationError('Cannot request more than 100 orders at once', [
-          { field: 'first', message: 'Maximum value is 100' },
-        ]);
+      const filter = {
+        status: status as any,
+        userId,
+      };
+
+      const pagination = {
+        limit: first,
+        offset: after ? parseInt(Buffer.from(after, 'base64').toString()) : 0,
+      };
+
+      const result = await context.orderService.getAllOrders(filter, pagination);
+
+      if (isErr(result)) {
+        handleServiceError(result);
       }
 
-      // Validate date range
-      if (dateFrom && dateTo) {
-        const fromDate = new Date(dateFrom);
-        const toDate = new Date(dateTo);
-        if (fromDate > toDate) {
-          throw new ValidationError('Invalid date range', [
-            { field: 'dateFrom', message: 'Start date must be before end date' },
-          ]);
-        }
-      }
-
-      // Build where clause
-      const where: Prisma.OrderWhereInput = {};
-      if (userId) where.userId = userId;
-      if (status) where.status = status as OrderStatus;
-      if (dateFrom || dateTo) {
-        where.createdAt = {};
-        if (dateFrom) where.createdAt.gte = new Date(dateFrom);
-        if (dateTo) where.createdAt.lte = new Date(dateTo);
-      }
-
-      // Parse cursor
-      const cursor = after ? { id: after } : undefined;
-      const take = first || 20;
-
-      // Fetch orders
-      const orders = await context.prisma.order.findMany({
-        where,
-        take: take + 1,
-        cursor,
-        orderBy: { createdAt: 'desc' },
-        include: { items: true },
-      });
-
-      const hasNextPage = orders.length > take;
-      const nodes = hasNextPage ? orders.slice(0, -1) : orders;
-
-      const totalCount = await context.prisma.order.count({ where });
+      const { items, totalCount, hasNextPage, hasPreviousPage } = result.value;
+      const nodes = items.map(transformToGraphQL);
 
       return {
-        orders: nodes.map(transformOrder),
+        orders: nodes,
         totalCount,
         pageInfo: {
           hasNextPage,
-          hasPreviousPage: !!after,
+          hasPreviousPage,
           startCursor: nodes[0]?.id,
           endCursor: nodes[nodes.length - 1]?.id,
         },
       };
-    } catch (error) {
-      if (error instanceof GraphQLError) throw error;
-      logError(error, { operation: 'orders', args });
-      throw toGraphQLError(error, 'Failed to fetch orders');
-    }
-  },
+    },
+  } as QueryResolvers<Context>,
 
-  myOrders: async (_, args, context) => {
-    if (!context.user) throw new AuthenticationError();
+  Mutation: {
+    createOrder: async (_, { input }, context) => {
+      if (!context.user) throw new AuthenticationError();
 
-    try {
+      const result = await context.orderService.createOrder(
+        {
+          userId: context.user.id,
+          items: input.items,
+          shippingAddress: input.shippingAddress,
+          paymentMethod: input.paymentMethod,
+          notes: input.notes,
+        },
+        {
+          userId: context.user.id,
+          timestamp: new Date(),
+        }
+      );
+
+      if (isErr(result)) {
+        handleServiceError(result);
+      }
+
+      return transformToGraphQL(result.value);
+    },
+
+    updateOrderStatus: async (_, { id, status, reason }, context) => {
+      if (!context.user) throw new AuthenticationError();
+
+      const result = await context.orderService.updateOrderStatus(
+        id,
+        status as any,
+        context.user.username,
+        reason,
+        {
+          userId: context.user.id,
+          timestamp: new Date(),
+        }
+      );
+
+      if (isErr(result)) {
+        handleServiceError(result);
+      }
+
+      return transformToGraphQL(result.value);
+    },
+
+    cancelOrder: async (_, { id, reason }, context) => {
+      if (!context.user) throw new AuthenticationError();
+
+      const result = await context.orderService.cancelOrder(
+        id,
+        context.user.username,
+        reason,
+        undefined, // Let the service calculate refund amount
+        {
+          userId: context.user.id,
+          timestamp: new Date(),
+        }
+      );
+
+      if (isErr(result)) {
+        handleServiceError(result);
+      }
+
+      return transformToGraphQL(result.value);
+    },
+
+    refundOrder: async (_, { id, amount, reason }, context) => {
+      if (!context.user) throw new AuthenticationError();
+
+      const result = await context.orderService.processRefund(
+        id,
+        {
+          refundAmount: amount,
+          reason,
+          processedBy: context.user.username,
+        },
+        {
+          userId: context.user.id,
+          timestamp: new Date(),
+        }
+      );
+
+      if (isErr(result)) {
+        handleServiceError(result);
+      }
+
+      return transformToGraphQL(result.value);
+    },
+
+    updateShippingInfo: async (_, { id, input }, context) => {
+      if (!context.user) throw new AuthenticationError();
+
+      const result = await context.orderService.markAsShipped(
+        id,
+        {
+          carrier: input.carrier,
+          trackingNumber: input.trackingNumber,
+          shippedBy: context.user.username,
+          estimatedDeliveryDate: input.estimatedDeliveryDate
+            ? new Date(input.estimatedDeliveryDate)
+            : undefined,
+        },
+        {
+          userId: context.user.id,
+          timestamp: new Date(),
+        }
+      );
+
+      if (isErr(result)) {
+        handleServiceError(result);
+      }
+
+      return transformToGraphQL(result.value);
+    },
+  } as MutationResolvers<Context>,
+
+  Subscription: subscriptionResolvers,
+
+  Order: {
+    user: (order) => ({ __typename: 'User', id: order.userId }),
+    items: (order) => order.items || [],
+  } as OrderResolvers<Context>,
+
+  OrderItem: {
+    id: (item: any) => `${item.orderId}-${item.productId}`,
+  } as OrderItemResolvers<Context>,
+
+  User: {
+    orders: async (user, args, context) => {
       const { first = 20, after, status } = args;
 
-      // Validate pagination
-      if (first && first > 100) {
-        throw new ValidationError('Cannot request more than 100 orders at once', [
-          { field: 'first', message: 'Maximum value is 100' },
-        ]);
+      const filter = {
+        status: status as any,
+      };
+
+      const pagination = {
+        limit: first,
+        offset: after ? parseInt(Buffer.from(after, 'base64').toString()) : 0,
+      };
+
+      const result = await context.orderService.getOrdersByUser(user.id, filter, pagination);
+
+      if (isErr(result)) {
+        handleServiceError(result);
       }
 
-      // Build where clause
-      const where: Prisma.OrderWhereInput = {
-        userId: context.user.userId,
-      };
-      if (status) where.status = status as OrderStatus;
-
-      // Parse cursor
-      const cursor = after ? { id: after } : undefined;
-      const take = first || 20;
-
-      // Fetch orders
-      const orders = await context.prisma.order.findMany({
-        where,
-        take: take + 1,
-        cursor,
-        orderBy: { createdAt: 'desc' },
-        include: { items: true },
-      });
-
-      const hasNextPage = orders.length > take;
-      const nodes = hasNextPage ? orders.slice(0, -1) : orders;
-
-      const totalCount = await context.prisma.order.count({ where });
+      const { items, totalCount, hasNextPage, hasPreviousPage } = result.value;
+      const nodes = items.map(transformToGraphQL);
 
       return {
-        orders: nodes.map(transformOrder),
+        orders: nodes,
         totalCount,
         pageInfo: {
           hasNextPage,
-          hasPreviousPage: !!after,
+          hasPreviousPage,
           startCursor: nodes[0]?.id,
           endCursor: nodes[nodes.length - 1]?.id,
         },
       };
-    } catch (error) {
-      logError(error, { operation: 'myOrders', userId: context.user.userId });
-      throw toGraphQLError(error, 'Failed to fetch your orders');
-    }
-  },
+    },
+  } as UserResolvers<Context>,
 };
 
-const mutationResolvers: MutationResolvers<Context> = {
-  createOrder: async (_, { input }, context) => {
-    if (!context.user) throw new AuthenticationError();
-
-    try {
-      // Validate input
-      const validatedInput = validateInput(createOrderInputSchema, input);
-
-      // Validate items array
-      if (validatedInput.items.length === 0) {
-        throw new ValidationError('Order must contain at least one item', [
-          { field: 'items', message: 'No items provided' },
-        ]);
-      }
-
-      // Validate each item
-      for (const item of validatedInput.items) {
-        // Validate price (prevent negative prices)
-        if (item.price <= 0) {
-          throw new ValidationError('Invalid item price', [
-            {
-              field: 'price',
-              message: `Price must be greater than 0 for product ${item.productId}`,
-            },
-          ]);
-        }
-
-        // Validate quantity
-        if (item.quantity <= 0) {
-          throw new ValidationError('Invalid item quantity', [
-            {
-              field: 'quantity',
-              message: `Quantity must be greater than 0 for product ${item.productId}`,
-            },
-          ]);
-        }
-      }
-
-      // Calculate totals
-      let subtotal = 0;
-      const orderItems: Prisma.OrderItemCreateManyOrderInput[] = [];
-
-      for (const item of validatedInput.items) {
-        const itemTotal = item.price * item.quantity;
-        subtotal += itemTotal;
-        orderItems.push({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-          total: itemTotal,
-        });
-      }
-
-      const tax = subtotal * 0.1; // 10% tax
-      const shipping = subtotal > 50 ? 0 : 9.99; // Free shipping over $50
-      const total = subtotal + tax + shipping;
-
-      const order = await context.prisma.order.create({
-        data: {
-          userId: context.user.userId,
-          subtotal,
-          tax,
-          shipping,
-          total,
-          shippingInfo: validatedInput.shippingInfo,
-          notes: validatedInput.notes,
-          items: {
-            createMany: {
-              data: orderItems,
-            },
-          },
-        },
-        include: { items: true },
-      });
-
-      const transformedOrder = transformOrder(order);
-
-      // Publish event
-      await publishOrderCreated(context, transformedOrder);
-
-      return transformedOrder;
-    } catch (error) {
-      if (error instanceof GraphQLError) throw error;
-
-      logError(error, { operation: 'createOrder', userId: context.user?.userId });
-      throw new InternalServerError('Failed to create order');
-    }
-  },
-
-  updateOrderStatus: async (_, { id, status }, context) => {
-    if (!context.user) throw new AuthenticationError();
-
-    try {
-      // Validate status
-      const validatedStatus = validateInput(orderStatusSchema, status);
-
-      // Check if order exists and get current status
-      const existingOrder = await context.prisma.order.findUnique({
-        where: { id },
-        select: { id: true, status: true, userId: true },
-      });
-
-      if (!existingOrder) {
-        throw new NotFoundError('Order', id);
-      }
-
-      // Check authorization - only order owner or admin can update status
-      if (context.user.userId !== existingOrder.userId && context.user.role !== 'ADMIN') {
-        throw new AuthorizationError('You can only update your own orders');
-      }
-
-      // Validate status transition
-      validateOrderStatusTransition(existingOrder.status, validatedStatus);
-
-      const order = await context.prisma.order.update({
-        where: { id },
-        data: { status: validatedStatus as OrderStatus },
-        include: { items: true },
-      });
-
-      await clearOrderCaches(order, context.cacheService);
-
-      const transformedOrder = transformOrder(order);
-
-      // Publish event
-      await publishOrderStatusChanged(context, transformedOrder);
-
-      return transformedOrder;
-    } catch (error) {
-      if (error instanceof GraphQLError) throw error;
-
-      logError(error, { operation: 'updateOrderStatus', orderId: id, status });
-      throw new InternalServerError('Failed to update order status');
-    }
-  },
-
-  updateOrderNotes: async (_, { id, notes }, context) => {
-    if (!context.user) throw new AuthenticationError();
-
-    try {
-      // Validate notes length
-      if (notes && notes.length > 500) {
-        throw new ValidationError('Notes too long', [
-          { field: 'notes', message: 'Notes must not exceed 500 characters' },
-        ]);
-      }
-
-      // Check if order exists
-      const existingOrder = await context.prisma.order.findUnique({
-        where: { id },
-        select: { id: true, userId: true },
-      });
-
-      if (!existingOrder) {
-        throw new NotFoundError('Order', id);
-      }
-
-      // Check authorization
-      if (context.user.userId !== existingOrder.userId && context.user.role !== 'ADMIN') {
-        throw new AuthorizationError('You can only update your own orders');
-      }
-
-      const order = await context.prisma.order.update({
-        where: { id },
-        data: { notes },
-        include: { items: true },
-      });
-
-      await clearOrderCaches(order, context.cacheService);
-
-      return transformOrder(order);
-    } catch (error) {
-      if (error instanceof GraphQLError) throw error;
-
-      logError(error, { operation: 'updateOrderNotes', orderId: id });
-      throw new InternalServerError('Failed to update order notes');
-    }
-  },
-
-  cancelOrder: async (_, { id, reason }, context) => {
-    if (!context.user) throw new AuthenticationError();
-
-    try {
-      // Check if order exists and get current status
-      const existingOrder = await context.prisma.order.findUnique({
-        where: { id },
-        select: { id: true, status: true, userId: true, createdAt: true },
-      });
-
-      if (!existingOrder) {
-        throw new NotFoundError('Order', id);
-      }
-
-      // Check authorization
-      if (context.user.userId !== existingOrder.userId && context.user.role !== 'ADMIN') {
-        throw new AuthorizationError('You can only cancel your own orders');
-      }
-
-      // Validate status transition
-      validateOrderStatusTransition(existingOrder.status, 'CANCELLED');
-
-      // Additional business rule: Cannot cancel orders older than 30 days
-      const orderAge = Date.now() - existingOrder.createdAt.getTime();
-      const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
-      if (orderAge > thirtyDaysInMs) {
-        throw new BusinessRuleError('Cannot cancel orders older than 30 days');
-      }
-
-      const order = await context.prisma.order.update({
-        where: { id },
-        data: {
-          status: 'CANCELLED',
-          notes: reason ? `Cancelled: ${reason}` : 'Order cancelled',
-        },
-        include: { items: true },
-      });
-
-      await clearOrderCaches(order, context.cacheService);
-
-      const transformedOrder = transformOrder(order);
-
-      // Publish event
-      await publishOrderCancelled(context, transformedOrder);
-
-      return transformedOrder;
-    } catch (error) {
-      if (error instanceof GraphQLError) throw error;
-
-      logError(error, { operation: 'cancelOrder', orderId: id });
-      throw new InternalServerError('Failed to cancel order');
-    }
-  },
-
-  refundOrder: async (_, { id, reason }, context) => {
-    if (!context.user) throw new AuthenticationError();
-
-    try {
-      // Validate reason is provided
-      if (!reason || reason.trim().length === 0) {
-        throw new ValidationError('Refund reason is required', [
-          { field: 'reason', message: 'Please provide a reason for the refund' },
-        ]);
-      }
-
-      // Check if order exists and get current status
-      const existingOrder = await context.prisma.order.findUnique({
-        where: { id },
-        select: { id: true, status: true, userId: true },
-      });
-
-      if (!existingOrder) {
-        throw new NotFoundError('Order', id);
-      }
-
-      // Check authorization - only admins can process refunds
-      if (context.user.role !== 'ADMIN') {
-        throw new AuthorizationError('Only administrators can process refunds');
-      }
-
-      // Validate status transition
-      validateOrderStatusTransition(existingOrder.status, 'REFUNDED');
-
-      const order = await context.prisma.order.update({
-        where: { id },
-        data: {
-          status: 'REFUNDED',
-          notes: `Refunded: ${reason}`,
-        },
-        include: { items: true },
-      });
-
-      await clearOrderCaches(order, context.cacheService);
-
-      const transformedOrder = transformOrder(order);
-
-      // Publish event
-      await publishOrderRefunded(context, transformedOrder);
-
-      return transformedOrder;
-    } catch (error) {
-      if (error instanceof GraphQLError) throw error;
-
-      logError(error, { operation: 'refundOrder', orderId: id });
-      throw new InternalServerError('Failed to process refund');
-    }
-  },
-
-  updateShippingInfo: async (_, { id, shippingInfo }, context) => {
-    if (!context.user) throw new AuthenticationError();
-
-    try {
-      // Validate shipping info
-      const validatedShippingInfo = validateInput(shippingInfoSchema, shippingInfo);
-
-      // Check if order exists and get current details
-      const existingOrder = await context.prisma.order.findUnique({
-        where: { id },
-        select: { id: true, userId: true, status: true },
-      });
-
-      if (!existingOrder) {
-        throw new NotFoundError('Order', id);
-      }
-
-      // Check authorization - only order owner or admin can update shipping info
-      if (context.user.userId !== existingOrder.userId && context.user.role !== 'ADMIN') {
-        throw new AuthorizationError('You can only update shipping info for your own orders');
-      }
-
-      // Business rule: Cannot update shipping info for delivered or cancelled orders
-      if (existingOrder.status === 'DELIVERED' || existingOrder.status === 'CANCELLED') {
-        throw new BusinessRuleError(
-          `Cannot update shipping info for ${existingOrder.status.toLowerCase()} orders`
-        );
-      }
-
-      const order = await context.prisma.order.update({
-        where: { id },
-        data: { shippingInfo: validatedShippingInfo },
-        include: { items: true },
-      });
-
-      await clearOrderCaches(order, context.cacheService);
-
-      return transformOrder(order);
-    } catch (error) {
-      if (error instanceof GraphQLError) throw error;
-
-      logError(error, { operation: 'updateShippingInfo', orderId: id });
-      throw new InternalServerError('Failed to update shipping information');
-    }
-  },
-};
-
-const orderResolvers: OrderResolvers<Context> & {
-  __resolveReference: (order: { id: string }, context: Context) => Promise<GraphQLOrder | null>;
-} = {
-  __resolveReference: async (order, context) => {
-    return context.orderLoader.load(order.id);
-  },
-  user: (order) => ({
-    __typename: 'User' as const,
-    id: order.userId,
-    orders: [],
-  }),
-  items: async (order, _, context) => {
-    // If items are already loaded, return them
-    if (order.items && order.items.length > 0) {
-      return order.items;
-    }
-
-    // Otherwise, fetch from database
-    const items = await context.prisma.orderItem.findMany({
-      where: { orderId: order.id },
-    });
-
-    return items.map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      quantity: item.quantity,
-      price: Number(item.price),
-      total: Number(item.total),
-    }));
-  },
-};
-
-const orderItemResolvers: OrderItemResolvers<Context> = {
-  product: (item: OrderItem) => ({
-    __typename: 'Product' as const,
-    id: item.productId,
-  }),
-};
-
-const userResolvers: UserResolvers<Context> = {
-  orders: async (user: User, _: unknown, context: Context) => {
-    const orders = await context.prisma.order.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      include: { items: true },
-    });
-    return orders.map(transformOrder);
-  },
-};
-
-// Combine all resolvers
-const resolvers: Resolvers<Context> = {
-  Query: queryResolvers,
-  Mutation: mutationResolvers,
-  Order: orderResolvers as OrderResolvers<Context>,
-  OrderItem: orderItemResolvers,
-  User: userResolvers,
-  ...subscriptionResolvers,
-};
-
-// Create Apollo Server with error formatting
-const server = new ApolloServer({
-  schema: buildSubgraphSchema([{ typeDefs, resolvers }]),
-  formatError: (formattedError) => {
-    return formatError(
-      formattedError as GraphQLError,
-      env.NODE_ENV === 'development',
-      'orders-service'
-    );
-  },
+// Create Apollo Server
+const server = new ApolloServer<Context>({
+  schema: buildSubgraphSchema({ typeDefs, resolvers }),
+  formatError,
+  introspection: env.NODE_ENV !== 'production',
 });
 
 // Start server
-const { url } = await startStandaloneServer(server, {
-  listen: { port: env.PORT },
-  context: async ({ req }) => {
-    const orderLoader = createOrderLoader();
+(async () => {
+  const { url } = await startStandaloneServer(server, {
+    listen: { port: env.PORT || 4003 },
+    context: async ({ req }): Promise<Context> => {
+      const authService = new AuthService(env.JWT_KEYS, env.REFRESH_JWT_KEYS);
+      const user = await extractAndVerifyUser(authService, req.headers.authorization);
+      return {
+        user,
+        orderService,
+      };
+    },
+  });
 
-    // Extract and verify user from authorization header
-    const user = await extractAndVerifyUser(authService, req.headers.authorization);
-
-    return {
-      prisma,
-      cacheService,
-      pubsub,
-      orderLoader,
-      user,
-      isAuthenticated: !!user,
-    };
-  },
-});
+  console.log(`🚀 Orders service ready at ${url}`);
+})();
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('Shutting down Orders service...');
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  await server.stop();
   await prisma.$disconnect();
   await cacheService.disconnect();
+  await pubSubService.close();
   process.exit(0);
 });
-
-console.log(`🚀 Orders service ready at ${url}`);

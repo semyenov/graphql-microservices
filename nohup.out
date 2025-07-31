@@ -59,3 +59,17 @@ Update successful. Updated existing file /home/semyenov/Applications/cursor_1_0_
 [90m[main 2025-07-31T11:25:31.717Z][0m update#setState idle
 [90m[main 2025-07-31T12:25:30.904Z][0m update#setState checking for updates
 [90m[main 2025-07-31T12:25:31.878Z][0m update#setState idle
+[90m[main 2025-07-31T13:25:30.921Z][0m update#setState checking for updates
+[90m[main 2025-07-31T13:25:31.742Z][0m update#setState idle
+[90m[main 2025-07-31T14:25:30.934Z][0m update#setState checking for updates
+[90m[main 2025-07-31T14:25:31.541Z][0m update#setState idle
+[91m[main 2025-07-31T14:40:38.765Z][0m [UtilityProcess id: 1, type: fileWatcher, pid: 125750]: crashed with code 15 and reason 'killed'
+[90m[main 2025-07-31T14:40:40.473Z][0m Extension host with pid 125737 exited with code: 0, signal: unknown.
+[125292:0731/174242.597893:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f403f142d0' has no handler with id '45590'
+[91m[main 2025-07-31T14:52:03.065Z][0m [UtilityProcess id: 1, type: fileWatcher, pid: 183321]: crashed with code 15 and reason 'killed'
+[90m[main 2025-07-31T14:52:04.783Z][0m Extension host with pid 183306 exited with code: 0, signal: unknown.
+[125292:0731/182439.947424:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f40317d990' has no handler with id '54927'
+[90m[main 2025-07-31T15:25:30.944Z][0m update#setState checking for updates
+[90m[main 2025-07-31T15:25:31.584Z][0m update#setState idle
+[125292:0731/185446.799860:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f40317d310' has no handler with id '57955'
+[125292:0731/185448.416052:ERROR:browser_main_loop.cc(278)] GLib-GObject: ../../../gobject/gsignal.c:2685: instance '0x9f40317c950' has no handler with id '58346'

@@ -1,5 +1,5 @@
 import {
-  type OutboxProcessor,
+  OutboxProcessor,
   PostgreSQLEventStore,
   PostgreSQLOutboxStore,
 } from '@graphql-microservices/event-sourcing';
@@ -56,23 +56,14 @@ export class CQRSInfrastructure {
     this.eventPublisher = new RedisEventPublisher(config.redisUrl);
 
     // Initialize outbox processor (temporarily disabled due to interface mismatch)
-    // this.outboxProcessor = new OutboxProcessor(this.outboxStore, this.eventPublisher, {
-    //   maxRetries: 5,
-    //   initialRetryDelay: 1000,
-    //   retryBackoffMultiplier: 2,
-    //   maxRetryDelay: 300000,
-    //   batchSize: 10,
-    //   processingInterval: config.outboxProcessingInterval || 5000,
-    // });
-    // TODO: Implement OutboxProcessor when available
-    this.outboxProcessor = {
-      start: () => {
-        console.log('⚠️  Outbox processor start - not implemented');
-      },
-      stop: () => {
-        console.log('⚠️  Outbox processor stop - not implemented');
-      },
-    } as OutboxProcessor;
+    this.outboxProcessor = new OutboxProcessor(this.outboxStore, this.eventPublisher, {
+      maxRetries: 5,
+      initialRetryDelay: 1000,
+      retryBackoffMultiplier: 2,
+      maxRetryDelay: 300000,
+      batchSize: 10,
+      processingInterval: config.outboxProcessingInterval || 5000,
+    });
 
     // Initialize CQRS buses
     this.commandBus = new UserCommandBus(this.eventStore, this.outboxStore);

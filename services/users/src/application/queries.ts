@@ -1,209 +1,118 @@
-import { type EventMetadata, eventMetadataSchema } from '@graphql-microservices/event-sourcing';
-import { z } from 'zod';
+import {
+  type EventMetadata,
+  eventMetadataSchema,
+} from "@graphql-microservices/event-sourcing";
+import { z } from "zod";
+import type {
+  Email,
+  EventId,
+  Pagination,
+  Result,
+  Sorting,
+  UserFilter,
+  UserId,
+  Username,
+  UserRole,
+  UserSearchField,
+  UserSortField,
+  ValidationError,
+} from "./types";
 
 /**
- * Base query interface
+ * Query type literals
  */
-export interface Query<
-  TType extends string = string,
-  TContext extends Record<string, unknown> = Record<string, unknown>,
-  TMetadata extends EventMetadata<TContext> = EventMetadata<TContext>,
-> {
+export const QueryType = {
+  GET_USER_BY_ID: "GetUserById",
+  GET_USER_BY_USERNAME: "GetUserByUsername",
+  GET_USER_BY_EMAIL: "GetUserByEmail",
+  GET_ALL_USERS: "GetAllUsers",
+  GET_USERS_BY_IDS: "GetUsersByIds",
+  GET_USER_EVENTS: "GetUserEvents",
+  SEARCH_USERS: "SearchUsers",
+} as const;
+
+export type QueryType = (typeof QueryType)[keyof typeof QueryType];
+
+/**
+ * Base query structure (simplified)
+ */
+export interface BaseQuery<TType extends QueryType, TPayload> {
   readonly type: TType;
-  readonly metadata?: TMetadata;
+  readonly payload: TPayload;
+  readonly metadata?: EventMetadata;
 }
 
 /**
- * Get User By ID Query
+ * Query payload types
  */
-export interface GetUserByIdQuery extends Query<'GetUserById'> {
-  type: 'GetUserById';
-  payload: {
-    userId: string;
-  };
+export interface GetUserByIdPayload {
+  userId: string;
 }
 
-export const getUserByIdQuerySchema: z.ZodType<GetUserByIdQuery> = z.object({
-  type: z.literal('GetUserById'),
-  metadata: eventMetadataSchema,
-  payload: z.object({
-    userId: z.string(),
-  }),
-});
+export interface GetUserByUsernamePayload {
+  username: string;
+}
+
+export interface GetUserByEmailPayload {
+  email: string;
+}
+
+export interface GetAllUsersPayload {
+  filter?: UserFilter;
+  pagination?: Pagination;
+  sorting?: Sorting<UserSortField>;
+}
+
+export interface GetUsersByIdsPayload {
+  userIds: string[];
+}
+
+export interface GetUserEventsPayload {
+  userId: string;
+  eventTypes?: string[];
+  fromDate?: Date;
+  toDate?: Date;
+  pagination?: Pagination;
+}
+
+export interface SearchUsersPayload {
+  searchTerm: string;
+  searchFields?: UserSearchField[];
+  filter?: UserFilter;
+  pagination?: Pagination;
+}
 
 /**
- * Get User By Username Query
+ * Query type definitions
  */
-export interface GetUserByUsernameQuery extends Query<'GetUserByUsername'> {
-  type: 'GetUserByUsername';
-  payload: {
-    username: string;
-  };
-}
-
-export const getUserByUsernameQuerySchema: z.ZodType<GetUserByUsernameQuery> = z.object({
-  type: z.literal('GetUserByUsername'),
-  metadata: eventMetadataSchema,
-  payload: z.object({
-    username: z.string().min(3).max(50),
-  }),
-});
-
-/**
- * Get User By Email Query
- */
-export interface GetUserByEmailQuery extends Query<'GetUserByEmail'> {
-  type: 'GetUserByEmail';
-  payload: {
-    email: string;
-  };
-}
-
-export const getUserByEmailQuerySchema: z.ZodType<GetUserByEmailQuery> = z.object({
-  type: z.literal('GetUserByEmail'),
-  metadata: eventMetadataSchema,
-  payload: z.object({
-    email: z.string().email(),
-  }),
-});
-
-/**
- * Get All Users Query
- */
-export interface GetAllUsersQuery extends Query<'GetAllUsers'> {
-  type: 'GetAllUsers';
-  payload: {
-    filter?: {
-      role?: 'USER' | 'ADMIN' | 'MODERATOR';
-      isActive?: boolean;
-    };
-    pagination?: {
-      offset?: number;
-      limit?: number;
-    };
-    sorting?: {
-      field: 'username' | 'email' | 'name' | 'createdAt' | 'updatedAt';
-      direction: 'ASC' | 'DESC';
-    };
-  };
-}
-
-export const getAllUsersQuerySchema: z.ZodType<GetAllUsersQuery> = z.object({
-  type: z.literal('GetAllUsers'),
-  payload: z.object({
-    filter: z
-      .object({
-        role: z.enum(['USER', 'ADMIN', 'MODERATOR']).optional(),
-        isActive: z.boolean().optional(),
-      })
-      .optional(),
-    pagination: z
-      .object({
-        offset: z.number().min(0).optional(),
-        limit: z.number().min(1).max(100).optional(),
-      })
-      .optional(),
-    sorting: z
-      .object({
-        field: z.enum(['username', 'email', 'name', 'createdAt', 'updatedAt']),
-        direction: z.enum(['ASC', 'DESC']),
-      })
-      .optional(),
-  }),
-  metadata: eventMetadataSchema,
-});
-
-/**
- * Get Users By IDs Query (for batch loading)
- */
-export interface GetUsersByIdsQuery extends Query<'GetUsersByIds'> {
-  type: 'GetUsersByIds';
-  payload: {
-    userIds: string[];
-  };
-}
-
-export const getUsersByIdsQuerySchema: z.ZodType<GetUsersByIdsQuery> = z.object({
-  type: z.literal('GetUsersByIds'),
-  payload: z.object({
-    userIds: z.array(z.uuid()).min(1).max(100),
-  }),
-  metadata: eventMetadataSchema,
-});
-
-/**
- * Get User Events Query (for admin/audit purposes)
- */
-export interface GetUserEventsQuery extends Query<'GetUserEvents'> {
-  type: 'GetUserEvents';
-  payload: {
-    userId: string;
-    eventTypes?: string[];
-    fromDate?: Date;
-    toDate?: Date;
-    pagination?: {
-      offset?: number;
-      limit?: number;
-    };
-  };
-}
-
-export const getUserEventsQuerySchema: z.ZodType<GetUserEventsQuery> = z.object({
-  type: z.literal('GetUserEvents'),
-  payload: z.object({
-    userId: z.uuid(),
-    eventTypes: z.array(z.string()).optional(),
-    fromDate: z.date().optional(),
-    toDate: z.date().optional(),
-    pagination: z
-      .object({
-        offset: z.number().min(0).optional(),
-        limit: z.number().min(1).max(100).optional(),
-      })
-      .optional(),
-  }),
-  metadata: eventMetadataSchema,
-});
-
-/**
- * Search Users Query
- */
-export interface SearchUsersQuery extends Query<'SearchUsers'> {
-  type: 'SearchUsers';
-  payload: {
-    searchTerm: string;
-    searchFields?: ('username' | 'email' | 'name')[];
-    filter?: {
-      role?: 'USER' | 'ADMIN' | 'MODERATOR';
-      isActive?: boolean;
-    };
-    pagination?: {
-      offset?: number;
-      limit?: number;
-    };
-  };
-}
-
-export const searchUsersQuerySchema: z.ZodType<SearchUsersQuery> = z.object({
-  type: z.literal('SearchUsers'),
-  payload: z.object({
-    searchTerm: z.string().min(1).max(100),
-    searchFields: z.array(z.enum(['username', 'email', 'name'])).optional(),
-    filter: z
-      .object({
-        role: z.enum(['USER', 'ADMIN', 'MODERATOR']).optional(),
-        isActive: z.boolean().optional(),
-      })
-      .optional(),
-    pagination: z
-      .object({
-        offset: z.number().min(0).optional(),
-        limit: z.number().min(1).max(100).optional(),
-      })
-      .optional(),
-  }),
-  metadata: eventMetadataSchema,
-});
+export type GetUserByIdQuery = BaseQuery<
+  typeof QueryType.GET_USER_BY_ID,
+  GetUserByIdPayload
+>;
+export type GetUserByUsernameQuery = BaseQuery<
+  typeof QueryType.GET_USER_BY_USERNAME,
+  GetUserByUsernamePayload
+>;
+export type GetUserByEmailQuery = BaseQuery<
+  typeof QueryType.GET_USER_BY_EMAIL,
+  GetUserByEmailPayload
+>;
+export type GetAllUsersQuery = BaseQuery<
+  typeof QueryType.GET_ALL_USERS,
+  GetAllUsersPayload
+>;
+export type GetUsersByIdsQuery = BaseQuery<
+  typeof QueryType.GET_USERS_BY_IDS,
+  GetUsersByIdsPayload
+>;
+export type GetUserEventsQuery = BaseQuery<
+  typeof QueryType.GET_USER_EVENTS,
+  GetUserEventsPayload
+>;
+export type SearchUsersQuery = BaseQuery<
+  typeof QueryType.SEARCH_USERS,
+  SearchUsersPayload
+>;
 
 /**
  * Union type for all user queries
@@ -218,65 +127,228 @@ export type UserQuery =
   | SearchUsersQuery;
 
 /**
- * Query validation schemas map
+ * Query validation schemas
  */
-export const userQuerySchemas = {
-  GetUserById: getUserByIdQuerySchema,
-  GetUserByUsername: getUserByUsernameQuerySchema,
-  GetUserByEmail: getUserByEmailQuerySchema,
-  GetAllUsers: getAllUsersQuerySchema,
-  GetUsersByIds: getUsersByIdsQuerySchema,
-  GetUserEvents: getUserEventsQuerySchema,
-  SearchUsers: searchUsersQuerySchema,
-} as const;
+export const getUserByIdQuerySchema = z.object({
+  type: z.literal(QueryType.GET_USER_BY_ID),
+  metadata: eventMetadataSchema.optional(),
+  payload: z.object({
+    userId: z.string().uuid(),
+  }),
+});
 
-export type UserQuerySchema = typeof userQuerySchemas;
-export type UserQueryType = keyof UserQuerySchema;
+export const getUserByUsernameQuerySchema = z.object({
+  type: z.literal(QueryType.GET_USER_BY_USERNAME),
+  metadata: eventMetadataSchema.optional(),
+  payload: z.object({
+    username: z.string().min(3).max(50),
+  }),
+});
+
+export const getUserByEmailQuerySchema = z.object({
+  type: z.literal(QueryType.GET_USER_BY_EMAIL),
+  metadata: eventMetadataSchema.optional(),
+  payload: z.object({
+    email: z.email(),
+  }),
+});
+
+export const getAllUsersQuerySchema = z.object({
+  type: z.literal(QueryType.GET_ALL_USERS),
+  metadata: eventMetadataSchema.optional(),
+  payload: z.object({
+    filter: z
+      .object({
+        role: z.enum(["USER", "ADMIN", "MODERATOR"]).optional(),
+        isActive: z.boolean().optional(),
+      })
+      .optional(),
+    pagination: z
+      .object({
+        offset: z.number().min(0).optional(),
+        limit: z.number().min(1).max(100).optional(),
+      })
+      .optional(),
+    sorting: z
+      .object({
+        field: z.enum(["username", "email", "name", "createdAt", "updatedAt"]),
+        direction: z.enum(["ASC", "DESC"]),
+      })
+      .optional(),
+  }),
+});
+
+export const getUsersByIdsQuerySchema = z.object({
+  type: z.literal(QueryType.GET_USERS_BY_IDS),
+  metadata: eventMetadataSchema.optional(),
+  payload: z.object({
+    userIds: z.array(z.string().uuid()).min(1).max(100),
+  }),
+});
+
+export const getUserEventsQuerySchema = z.object({
+  type: z.literal(QueryType.GET_USER_EVENTS),
+  metadata: eventMetadataSchema.optional(),
+  payload: z.object({
+    userId: z.string().uuid(),
+    eventTypes: z.array(z.string()).optional(),
+    fromDate: z.date().optional(),
+    toDate: z.date().optional(),
+    pagination: z
+      .object({
+        offset: z.number().min(0).optional(),
+        limit: z.number().min(1).max(100).optional(),
+      })
+      .optional(),
+  }),
+});
+
+export const searchUsersQuerySchema = z.object({
+  type: z.literal(QueryType.SEARCH_USERS),
+  metadata: eventMetadataSchema.optional(),
+  payload: z.object({
+    searchTerm: z.string().min(1).max(100),
+    searchFields: z.array(z.enum(["username", "email", "name"])).optional(),
+    filter: z
+      .object({
+        role: z.enum(["USER", "ADMIN", "MODERATOR"]).optional(),
+        isActive: z.boolean().optional(),
+      })
+      .optional(),
+    pagination: z
+      .object({
+        offset: z.number().min(0).optional(),
+        limit: z.number().min(1).max(100).optional(),
+      })
+      .optional(),
+  }),
+});
 
 /**
- * Validate a query against its schema
+ * Query validation schema map
+ */
+export const querySchemas = {
+  [QueryType.GET_USER_BY_ID]: getUserByIdQuerySchema,
+  [QueryType.GET_USER_BY_USERNAME]: getUserByUsernameQuerySchema,
+  [QueryType.GET_USER_BY_EMAIL]: getUserByEmailQuerySchema,
+  [QueryType.GET_ALL_USERS]: getAllUsersQuerySchema,
+  [QueryType.GET_USERS_BY_IDS]: getUsersByIdsQuerySchema,
+  [QueryType.GET_USER_EVENTS]: getUserEventsQuerySchema,
+  [QueryType.SEARCH_USERS]: searchUsersQuerySchema,
+} as const satisfies Record<QueryType, z.ZodSchema>;
+
+/**
+ * Type-safe query validation
  */
 export function validateQuery<T extends UserQuery>(query: T): T {
-  const schema = userQuerySchemas[query.type];
+  const schema = querySchemas[query.type];
   if (!schema) {
     throw new Error(`Unknown query type: ${query.type}`);
   }
 
-  try {
-    return schema.parse(query) as unknown as T;
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const messages = error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+  const result = schema.safeParse(query);
 
-      throw new Error(`Query validation failed: ${messages}`);
-    }
-    throw error;
+  if (!result.success) {
+    const messages = result.error.issues
+      .map((e) => `${e.path.join(".")}: ${e.message}`)
+      .join(", ");
+    throw new Error(`Query validation failed: ${messages}`);
   }
+
+  return result.data as T;
 }
+
+/**
+ * Query factory functions
+ */
+export const createQuery = {
+  getUserById: (
+    userId: UserId,
+    metadata?: EventMetadata
+  ): GetUserByIdQuery => ({
+    type: QueryType.GET_USER_BY_ID,
+    payload: { userId },
+    metadata,
+  }),
+
+  getUserByUsername: (
+    username: Username,
+    metadata?: EventMetadata
+  ): GetUserByUsernameQuery => ({
+    type: QueryType.GET_USER_BY_USERNAME,
+    payload: { username },
+    metadata,
+  }),
+
+  getUserByEmail: (
+    email: Email,
+    metadata?: EventMetadata
+  ): GetUserByEmailQuery => ({
+    type: QueryType.GET_USER_BY_EMAIL,
+    payload: { email },
+    metadata,
+  }),
+
+  getAllUsers: (
+    payload: GetAllUsersPayload = {},
+    metadata?: EventMetadata
+  ): GetAllUsersQuery => ({
+    type: QueryType.GET_ALL_USERS,
+    payload,
+    metadata,
+  }),
+
+  getUsersByIds: (
+    userIds: UserId[],
+    metadata?: EventMetadata
+  ): GetUsersByIdsQuery => ({
+    type: QueryType.GET_USERS_BY_IDS,
+    payload: { userIds },
+    metadata,
+  }),
+
+  getUserEvents: (
+    payload: GetUserEventsPayload,
+    metadata?: EventMetadata
+  ): GetUserEventsQuery => ({
+    type: QueryType.GET_USER_EVENTS,
+    payload,
+    metadata,
+  }),
+
+  searchUsers: (
+    payload: SearchUsersPayload,
+    metadata?: EventMetadata
+  ): SearchUsersQuery => ({
+    type: QueryType.SEARCH_USERS,
+    payload,
+    metadata,
+  }),
+} as const;
 
 /**
  * User view model (read model)
  */
 export interface UserViewModel {
-  id: string;
-  username: string;
-  email: string;
+  id: UserId;
+  username: Username;
+  email: Email;
   name: string;
   phoneNumber?: string;
-  role: 'USER' | 'ADMIN' | 'MODERATOR';
+  role: UserRole;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  version?: number; // Aggregate version (optional for view models)
+  version?: number;
 }
 
 /**
  * User event view model
  */
 export interface UserEventViewModel {
-  id: string;
+  id: EventId;
   type: string;
-  aggregateId: string;
+  aggregateId: UserId;
   data: Record<string, unknown>;
   metadata: EventMetadata;
   occurredAt: Date;
@@ -284,27 +356,60 @@ export interface UserEventViewModel {
 }
 
 /**
- * Paginated query result
+ * Paginated result with improved typing
  */
-export interface PaginatedResult<T, TMetadata extends EventMetadata = EventMetadata> {
+export interface PaginatedResult<T> {
   items: T[];
   totalCount: number;
   offset: number;
   limit: number;
   hasMore: boolean;
-  metadata?: TMetadata;
+  nextOffset?: number;
 }
 
 /**
- * Query result interface
+ * Query result with discriminated union
  */
-export interface QueryResult<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  metadata?: {
-    executionTime?: number;
-    cacheHit?: boolean;
-    source?: string;
+export type QueryResult<T = unknown> =
+  | Result<T, never>
+  | Result<never, Error>;
+
+/**
+ * Type guards for queries
+ */
+export const isQuery = {
+  getUserById: (query: UserQuery): query is GetUserByIdQuery =>
+    query.type === QueryType.GET_USER_BY_ID,
+  getUserByUsername: (query: UserQuery): query is GetUserByUsernameQuery =>
+    query.type === QueryType.GET_USER_BY_USERNAME,
+  getUserByEmail: (query: UserQuery): query is GetUserByEmailQuery =>
+    query.type === QueryType.GET_USER_BY_EMAIL,
+  getAllUsers: (query: UserQuery): query is GetAllUsersQuery =>
+    query.type === QueryType.GET_ALL_USERS,
+  getUsersByIds: (query: UserQuery): query is GetUsersByIdsQuery =>
+    query.type === QueryType.GET_USERS_BY_IDS,
+  getUserEvents: (query: UserQuery): query is GetUserEventsQuery =>
+    query.type === QueryType.GET_USER_EVENTS,
+  searchUsers: (query: UserQuery): query is SearchUsersQuery =>
+    query.type === QueryType.SEARCH_USERS,
+} as const;
+
+/**
+ * Helper to create paginated results
+ */
+export function createPaginatedResult<T>(
+  items: T[],
+  totalCount: number,
+  offset: number,
+  limit: number
+): PaginatedResult<T> {
+  const hasMore = offset + items.length < totalCount;
+  return {
+    items,
+    totalCount,
+    offset,
+    limit,
+    hasMore,
+    nextOffset: hasMore ? offset + limit : undefined,
   };
 }

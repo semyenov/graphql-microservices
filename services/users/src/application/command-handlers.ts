@@ -7,7 +7,9 @@ import { User } from '../domain/user-aggregate';
 import {
   type ChangeUserPasswordCommand,
   type ChangeUserRoleCommand,
+  type CommandFromType,
   type CommandResult,
+  CommandType,
   type CreateUserCommand,
   type DeactivateUserCommand,
   type ReactivateUserCommand,
@@ -18,12 +20,15 @@ import {
   type UserCommand,
   validateCommand,
 } from './commands';
+import { type AggregateId, ok, err } from './types';
 
 /**
- * Command handler interface
+ * Command handler interface with improved typing
  */
 export interface CommandHandler<TCommand extends UserCommand = UserCommand> {
+  readonly commandType: TCommand['type'];
   handle(command: TCommand): Promise<CommandResult>;
+  canHandle(command: UserCommand): command is TCommand;
 }
 
 /**
@@ -32,12 +37,18 @@ export interface CommandHandler<TCommand extends UserCommand = UserCommand> {
 abstract class BaseCommandHandler<TCommand extends UserCommand = UserCommand>
   implements CommandHandler<TCommand>
 {
+  abstract readonly commandType: TCommand['type'];
+
   constructor(
     protected readonly eventStore: PostgreSQLEventStore,
     protected readonly outboxStore: PostgreSQLOutboxStore
   ) {}
 
   abstract handle(command: TCommand): Promise<CommandResult>;
+
+  canHandle(command: UserCommand): command is TCommand {
+    return command.type === this.commandType;
+  }
 
   /**
    * Load user aggregate from event store
@@ -87,7 +98,7 @@ abstract class BaseCommandHandler<TCommand extends UserCommand = UserCommand>
   }
 
   /**
-   * Handle common command execution pattern
+   * Handle common command execution pattern with Result type
    */
   protected async executeCommand(
     command: UserCommand,
@@ -111,21 +122,30 @@ abstract class BaseCommandHandler<TCommand extends UserCommand = UserCommand>
       // Save events
       await this.saveEvents(user, initialVersion);
 
-      return {
-        success: true,
-        aggregateId: command.aggregateId,
+      return ok({
+        aggregateId: command.aggregateId as AggregateId,
         version: user.version,
         events: user.uncommittedEvents.slice(),
-      };
+      });
     } catch (error) {
       console.error(`Command ${command.type} failed:`, error);
 
-      return {
-        success: false,
-        aggregateId: command.aggregateId,
-        version: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      } as CommandResult;
+      let errorCode:
+        | 'VALIDATION_ERROR'
+        | 'CONCURRENCY_ERROR'
+        | 'NOT_FOUND'
+        | 'BUSINESS_RULE_VIOLATION'
+        | 'INTERNAL_ERROR';
+
+      if (error instanceof OptimisticConcurrencyError) {
+        errorCode = 'CONCURRENCY_ERROR';
+      } else if (error instanceof Error && error.message.includes('not found')) {
+        errorCode = 'NOT_FOUND';
+      } else {
+        errorCode = 'INTERNAL_ERROR';
+      }
+
+      return err(new Error(error instanceof Error ? error.message : 'Unknown error'));
     }
   }
 }
@@ -134,6 +154,7 @@ abstract class BaseCommandHandler<TCommand extends UserCommand = UserCommand>
  * Create User Command Handler
  */
 export class CreateUserCommandHandler extends BaseCommandHandler<CreateUserCommand> {
+  readonly commandType = CommandType.CREATE_USER;
   async handle(command: CreateUserCommand): Promise<CommandResult> {
     try {
       // Validate command
@@ -159,21 +180,15 @@ export class CreateUserCommandHandler extends BaseCommandHandler<CreateUserComma
       // Save events
       await this.saveEvents(user, 0); // New aggregate, expected version is 0
 
-      return {
-        success: true,
+      return ok({
         aggregateId: command.aggregateId,
         version: user.version,
         events: user.uncommittedEvents.slice(),
-      };
+      });
     } catch (error) {
       console.error(`CreateUser command failed:`, error);
 
-      return {
-        success: false,
-        aggregateId: command.aggregateId,
-        version: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return err(new Error(error instanceof Error ? error.message : 'Unknown error'));
     }
   }
 }
@@ -182,6 +197,7 @@ export class CreateUserCommandHandler extends BaseCommandHandler<CreateUserComma
  * Update User Profile Command Handler
  */
 export class UpdateUserProfileCommandHandler extends BaseCommandHandler<UpdateUserProfileCommand> {
+  readonly commandType = CommandType.UPDATE_USER_PROFILE;
   async handle(command: UpdateUserProfileCommand): Promise<CommandResult> {
     return this.executeCommand(command, (user) => {
       user.updateProfile(command.payload.name, command.payload.phoneNumber, command.metadata);
@@ -193,6 +209,7 @@ export class UpdateUserProfileCommandHandler extends BaseCommandHandler<UpdateUs
  * Update User Credentials Command Handler
  */
 export class UpdateUserCredentialsCommandHandler extends BaseCommandHandler<UpdateUserCredentialsCommand> {
+  readonly commandType = CommandType.UPDATE_USER_CREDENTIALS;
   async handle(command: UpdateUserCredentialsCommand): Promise<CommandResult> {
     return this.executeCommand(command, (user) => {
       user.updateCredentials(command.payload.username, command.payload.email, command.metadata);
@@ -204,6 +221,7 @@ export class UpdateUserCredentialsCommandHandler extends BaseCommandHandler<Upda
  * Change User Role Command Handler
  */
 export class ChangeUserRoleCommandHandler extends BaseCommandHandler<ChangeUserRoleCommand> {
+  readonly commandType = CommandType.CHANGE_USER_ROLE;
   async handle(command: ChangeUserRoleCommand): Promise<CommandResult> {
     return this.executeCommand(command, (user) => {
       user.changeRole(
@@ -221,6 +239,7 @@ export class ChangeUserRoleCommandHandler extends BaseCommandHandler<ChangeUserR
  * Change User Password Command Handler
  */
 export class ChangeUserPasswordCommandHandler extends BaseCommandHandler<ChangeUserPasswordCommand> {
+  readonly commandType = CommandType.CHANGE_USER_PASSWORD;
   async handle(command: ChangeUserPasswordCommand): Promise<CommandResult> {
     return this.executeCommand(command, async (user) => {
       await user.changePassword(
@@ -239,6 +258,7 @@ export class ChangeUserPasswordCommandHandler extends BaseCommandHandler<ChangeU
  * Deactivate User Command Handler
  */
 export class DeactivateUserCommandHandler extends BaseCommandHandler<DeactivateUserCommand> {
+  readonly commandType = CommandType.DEACTIVATE_USER;
   async handle(command: DeactivateUserCommand): Promise<CommandResult> {
     return this.executeCommand(command, (user) => {
       user.deactivate(
@@ -256,6 +276,7 @@ export class DeactivateUserCommandHandler extends BaseCommandHandler<DeactivateU
  * Reactivate User Command Handler
  */
 export class ReactivateUserCommandHandler extends BaseCommandHandler<ReactivateUserCommand> {
+  readonly commandType = CommandType.REACTIVATE_USER;
   async handle(command: ReactivateUserCommand): Promise<CommandResult> {
     return this.executeCommand(command, (user) => {
       user.reactivate(
@@ -273,6 +294,7 @@ export class ReactivateUserCommandHandler extends BaseCommandHandler<ReactivateU
  * Record User Sign In Command Handler
  */
 export class RecordUserSignInCommandHandler extends BaseCommandHandler<RecordUserSignInCommand> {
+  readonly commandType = CommandType.RECORD_USER_SIGN_IN;
   async handle(command: RecordUserSignInCommand): Promise<CommandResult> {
     return this.executeCommand(command, (user) => {
       user.recordSignIn(
@@ -290,6 +312,7 @@ export class RecordUserSignInCommandHandler extends BaseCommandHandler<RecordUse
  * Record User Sign Out Command Handler
  */
 export class RecordUserSignOutCommandHandler extends BaseCommandHandler<RecordUserSignOutCommand> {
+  readonly commandType = CommandType.RECORD_USER_SIGN_OUT;
   async handle(command: RecordUserSignOutCommand) {
     return this.executeCommand(command, (user) => {
       user.recordSignOut();
@@ -298,37 +321,35 @@ export class RecordUserSignOutCommandHandler extends BaseCommandHandler<RecordUs
 }
 
 /**
- * Command Bus - Routes commands to appropriate handlers
+ * Command handler registry type
+ */
+export type CommandHandlerMap = {
+  [K in CommandType]: CommandHandler<CommandFromType<K>>;
+};
+
+/**
+ * Command Bus - Routes commands to appropriate handlers with type safety
  */
 export class UserCommandBus {
-  private readonly handlers = new Map<UserCommand['type'], CommandHandler<UserCommand>>();
+  private readonly handlers: Map<CommandType, CommandHandler<any>> = new Map();
 
   constructor(eventStore: PostgreSQLEventStore, outboxStore: PostgreSQLOutboxStore) {
-    // Register command handlers
-    this.handlers.set('CreateUser', new CreateUserCommandHandler(eventStore, outboxStore));
-    this.handlers.set(
-      'UpdateUserProfile',
-      new UpdateUserProfileCommandHandler(eventStore, outboxStore)
-    );
-    this.handlers.set(
-      'UpdateUserCredentials',
-      new UpdateUserCredentialsCommandHandler(eventStore, outboxStore)
-    );
-    this.handlers.set('ChangeUserRole', new ChangeUserRoleCommandHandler(eventStore, outboxStore));
-    this.handlers.set(
-      'ChangeUserPassword',
-      new ChangeUserPasswordCommandHandler(eventStore, outboxStore)
-    );
-    this.handlers.set('DeactivateUser', new DeactivateUserCommandHandler(eventStore, outboxStore));
-    this.handlers.set('ReactivateUser', new ReactivateUserCommandHandler(eventStore, outboxStore));
-    this.handlers.set(
-      'RecordUserSignIn',
-      new RecordUserSignInCommandHandler(eventStore, outboxStore)
-    );
-    this.handlers.set(
-      'RecordUserSignOut',
-      new RecordUserSignOutCommandHandler(eventStore, outboxStore)
-    );
+    // Register command handlers with type safety
+    const handlers: CommandHandler<any>[] = [
+      new CreateUserCommandHandler(eventStore, outboxStore),
+      new UpdateUserProfileCommandHandler(eventStore, outboxStore),
+      new UpdateUserCredentialsCommandHandler(eventStore, outboxStore),
+      new ChangeUserRoleCommandHandler(eventStore, outboxStore),
+      new ChangeUserPasswordCommandHandler(eventStore, outboxStore),
+      new DeactivateUserCommandHandler(eventStore, outboxStore),
+      new ReactivateUserCommandHandler(eventStore, outboxStore),
+      new RecordUserSignInCommandHandler(eventStore, outboxStore),
+      new RecordUserSignOutCommandHandler(eventStore, outboxStore),
+    ];
+
+    handlers.forEach((handler) => {
+      this.handlers.set(handler.commandType, handler);
+    });
   }
 
   /**
@@ -348,12 +369,7 @@ export class UserCommandBus {
     } catch (error) {
       console.error(`Command execution failed:`, error);
 
-      return {
-        success: false,
-        aggregateId: command.aggregateId,
-        version: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return err(new Error(error instanceof Error ? error.message : 'Unknown error'));
     }
   }
 

@@ -297,6 +297,17 @@
         "@types/node": "^20.0.0",
       },
     },
+    "shared/type-utils": {
+      "name": "@graphql-microservices/shared-type-utils",
+      "version": "1.0.0",
+      "dependencies": {
+        "zod": "^4.0.14",
+      },
+      "devDependencies": {
+        "@types/node": "^20.8.4",
+        "typescript": "^5.5.4",
+      },
+    },
     "shared/utils": {
       "name": "@shared/utils",
       "version": "1.0.0",
@@ -497,6 +508,8 @@
     "@graphql-microservices/shared-query-complexity": ["@graphql-microservices/shared-query-complexity@workspace:shared/query-complexity"],
 
     "@graphql-microservices/shared-rate-limit": ["@graphql-microservices/shared-rate-limit@workspace:shared/rate-limit"],
+
+    "@graphql-microservices/shared-type-utils": ["@graphql-microservices/shared-type-utils@workspace:shared/type-utils"],
 
     "@graphql-microservices/type-utils": ["@graphql-microservices/type-utils@workspace:packages/type-utils"],
 
@@ -2168,6 +2181,8 @@
 
     "@graphql-microservices/shared-rate-limit/rate-limiter-flexible": ["rate-limiter-flexible@5.0.5", "", {}, "sha512-+/dSQfo+3FYwYygUs/V2BBdwGa9nFtakDwKt4l0bnvNB53TNT++QSFewwHX9qXrZJuMe9j+TUaU21lm5ARgqdQ=="],
 
+    "@graphql-microservices/shared-type-utils/@types/node": ["@types/node@20.19.9", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-cuVNgarYWZqxRJDQHEB58GEONhOK79QVR/qYx4S7kcUObQvUwvFnYxJuuHUKm2aieN9X3yZB4LZsuYNU1Qphsw=="],
+
     "@graphql-tools/executor-graphql-ws/@graphql-tools/executor-common": ["@graphql-tools/executor-common@0.0.5", "", { "dependencies": { "@envelop/core": "^5.3.0", "@graphql-tools/utils": "^10.9.0" }, "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0" } }, "sha512-DBTQDGYajhUd4iBZ/yYc1LY85QTVhgTpGPCFT5iz0CPObgye0smsE5nd/BIcdbML7SXv2wFvQhVA3mCJJ32WuQ=="],
 
     "@graphql-tools/prisma-loader/chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
@@ -2465,6 +2480,8 @@
     "@graphql-microservices/shared-pubsub/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
     "@graphql-microservices/shared-rate-limit/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
+    "@graphql-microservices/shared-type-utils/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
     "@hapi/cryptiles/@hapi/boom/@hapi/hoek": ["@hapi/hoek@9.3.0", "", {}, "sha512-/c6rf4UJlmHlC9b5BaNvzAcFv7HZ2QHaV0D4/HNlBdvFnvQq8RI4kYdhyPCl7Xj+oWvTWQ8ujhqS53LIgAe6KQ=="],
 
