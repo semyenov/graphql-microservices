@@ -20,8 +20,14 @@ const redisEnvSchema = z.object({
 
 // JWT configuration schema
 const jwtEnvSchema = z.object({
-  JWT_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  JWT_EXPIRES_IN: z
+    .string()
+    .transform((val) => ms(val as StringValue) ?? 15 * 60 * 1000)
+    .default(15 * 60 * 1000),
+  JWT_REFRESH_EXPIRES_IN: z
+    .string()
+    .transform((val) => ms(val as StringValue) ?? 7 * 24 * 60 * 60 * 1000)
+    .default(7 * 24 * 60 * 60 * 1000),
   JWT_ACCESS_PRIVATE_KEY: z.string().optional(),
   JWT_ACCESS_PUBLIC_KEY: z.string().optional(),
   JWT_REFRESH_PRIVATE_KEY: z.string().optional(),
