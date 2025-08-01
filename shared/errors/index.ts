@@ -1,5 +1,5 @@
-import { GraphQLError, type GraphQLErrorExtensions } from 'graphql';
 import { randomUUID } from 'node:crypto';
+import { GraphQLError, type GraphQLErrorExtensions } from 'graphql';
 
 /**
  * Error codes for consistent error identification across services

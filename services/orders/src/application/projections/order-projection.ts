@@ -1,8 +1,8 @@
 import { EventBus } from '@graphql-microservices/event-sourcing';
-import { PrismaClient } from '../../generated/prisma';
-import { createOrderEventHandlers } from '../event-handlers';
-import { logInfo, logError } from '@graphql-microservices/shared-logging';
+import { logError, logInfo } from '@graphql-microservices/shared-logging';
 import type { DomainEvent } from '../../domain/events';
+import type { PrismaClient } from '../../generated/prisma';
+import { createOrderEventHandlers } from '../event-handlers';
 
 export class OrderProjectionService {
   private eventBus: EventBus;
@@ -44,13 +44,13 @@ export class OrderProjectionService {
     try {
       logInfo('Starting order projection service');
       this.isRunning = true;
-      
+
       // In a real implementation, this would:
       // 1. Connect to the event store
       // 2. Subscribe to order events
       // 3. Process events in real-time
       // 4. Handle event replay for rebuilding projections
-      
+
       logInfo('Order projection service started successfully');
     } catch (error) {
       this.isRunning = false;
@@ -70,10 +70,10 @@ export class OrderProjectionService {
     try {
       logInfo('Stopping order projection service');
       this.isRunning = false;
-      
+
       // Clean up resources
       await this.prisma.$disconnect();
-      
+
       logInfo('Order projection service stopped');
     } catch (error) {
       logError('Error stopping order projection service', error as Error);
@@ -99,13 +99,13 @@ export class OrderProjectionService {
   async rebuildProjections(fromEventNumber: number = 0): Promise<void> {
     try {
       logInfo('Rebuilding order projections', { fromEventNumber });
-      
+
       // In a real implementation, this would:
       // 1. Clear existing projections (or use a new table)
       // 2. Replay all events from the event store
       // 3. Process each event through the handlers
       // 4. Update checkpoint/position tracking
-      
+
       logInfo('Order projections rebuilt successfully');
     } catch (error) {
       logError('Failed to rebuild projections', error as Error);

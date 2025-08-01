@@ -221,10 +221,7 @@ export class OutboxProcessor {
     this.isProcessing = true;
 
     try {
-      await Promise.all([
-        this.processPendingEvents(),
-        this.processFailedEvents(),
-      ]);
+      await Promise.all([this.processPendingEvents(), this.processFailedEvents()]);
     } catch (error) {
       logError(error, { operation: 'processEvents' });
     } finally {
@@ -279,11 +276,7 @@ export class OutboxProcessor {
         await this.outboxStore.markAsProcessing([event.id]);
 
         // Publish single event
-        await this.eventPublisher.publish(
-          event.event,
-          event.routingKey,
-          event.publishMetadata,
-        );
+        await this.eventPublisher.publish(event.event, event.routingKey, event.publishMetadata);
 
         // Mark as published
         await this.outboxStore.markAsPublished([event.id]);

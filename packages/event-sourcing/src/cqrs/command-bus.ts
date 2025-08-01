@@ -1,5 +1,5 @@
-import type { ICommand, ICommandHandler, CommandResult } from './types';
-import { HandlerNotFoundError, CommandValidationError, isCommand } from './types';
+import type { CommandResult, ICommand, ICommandHandler } from './types';
+import { CommandValidationError, HandlerNotFoundError, isCommand } from './types';
 
 /**
  * Command bus for dispatching commands to their handlers
@@ -11,12 +11,10 @@ export class CommandBus {
    * Register a command handler
    */
   register<TCommand extends ICommand>(
-    commandType: string | { new(...args: any[]): TCommand },
+    commandType: string | { new (...args: unknown[]): TCommand },
     handler: ICommandHandler<TCommand>
   ): void {
-    const type = typeof commandType === 'string'
-      ? commandType
-      : commandType.name;
+    const type = typeof commandType === 'string' ? commandType : commandType.name;
 
     if (this.handlers.has(type)) {
       throw new Error(`Handler already registered for command type: ${type}`);
@@ -26,9 +24,9 @@ export class CommandBus {
   }
 
   /**
-   * Execute a command  
+   * Execute a command
    */
-  async execute<TResult = any>(command: ICommand): Promise<TResult> {
+  async execute<TResult = unknown>(command: ICommand): Promise<TResult> {
     if (!isCommand(command)) {
       throw new CommandValidationError('Invalid command structure');
     }
@@ -40,11 +38,10 @@ export class CommandBus {
     }
 
     try {
-      return await handler.execute(command);
+      return (await handler.execute(command)) as TResult;
     } catch (error) {
       // Re-throw known errors
-      if (error instanceof CommandValidationError ||
-        error instanceof HandlerNotFoundError) {
+      if (error instanceof CommandValidationError || error instanceof HandlerNotFoundError) {
         throw error;
       }
 
@@ -58,9 +55,7 @@ export class CommandBus {
   /**
    * Execute a command and return a standardized result
    */
-  async executeWithResult<TData = any>(
-    command: ICommand
-  ): Promise<CommandResult<TData>> {
+  async executeWithResult<TData = unknown>(command: ICommand): Promise<CommandResult<TData>> {
     try {
       const data = await this.execute<TData>(command);
       return {

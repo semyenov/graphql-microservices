@@ -140,14 +140,16 @@ export class OrderNumber {
       }
       return new OrderNumber(value);
     }
-    
+
     // Generate new order number
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    
+    const random = Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, '0');
+
     return new OrderNumber(`ORD-${year}-${month}-${day}-${random}`);
   }
 
@@ -215,7 +217,7 @@ export class OrderItem {
 }
 
 // Order Status value object
-export type OrderStatusValue = 
+export type OrderStatusValue =
   | 'PENDING'
   | 'CONFIRMED'
   | 'PROCESSING'
@@ -244,9 +246,7 @@ export class OrderStatus {
 
   transitionTo(newStatus: OrderStatusValue): OrderStatus {
     if (!this.canTransitionTo(newStatus)) {
-      throw new Error(
-        `Invalid status transition from ${this.value} to ${newStatus}`
-      );
+      throw new Error(`Invalid status transition from ${this.value} to ${newStatus}`);
     }
     return new OrderStatus(newStatus);
   }
@@ -332,10 +332,7 @@ export class PaymentMethod {
   }
 
   equals(other: PaymentMethod): boolean {
-    return (
-      this.type === other.type &&
-      this.lastFourDigits === other.lastFourDigits
-    );
+    return this.type === other.type && this.lastFourDigits === other.lastFourDigits;
   }
 
   toString(): string {

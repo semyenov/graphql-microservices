@@ -6,12 +6,12 @@ const prisma = new PrismaClient();
 
 async function seedTestData() {
   console.log('🌱 Seeding test data for Products Service...');
-  
+
   try {
     // Clear existing data
     await prisma.product.deleteMany();
     console.log('✅ Cleared existing products');
-    
+
     // Create test products
     const products = [
       {
@@ -24,7 +24,7 @@ async function seedTestData() {
         category: 'Electronics',
         tags: ['laptop', 'computer', 'professional'],
         imageUrl: 'https://example.com/laptop.jpg',
-        isActive: true
+        isActive: true,
       },
       {
         id: 'product-test-2',
@@ -36,7 +36,7 @@ async function seedTestData() {
         category: 'Electronics',
         tags: ['mouse', 'wireless', 'accessories'],
         imageUrl: 'https://example.com/mouse.jpg',
-        isActive: true
+        isActive: true,
       },
       {
         id: 'product-test-3',
@@ -48,7 +48,7 @@ async function seedTestData() {
         category: 'Electronics',
         tags: ['hub', 'usb-c', 'accessories'],
         imageUrl: 'https://example.com/hub.jpg',
-        isActive: true
+        isActive: true,
       },
       {
         id: 'product-test-4',
@@ -60,20 +60,19 @@ async function seedTestData() {
         category: 'Electronics',
         tags: ['keyboard', 'mechanical', 'gaming'],
         imageUrl: 'https://example.com/keyboard.jpg',
-        isActive: false // Inactive product
-      }
+        isActive: false, // Inactive product
+      },
     ];
-    
+
     for (const product of products) {
       await prisma.product.create({ data: product });
       console.log(`✅ Created product: ${product.name}`);
     }
-    
+
     console.log('\n🎉 Test data seeded successfully!');
     console.log(`Total products: ${products.length}`);
-    console.log(`Active products: ${products.filter(p => p.isActive).length}`);
-    console.log(`Categories: ${[...new Set(products.map(p => p.category))].join(', ')}`);
-    
+    console.log(`Active products: ${products.filter((p) => p.isActive).length}`);
+    console.log(`Categories: ${[...new Set(products.map((p) => p.category))].join(', ')}`);
   } catch (error) {
     console.error('❌ Error seeding test data:', error);
   } finally {

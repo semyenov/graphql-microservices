@@ -211,8 +211,18 @@ async function seedOrders(
       customerName: users[1]?.username || 'John Doe',
       customerEmail: users[1]?.email || 'john@example.com',
       items: [
-        { productId: products[0]?.id, productName: products[0]?.name || 'Product', quantity: 1, unitPrice: products[0]?.price.toNumber() },
-        { productId: products[2]?.id, productName: products[2]?.name || 'Product', quantity: 2, unitPrice: products[2]?.price.toNumber() },
+        {
+          productId: products[0]?.id,
+          productName: products[0]?.name || 'Product',
+          quantity: 1,
+          unitPrice: products[0]?.price.toNumber(),
+        },
+        {
+          productId: products[2]?.id,
+          productName: products[2]?.name || 'Product',
+          quantity: 2,
+          unitPrice: products[2]?.price.toNumber(),
+        },
       ],
       status: 'DELIVERED' as const,
       shippingStreet: '123 Main St',
@@ -227,7 +237,14 @@ async function seedOrders(
       customerId: users[2]?.id, // Jane Doe
       customerName: users[2]?.username || 'Jane Doe',
       customerEmail: users[2]?.email || 'jane@example.com',
-      items: [{ productId: products[1]?.id, productName: products[1]?.name || 'Product', quantity: 1, unitPrice: products[1]?.price.toNumber() }],
+      items: [
+        {
+          productId: products[1]?.id,
+          productName: products[1]?.name || 'Product',
+          quantity: 1,
+          unitPrice: products[1]?.price.toNumber(),
+        },
+      ],
       status: 'PROCESSING' as const,
       shippingStreet: '456 Oak Ave',
       shippingCity: 'Los Angeles',
@@ -242,8 +259,18 @@ async function seedOrders(
       customerName: users[1]?.username || 'John Doe',
       customerEmail: users[1]?.email || 'john@example.com',
       items: [
-        { productId: products[4]?.id, productName: products[4]?.name || 'Product', quantity: 1, unitPrice: products[4]?.price.toNumber() },
-        { productId: products[7]?.id, productName: products[7]?.name || 'Product', quantity: 1, unitPrice: products[7]?.price.toNumber() },
+        {
+          productId: products[4]?.id,
+          productName: products[4]?.name || 'Product',
+          quantity: 1,
+          unitPrice: products[4]?.price.toNumber(),
+        },
+        {
+          productId: products[7]?.id,
+          productName: products[7]?.name || 'Product',
+          quantity: 1,
+          unitPrice: products[7]?.price.toNumber(),
+        },
       ],
       status: 'PENDING' as const,
       shippingStreet: '123 Main St',

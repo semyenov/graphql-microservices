@@ -1,4 +1,9 @@
-import type { AddressProps, OrderItemProps, TrackingInfoProps, PaymentMethodType } from '../value-objects';
+import type {
+  AddressProps,
+  OrderItemProps,
+  PaymentMethodType,
+  TrackingInfoProps,
+} from '../value-objects';
 
 // Base event interface
 export interface DomainEvent {
@@ -153,7 +158,7 @@ export interface OrderDeliveredEvent extends DomainEvent {
 }
 
 // Union type for all events
-export type OrderEvent = 
+export type OrderEvent =
   | OrderCreatedEvent
   | OrderCancelledEvent
   | OrderStatusUpdatedEvent

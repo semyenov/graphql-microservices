@@ -1,6 +1,6 @@
+import { logError, logInfo } from '@shared/utils';
 import { Redis } from 'ioredis';
 import { getOrdersCQRS } from './cqrs-integration';
-import { logError, logInfo } from '@shared/utils';
 
 export interface EventSubscriberConfig {
   redisUrl: string;
@@ -12,7 +12,7 @@ export class OrdersRedisEventSubscriber {
   private publisher: Redis | null = null;
   private isRunning = false;
 
-  constructor(private readonly config: EventSubscriberConfig) { }
+  constructor(private readonly config: EventSubscriberConfig) {}
 
   async initialize(): Promise<void> {
     try {
@@ -92,10 +92,16 @@ export class OrdersRedisEventSubscriber {
     try {
       const event = JSON.parse(message);
 
-      logInfo(`Received event on channel ${channel} ${JSON.stringify({
-        eventType: event.type,
-        aggregateId: event.aggregateId,
-      }, null, 2)}`);
+      logInfo(
+        `Received event on channel ${channel} ${JSON.stringify(
+          {
+            eventType: event.type,
+            aggregateId: event.aggregateId,
+          },
+          null,
+          2
+        )}`
+      );
 
       // Route events based on channel
       switch (channel) {
@@ -245,10 +251,16 @@ export class OrdersRedisEventSubscriber {
     try {
       await this.publisher.publish(channel, JSON.stringify(event));
 
-      logInfo(`Published event to channel ${channel} ${JSON.stringify({
-        eventType: event.type,
-        aggregateId: event.aggregateId,
-      }, null, 2)}`);
+      logInfo(
+        `Published event to channel ${channel} ${JSON.stringify(
+          {
+            eventType: event.type,
+            aggregateId: event.aggregateId,
+          },
+          null,
+          2
+        )}`
+      );
     } catch (error) {
       logError(`Failed to publish event to channel ${channel}: ${error}`);
       throw error;

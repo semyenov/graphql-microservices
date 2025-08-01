@@ -1,15 +1,15 @@
 import {
+  OutboxProcessor,
   PostgreSQLEventStore,
   PostgreSQLOutboxStore,
-  OutboxProcessor,
 } from '@graphql-microservices/event-sourcing';
+import { RedisEventPublisher } from '@graphql-microservices/users/src/infrastructure/redis-event-publisher';
+import { logError, logInfo } from '@shared/utils';
+import type { Pool } from 'pg';
 import { PrismaClient } from '../../generated/prisma';
 import { OrderCommandBus } from '../application/commands/command-bus';
-import { OrderQueryBus } from '../application/queries/query-bus';
 import { OrderProjectionService } from '../application/projections/order-projection';
-import { logInfo, logError } from '@shared/utils';
-import type { Pool } from 'pg';
-import { RedisEventPublisher } from '@graphql-microservices/users/src/infrastructure/redis-event-publisher';
+import { OrderQueryBus } from '../application/queries/query-bus';
 
 export interface CQRSConfig {
   databaseUrl: string;
@@ -30,7 +30,7 @@ export class OrdersCQRSIntegration {
   private prisma!: PrismaClient;
   private pool!: Pool;
 
-  constructor(private readonly config: CQRSConfig) { }
+  constructor(private readonly config: CQRSConfig) {}
 
   async initialize(): Promise<void> {
     try {
@@ -75,14 +75,10 @@ export class OrdersCQRSIntegration {
 
       // Initialize outbox processor
       if (this.config.enableOutboxProcessor !== false) {
-        this.outboxProcessor = new OutboxProcessor(
-          this.outboxStore,
-          this.eventPublisher,
-          {
-            processingInterval: this.config.outboxPollInterval || 5000,
-            batchSize: 100,
-          }
-        );
+        this.outboxProcessor = new OutboxProcessor(this.outboxStore, this.eventPublisher, {
+          processingInterval: this.config.outboxPollInterval || 5000,
+          batchSize: 100,
+        });
       }
 
       // Initialize command bus
@@ -95,10 +91,7 @@ export class OrdersCQRSIntegration {
 
       // Initialize projection service
       if (this.config.enableProjections !== false) {
-        this.projectionService = new OrderProjectionService(
-          this.prisma,
-          this.config.databaseUrl
-        );
+        this.projectionService = new OrderProjectionService(this.prisma, this.config.databaseUrl);
       }
 
       logInfo('🎉 Orders CQRS infrastructure ready!');

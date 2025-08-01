@@ -1,5 +1,5 @@
 import type { IQuery, IQueryHandler } from './types';
-import { HandlerNotFoundError, QueryValidationError, isQuery } from './types';
+import { HandlerNotFoundError, isQuery, QueryValidationError } from './types';
 
 /**
  * Query bus for dispatching queries to their handlers
@@ -11,12 +11,10 @@ export class QueryBus {
    * Register a query handler
    */
   register<TQuery extends IQuery, TResult>(
-    queryType: string | { new(...args: any[]): TQuery },
+    queryType: string | { new (...args: unknown[]): TQuery },
     handler: IQueryHandler<TQuery, TResult>
   ): void {
-    const type = typeof queryType === 'string'
-      ? queryType
-      : queryType.name;
+    const type = typeof queryType === 'string' ? queryType : queryType.name;
 
     if (this.handlers.has(type)) {
       throw new Error(`Handler already registered for query type: ${type}`);
@@ -28,7 +26,7 @@ export class QueryBus {
   /**
    * Execute a query
    */
-  async execute<TResult = any>(query: IQuery): Promise<TResult> {
+  async execute<TResult = unknown>(query: IQuery): Promise<TResult> {
     if (!isQuery(query)) {
       throw new QueryValidationError('Invalid query structure');
     }
@@ -40,11 +38,10 @@ export class QueryBus {
     }
 
     try {
-      return await handler.execute(query) as TResult;
+      return (await handler.execute(query)) as TResult;
     } catch (error) {
       // Re-throw known errors
-      if (error instanceof QueryValidationError ||
-        error instanceof HandlerNotFoundError) {
+      if (error instanceof QueryValidationError || error instanceof HandlerNotFoundError) {
         throw error;
       }
 

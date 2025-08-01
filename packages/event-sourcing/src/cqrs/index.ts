@@ -2,32 +2,29 @@
  * CQRS (Command Query Responsibility Segregation) Module
  */
 
-// Export types
-export * from './types';
-
 // Export command bus
 export { CommandBus } from './command-bus';
-
-// Export query bus
-export { QueryBus } from './query-bus';
-
 // Export decorators
 export * from './decorators';
 
+// Export query bus
+export { QueryBus } from './query-bus';
 // Re-export specific types for convenience
 export type {
-  ICommand,
-  IQuery,
-  ICommandHandler,
-  IQueryHandler,
-  CommandResult,
   CommandMetadata,
+  CommandResult,
+  ICommand,
+  ICommandHandler,
+  IQuery,
+  IQueryHandler,
   QueryMetadata,
 } from './types';
+// Export types
+export * from './types';
 
 // Re-export errors
 export {
-  HandlerNotFoundError,
   CommandValidationError,
+  HandlerNotFoundError,
   QueryValidationError,
 } from './types';

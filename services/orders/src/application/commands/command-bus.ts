@@ -1,7 +1,7 @@
+import type { IEventStore } from '@graphql-microservices/event-sourcing';
 import { CommandBus as BaseCommandBus } from '@graphql-microservices/event-sourcing';
-import type { EventStore } from '@graphql-microservices/event-sourcing';
-import { createOrderCommandHandlers } from './handlers';
 import type { OrderCommand } from '../../domain/commands';
+import { createOrderCommandHandlers } from './handlers';
 
 export interface CommandResult {
   success: boolean;
@@ -19,7 +19,7 @@ export class OrderCommandBus {
   private commandBus: BaseCommandBus;
   private handlers: ReturnType<typeof createOrderCommandHandlers>;
 
-  constructor(private readonly eventStore: EventStore) {
+  constructor(eventStore: IEventStore) {
     this.commandBus = new BaseCommandBus();
     this.handlers = createOrderCommandHandlers(eventStore);
     this.registerHandlers();
@@ -133,15 +133,16 @@ export class OrderCommandBus {
         lastError = error as Error;
 
         // Don't retry on business rule violations
-        if (error instanceof Error &&
-          (error.message.includes('BusinessRuleError') ||
-            error.message.includes('ValidationError'))) {
+        if (
+          error instanceof Error &&
+          (error.message.includes('BusinessRuleError') || error.message.includes('ValidationError'))
+        ) {
           throw error;
         }
 
         // Wait before retrying (exponential backoff)
         if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+          await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt));
         }
       }
     }

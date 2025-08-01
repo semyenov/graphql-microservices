@@ -43,7 +43,7 @@ export interface QueryMetadata {
  * Command handler interface
  */
 export interface ICommandHandler<TCommand extends ICommand = ICommand> {
-  execute(command: TCommand): Promise<any>;
+  execute(command: TCommand): Promise<unknown>;
 }
 
 /**
@@ -77,7 +77,10 @@ export class HandlerNotFoundError extends Error {
  * Command validation error
  */
 export class CommandValidationError extends Error {
-  constructor(message: string, public readonly details?: unknown) {
+  constructor(
+    message: string,
+    public readonly details?: unknown
+  ) {
     super(message);
     this.name = 'CommandValidationError';
   }
@@ -87,7 +90,10 @@ export class CommandValidationError extends Error {
  * Query validation error
  */
 export class QueryValidationError extends Error {
-  constructor(message: string, public readonly details?: unknown) {
+  constructor(
+    message: string,
+    public readonly details?: unknown
+  ) {
     super(message);
     this.name = 'QueryValidationError';
   }
@@ -97,12 +103,24 @@ export class QueryValidationError extends Error {
  * Type guard for commands
  */
 export function isCommand(obj: object): obj is ICommand {
-  return obj && 'type' in obj && 'payload' in obj && typeof obj.type === 'string' && obj.payload !== undefined;
+  return (
+    obj &&
+    'type' in obj &&
+    'payload' in obj &&
+    typeof obj.type === 'string' &&
+    obj.payload !== undefined
+  );
 }
 
 /**
  * Type guard for queries
  */
 export function isQuery(obj: object): obj is IQuery {
-  return obj && 'type' in obj && 'parameters' in obj && typeof obj.type === 'string' && obj.parameters !== undefined;
+  return (
+    obj &&
+    'type' in obj &&
+    'parameters' in obj &&
+    typeof obj.type === 'string' &&
+    obj.parameters !== undefined
+  );
 }

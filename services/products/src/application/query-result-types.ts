@@ -22,14 +22,20 @@ export type SearchProductsResult = QueryResult<PaginatedResult<ProductViewModel>
 
 // Event and inventory query results
 export type GetProductEventsResult = QueryResult<PaginatedResult<ProductEventViewModel>>;
-export type GetProductStockReservationsResult = QueryResult<PaginatedResult<StockReservationViewModel>>;
+export type GetProductStockReservationsResult = QueryResult<
+  PaginatedResult<StockReservationViewModel>
+>;
 export type GetLowStockProductsResult = QueryResult<PaginatedResult<ProductViewModel>>;
-export type GetProductInventorySummaryResult = QueryResult<PaginatedResult<ProductInventorySummary>>;
+export type GetProductInventorySummaryResult = QueryResult<
+  PaginatedResult<ProductInventorySummary>
+>;
 
 /**
  * Type guard to check if query result is successful
  */
-export function isSuccessResult<T>(result: QueryResult<T>): result is QueryResult<T> & { success: true; data: T } {
+export function isSuccessResult<T>(
+  result: QueryResult<T>
+): result is QueryResult<T> & { success: true; data: T } {
   return result.success === true && result.data !== undefined;
 }
 

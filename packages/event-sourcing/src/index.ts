@@ -9,6 +9,8 @@ export {
   generateId,
   OptimisticConcurrencyError,
 } from '@graphql-microservices/shared-errors';
+// CQRS exports
+export * from './cqrs';
 // Event store abstractions
 export * from './event-store';
 // Outbox pattern implementation
@@ -17,9 +19,6 @@ export * from './outbox';
 export { PostgreSQLEventStore } from './postgresql-event-store';
 export { PostgreSQLOutboxStore } from './postgresql-outbox-store';
 export * from './types';
-
-// CQRS exports
-export * from './cqrs';
 
 // Import utilities for internal use
 import {

@@ -1,20 +1,20 @@
-import { QueryHandler, type IQueryHandler } from '@graphql-microservices/event-sourcing';
-import { PrismaClient } from '../../../generated/prisma';
+import { type IQueryHandler, QueryHandler } from '@graphql-microservices/event-sourcing';
+import { logError, logInfo } from '@graphql-microservices/shared-logging';
+import type { PrismaClient } from '../../../generated/prisma';
 import type {
+  GetAllOrdersQuery,
   GetOrderByIdQuery,
   GetOrderByNumberQuery,
-  GetOrdersByCustomerQuery,
-  GetAllOrdersQuery,
-  GetOrderStatisticsQuery,
-  SearchOrdersQuery,
   GetOrderCountQuery,
+  GetOrderStatisticsQuery,
+  GetOrdersByCustomerQuery,
   GetRevenueReportQuery,
-  OrderViewModel,
   OrderStatisticsViewModel,
-  RevenueReportViewModel,
+  OrderViewModel,
   PaginatedResult,
+  RevenueReportViewModel,
+  SearchOrdersQuery,
 } from '../index';
-import { logInfo, logError } from '@graphql-microservices/shared-logging';
 
 /**
  * Get Order By ID Query Handler
@@ -26,7 +26,7 @@ export class GetOrderByIdQueryHandler implements IQueryHandler<GetOrderByIdQuery
   async execute(query: GetOrderByIdQuery): Promise<OrderViewModel | null> {
     try {
       logInfo('Fetching order by ID', { orderId: query.payload.orderId });
-      
+
       const order = await this.prisma.order.findUnique({
         where: { id: query.payload.orderId },
         include: {
@@ -68,25 +68,29 @@ export class GetOrderByIdQueryHandler implements IQueryHandler<GetOrderByIdQuery
         postalCode: order.shippingPostalCode,
         country: order.shippingCountry,
       },
-      billingAddress: order.billingStreet ? {
-        street: order.billingStreet,
-        city: order.billingCity,
-        state: order.billingState,
-        postalCode: order.billingPostalCode,
-        country: order.billingCountry,
-      } : undefined,
+      billingAddress: order.billingStreet
+        ? {
+            street: order.billingStreet,
+            city: order.billingCity,
+            state: order.billingState,
+            postalCode: order.billingPostalCode,
+            country: order.billingCountry,
+          }
+        : undefined,
       paymentMethod: order.paymentMethod,
       subtotal: order.subtotal,
       tax: order.tax,
       shipping: order.shipping,
       total: order.total,
       currency: order.currency,
-      trackingInfo: order.trackingNumber ? {
-        trackingNumber: order.trackingNumber,
-        carrier: order.carrier,
-        estimatedDeliveryDate: order.estimatedDeliveryDate,
-        shippedDate: order.shippedDate,
-      } : undefined,
+      trackingInfo: order.trackingNumber
+        ? {
+            trackingNumber: order.trackingNumber,
+            carrier: order.carrier,
+            estimatedDeliveryDate: order.estimatedDeliveryDate,
+            shippedDate: order.shippedDate,
+          }
+        : undefined,
       notes: order.notes,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
@@ -106,7 +110,7 @@ export class GetOrderByNumberQueryHandler implements IQueryHandler<GetOrderByNum
   async execute(query: GetOrderByNumberQuery): Promise<OrderViewModel | null> {
     try {
       logInfo('Fetching order by number', { orderNumber: query.payload.orderNumber });
-      
+
       const order = await this.prisma.order.findUnique({
         where: { orderNumber: query.payload.orderNumber },
         include: {
@@ -136,22 +140,23 @@ export class GetOrdersByCustomerQueryHandler implements IQueryHandler<GetOrdersB
 
   async execute(query: GetOrdersByCustomerQuery): Promise<PaginatedResult<OrderViewModel>> {
     try {
-      const { customerId, status, fromDate, toDate, limit, offset, sortBy, sortOrder } = query.payload;
-      
+      const { customerId, status, fromDate, toDate, limit, offset, sortBy, sortOrder } =
+        query.payload;
+
       logInfo('Fetching orders by customer', { customerId, status });
-      
+
       const where: any = { customerId };
-      
+
       if (status) {
         where.status = status;
       }
-      
+
       if (fromDate || toDate) {
         where.createdAt = {};
         if (fromDate) where.createdAt.gte = new Date(fromDate);
         if (toDate) where.createdAt.lte = new Date(toDate);
       }
-      
+
       const [orders, totalCount] = await Promise.all([
         this.prisma.order.findMany({
           where,
@@ -165,11 +170,11 @@ export class GetOrdersByCustomerQueryHandler implements IQueryHandler<GetOrdersB
         }),
         this.prisma.order.count({ where }),
       ]);
-      
+
       const mapper = new GetOrderByIdQueryHandler(this.prisma);
-      
+
       return {
-        items: orders.map(order => mapper.mapToViewModel(order)),
+        items: orders.map((order) => mapper.mapToViewModel(order)),
         totalCount,
         pageInfo: {
           hasNextPage: offset + orders.length < totalCount,
@@ -194,27 +199,38 @@ export class GetAllOrdersQueryHandler implements IQueryHandler<GetAllOrdersQuery
 
   async execute(query: GetAllOrdersQuery): Promise<PaginatedResult<OrderViewModel>> {
     try {
-      const { status, customerId, fromDate, toDate, minTotal, maxTotal, limit, offset, sortBy, sortOrder } = query.payload;
-      
+      const {
+        status,
+        customerId,
+        fromDate,
+        toDate,
+        minTotal,
+        maxTotal,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+      } = query.payload;
+
       logInfo('Fetching all orders', { status, customerId });
-      
+
       const where: any = {};
-      
+
       if (status) where.status = status;
       if (customerId) where.customerId = customerId;
-      
+
       if (fromDate || toDate) {
         where.createdAt = {};
         if (fromDate) where.createdAt.gte = new Date(fromDate);
         if (toDate) where.createdAt.lte = new Date(toDate);
       }
-      
+
       if (minTotal || maxTotal) {
         where.total = {};
         if (minTotal) where.total.gte = minTotal;
         if (maxTotal) where.total.lte = maxTotal;
       }
-      
+
       const [orders, totalCount] = await Promise.all([
         this.prisma.order.findMany({
           where,
@@ -224,17 +240,16 @@ export class GetAllOrdersQueryHandler implements IQueryHandler<GetAllOrdersQuery
           },
           take: limit,
           skip: offset,
-          orderBy: sortBy === 'customerName' 
-            ? { customer: { name: sortOrder } }
-            : { [sortBy]: sortOrder },
+          orderBy:
+            sortBy === 'customerName' ? { customer: { name: sortOrder } } : { [sortBy]: sortOrder },
         }),
         this.prisma.order.count({ where }),
       ]);
-      
+
       const mapper = new GetOrderByIdQueryHandler(this.prisma);
-      
+
       return {
-        items: orders.map(order => mapper.mapToViewModel(order)),
+        items: orders.map((order) => mapper.mapToViewModel(order)),
         totalCount,
         pageInfo: {
           hasNextPage: offset + orders.length < totalCount,
@@ -260,20 +275,20 @@ export class GetOrderStatisticsQueryHandler implements IQueryHandler<GetOrderSta
   async execute(query: GetOrderStatisticsQuery): Promise<OrderStatisticsViewModel> {
     try {
       const { customerId, fromDate, toDate, groupBy } = query.payload;
-      
+
       logInfo('Fetching order statistics', { customerId, fromDate, toDate, groupBy });
-      
+
       const where: any = {
         createdAt: {
           gte: new Date(fromDate),
           lte: new Date(toDate),
         },
       };
-      
+
       if (customerId) {
         where.customerId = customerId;
       }
-      
+
       // Get order statistics
       const [orderStats, topProducts, statusCounts] = await Promise.all([
         this.prisma.order.aggregate({
@@ -302,22 +317,25 @@ export class GetOrderStatisticsQueryHandler implements IQueryHandler<GetOrderSta
           _count: { id: true },
         }),
       ]);
-      
+
       return {
         period: `${fromDate} to ${toDate}`,
         orderCount: orderStats._count.id,
         totalRevenue: orderStats._sum.total || 0,
         averageOrderValue: orderStats._avg.total || 0,
-        topProducts: topProducts.map(product => ({
+        topProducts: topProducts.map((product) => ({
           productId: product.productId,
           productName: product.productName,
           quantity: product._sum.quantity || 0,
           revenue: product._sum.total || 0,
         })),
-        statusBreakdown: statusCounts.reduce((acc, status) => ({
-          ...acc,
-          [status.status]: status._count.id,
-        }), {}),
+        statusBreakdown: statusCounts.reduce(
+          (acc, status) => ({
+            ...acc,
+            [status.status]: status._count.id,
+          }),
+          {}
+        ),
       };
     } catch (error) {
       logError('Failed to fetch order statistics', error as Error, { query });
@@ -336,39 +354,43 @@ export class SearchOrdersQueryHandler implements IQueryHandler<SearchOrdersQuery
   async execute(query: SearchOrdersQuery): Promise<PaginatedResult<OrderViewModel>> {
     try {
       const { searchTerm, searchFields, limit, offset } = query.payload;
-      
+
       logInfo('Searching orders', { searchTerm, searchFields });
-      
+
       const searchConditions: any[] = [];
-      
+
       if (searchFields.includes('orderNumber')) {
         searchConditions.push({ orderNumber: { contains: searchTerm } });
       }
-      
+
       if (searchFields.includes('customerName')) {
-        searchConditions.push({ customer: { name: { contains: searchTerm, mode: 'insensitive' } } });
-      }
-      
-      if (searchFields.includes('customerEmail')) {
-        searchConditions.push({ customer: { email: { contains: searchTerm, mode: 'insensitive' } } });
-      }
-      
-      if (searchFields.includes('productName')) {
-        searchConditions.push({ 
-          items: { 
-            some: { 
-              productName: { contains: searchTerm, mode: 'insensitive' } 
-            } 
-          } 
+        searchConditions.push({
+          customer: { name: { contains: searchTerm, mode: 'insensitive' } },
         });
       }
-      
+
+      if (searchFields.includes('customerEmail')) {
+        searchConditions.push({
+          customer: { email: { contains: searchTerm, mode: 'insensitive' } },
+        });
+      }
+
+      if (searchFields.includes('productName')) {
+        searchConditions.push({
+          items: {
+            some: {
+              productName: { contains: searchTerm, mode: 'insensitive' },
+            },
+          },
+        });
+      }
+
       if (searchFields.includes('trackingNumber')) {
         searchConditions.push({ trackingNumber: { contains: searchTerm } });
       }
-      
+
       const where = searchConditions.length > 0 ? { OR: searchConditions } : {};
-      
+
       const [orders, totalCount] = await Promise.all([
         this.prisma.order.findMany({
           where,
@@ -382,11 +404,11 @@ export class SearchOrdersQueryHandler implements IQueryHandler<SearchOrdersQuery
         }),
         this.prisma.order.count({ where }),
       ]);
-      
+
       const mapper = new GetOrderByIdQueryHandler(this.prisma);
-      
+
       return {
-        items: orders.map(order => mapper.mapToViewModel(order)),
+        items: orders.map((order) => mapper.mapToViewModel(order)),
         totalCount,
         pageInfo: {
           hasNextPage: offset + orders.length < totalCount,
@@ -412,20 +434,20 @@ export class GetOrderCountQueryHandler implements IQueryHandler<GetOrderCountQue
   async execute(query: GetOrderCountQuery): Promise<number> {
     try {
       const { status, customerId, fromDate, toDate } = query.payload;
-      
+
       logInfo('Counting orders', { status, customerId });
-      
+
       const where: any = {};
-      
+
       if (status) where.status = status;
       if (customerId) where.customerId = customerId;
-      
+
       if (fromDate || toDate) {
         where.createdAt = {};
         if (fromDate) where.createdAt.gte = new Date(fromDate);
         if (toDate) where.createdAt.lte = new Date(toDate);
       }
-      
+
       return await this.prisma.order.count({ where });
     } catch (error) {
       logError('Failed to count orders', error as Error, { query });
@@ -444,13 +466,13 @@ export class GetRevenueReportQueryHandler implements IQueryHandler<GetRevenueRep
   async execute(query: GetRevenueReportQuery): Promise<RevenueReportViewModel> {
     try {
       const { fromDate, toDate, groupBy, includeRefunds } = query.payload;
-      
+
       logInfo('Generating revenue report', { fromDate, toDate, groupBy });
-      
+
       // This is a simplified implementation
       // In a real system, you would use more sophisticated SQL queries
       // with proper date grouping and aggregation
-      
+
       const orders = await this.prisma.order.findMany({
         where: {
           createdAt: {
@@ -458,22 +480,20 @@ export class GetRevenueReportQueryHandler implements IQueryHandler<GetRevenueRep
             lte: new Date(toDate),
           },
           status: {
-            in: includeRefunds 
-              ? ['DELIVERED', 'REFUNDED'] 
-              : ['DELIVERED'],
+            in: includeRefunds ? ['DELIVERED', 'REFUNDED'] : ['DELIVERED'],
           },
         },
         include: {
           items: true,
         },
       });
-      
+
       // Group orders by the specified period
       const groupedData = new Map<string, any>();
-      
-      orders.forEach(order => {
+
+      orders.forEach((order) => {
         const dateKey = this.getDateKey(order.createdAt, groupBy);
-        
+
         if (!groupedData.has(dateKey)) {
           groupedData.set(dateKey, {
             label: dateKey,
@@ -483,33 +503,36 @@ export class GetRevenueReportQueryHandler implements IQueryHandler<GetRevenueRep
             netRevenue: 0,
           });
         }
-        
+
         const group = groupedData.get(dateKey);
         group.orderCount += 1;
-        
+
         if (order.status === 'REFUNDED') {
           group.refunds += order.total;
         } else {
           group.grossRevenue += order.total;
         }
-        
+
         group.netRevenue = group.grossRevenue - group.refunds;
       });
-      
+
       const data = Array.from(groupedData.values());
-      
-      const totals = data.reduce((acc, item) => ({
-        orderCount: acc.orderCount + item.orderCount,
-        grossRevenue: acc.grossRevenue + item.grossRevenue,
-        refunds: acc.refunds + item.refunds,
-        netRevenue: acc.netRevenue + item.netRevenue,
-      }), {
-        orderCount: 0,
-        grossRevenue: 0,
-        refunds: 0,
-        netRevenue: 0,
-      });
-      
+
+      const totals = data.reduce(
+        (acc, item) => ({
+          orderCount: acc.orderCount + item.orderCount,
+          grossRevenue: acc.grossRevenue + item.grossRevenue,
+          refunds: acc.refunds + item.refunds,
+          netRevenue: acc.netRevenue + item.netRevenue,
+        }),
+        {
+          orderCount: 0,
+          grossRevenue: 0,
+          refunds: 0,
+          netRevenue: 0,
+        }
+      );
+
       return {
         period: `${fromDate} to ${toDate}`,
         grouping: groupBy,
@@ -521,16 +544,17 @@ export class GetRevenueReportQueryHandler implements IQueryHandler<GetRevenueRep
       throw error;
     }
   }
-  
+
   private getDateKey(date: Date, groupBy: string): string {
     const d = new Date(date);
-    
+
     switch (groupBy) {
       case 'day':
         return d.toISOString().split('T')[0];
-      case 'week':
+      case 'week': {
         const week = this.getWeekNumber(d);
         return `${d.getFullYear()}-W${week}`;
+      }
       case 'month':
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       case 'year':
@@ -539,13 +563,13 @@ export class GetRevenueReportQueryHandler implements IQueryHandler<GetRevenueRep
         return d.toISOString().split('T')[0];
     }
   }
-  
+
   private getWeekNumber(date: Date): number {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 4 - (d.getDay() || 7));
     const yearStart = new Date(d.getFullYear(), 0, 1);
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   }
 }
 

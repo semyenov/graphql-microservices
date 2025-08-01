@@ -24,7 +24,11 @@ export interface IEventStore {
    * @param toVersion Stop reading at this version (inclusive)
    * @returns Promise resolving to the stored events
    */
-  readStream(aggregateId: string, fromVersion?: number, toVersion?: number): Promise<IStoredEvent[]>;
+  readStream(
+    aggregateId: string,
+    fromVersion?: number,
+    toVersion?: number
+  ): Promise<IStoredEvent[]>;
 
   /**
    * Read all events matching the query
@@ -98,11 +102,7 @@ export interface IEventStore {
    * @param expectedVersion Expected current version of the aggregate
    * @returns Promise resolving when events are saved
    */
-  save(
-    aggregateId: string,
-    events: IDomainEvent[],
-    expectedVersion?: number
-  ): Promise<void>;
+  save(aggregateId: string, events: IDomainEvent[], expectedVersion?: number): Promise<void>;
 
   /**
    * Get events for an aggregate (alias for readStream)
@@ -110,10 +110,7 @@ export interface IEventStore {
    * @param fromVersion Start reading from this version
    * @returns Promise resolving to the events
    */
-  getEvents(
-    aggregateId: string,
-    fromVersion?: number
-  ): Promise<IDomainEvent[]>;
+  getEvents(aggregateId: string, fromVersion?: number): Promise<IDomainEvent[]>;
 }
 
 /**
@@ -214,21 +211,14 @@ export abstract class BaseEventStore implements IEventStore {
   /**
    * Save events for an aggregate (alias for appendToStream)
    */
-  async save(
-    aggregateId: string,
-    events: IDomainEvent[],
-    expectedVersion?: number
-  ): Promise<void> {
+  async save(aggregateId: string, events: IDomainEvent[], expectedVersion?: number): Promise<void> {
     await this.appendToStream(aggregateId, events, expectedVersion);
   }
 
   /**
    * Get events for an aggregate (alias for readStream)
    */
-  async getEvents(
-    aggregateId: string,
-    fromVersion?: number
-  ): Promise<IDomainEvent[]> {
+  async getEvents(aggregateId: string, fromVersion?: number): Promise<IDomainEvent[]> {
     const storedEvents = await this.readStream(aggregateId, fromVersion);
     // StoredEvent extends DomainEvent, so we can return them directly
     return storedEvents;

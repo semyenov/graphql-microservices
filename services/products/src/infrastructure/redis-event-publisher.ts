@@ -1,4 +1,8 @@
-import type { DomainEvent, EventPublisher, OutboxEvent } from '@graphql-microservices/event-sourcing';
+import type {
+  DomainEvent,
+  EventPublisher,
+  OutboxEvent,
+} from '@graphql-microservices/event-sourcing';
 import Redis from 'ioredis';
 
 /**

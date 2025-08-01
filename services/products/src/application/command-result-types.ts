@@ -7,7 +7,9 @@ import type { CommandResult } from './commands';
 /**
  * Type guard to check if command result is successful
  */
-export function isSuccessCommandResult(result: CommandResult): result is CommandResult & { success: true; aggregateId: string } {
+export function isSuccessCommandResult(
+  result: CommandResult
+): result is CommandResult & { success: true; aggregateId: string } {
   return result.success === true && result.aggregateId !== undefined;
 }
 

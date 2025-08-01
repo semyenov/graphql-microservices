@@ -1,12 +1,10 @@
-import {
-  AggregateRoot,
-  EventFactory,
-} from '@graphql-microservices/event-sourcing';
+import { AggregateRoot, EventFactory } from '@graphql-microservices/event-sourcing';
 import {
   BusinessRuleError,
   generateId,
   ValidationError,
 } from '@graphql-microservices/shared-errors';
+import type { DomainEvent } from './events';
 import {
   Address,
   Money,
@@ -15,7 +13,6 @@ import {
   PaymentInfo,
   ShippingInfo,
 } from './value-objects';
-import type { DomainEvent } from './events';
 
 /**
  * Order Status enum
@@ -261,10 +258,7 @@ export class Order extends AggregateRoot {
   private _createdAt: Date = new Date();
   private _updatedAt: Date = new Date();
 
-  constructor(
-    id: string,
-    version: number = 0
-  ) {
+  constructor(id: string, version: number = 0) {
     super(id, version);
   }
 
@@ -452,15 +446,7 @@ export class Order extends AggregateRoot {
       shippingAddress: { street: '', city: '', state: '', postalCode: '', country: 'US' },
       cost: { amount: 0, currency: 'USD' },
     });
-    const order = new Order(orderId, {
-      orderNumber,
-      customerId,
-      items: orderItems,
-      shippingAddress,
-      paymentInfo,
-      shippingInfo,
-      billingAddress: undefined,
-    });
+    const order = new Order(orderId, 0);
     if (events.length === 0) {
       return order;
     }

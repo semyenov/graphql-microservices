@@ -1,12 +1,12 @@
 import { QueryBus as BaseQueryBus } from '@graphql-microservices/event-sourcing';
-import { PrismaClient } from '../../generated/prisma';
+import type { PrismaClient } from '../../generated/prisma';
 import { createOrderQueryHandlers } from './handlers';
-import type { 
+import type {
   OrderQuery,
-  OrderViewModel,
   OrderStatisticsViewModel,
+  OrderViewModel,
+  PaginatedResult,
   RevenueReportViewModel,
-  PaginatedResult 
 } from './index';
 
 export interface QueryResult<T> {
@@ -40,7 +40,7 @@ export class OrderQueryBus {
   async execute<T = any>(query: OrderQuery): Promise<QueryResult<T>> {
     try {
       const result = await this.queryBus.execute(query);
-      
+
       return {
         success: true,
         data: result as T,
@@ -89,20 +89,18 @@ export class OrderQueryBus {
     });
   }
 
-  async getAllOrders(
-    options?: {
-      status?: string;
-      customerId?: string;
-      fromDate?: string;
-      toDate?: string;
-      minTotal?: number;
-      maxTotal?: number;
-      limit?: number;
-      offset?: number;
-      sortBy?: 'createdAt' | 'updatedAt' | 'total' | 'status' | 'customerName';
-      sortOrder?: 'asc' | 'desc';
-    }
-  ): Promise<QueryResult<PaginatedResult<OrderViewModel>>> {
+  async getAllOrders(options?: {
+    status?: string;
+    customerId?: string;
+    fromDate?: string;
+    toDate?: string;
+    minTotal?: number;
+    maxTotal?: number;
+    limit?: number;
+    offset?: number;
+    sortBy?: 'createdAt' | 'updatedAt' | 'total' | 'status' | 'customerName';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<QueryResult<PaginatedResult<OrderViewModel>>> {
     return this.execute({
       type: 'GetAllOrders',
       payload: options || {},
@@ -130,7 +128,9 @@ export class OrderQueryBus {
   async searchOrders(
     searchTerm: string,
     options?: {
-      searchFields?: Array<'orderNumber' | 'customerName' | 'customerEmail' | 'productName' | 'trackingNumber'>;
+      searchFields?: Array<
+        'orderNumber' | 'customerName' | 'customerEmail' | 'productName' | 'trackingNumber'
+      >;
       limit?: number;
       offset?: number;
     }
@@ -144,14 +144,12 @@ export class OrderQueryBus {
     });
   }
 
-  async getOrderCount(
-    options?: {
-      status?: string;
-      customerId?: string;
-      fromDate?: string;
-      toDate?: string;
-    }
-  ): Promise<QueryResult<number>> {
+  async getOrderCount(options?: {
+    status?: string;
+    customerId?: string;
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<QueryResult<number>> {
     return this.execute({
       type: 'GetOrderCount',
       payload: options || {},

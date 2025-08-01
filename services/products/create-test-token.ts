@@ -7,13 +7,13 @@ const payload = {
   userId: 'test-user-123',
   username: 'testuser',
   email: 'test@test.com',
-  role: 'ADMIN'
+  role: 'ADMIN',
 };
 
 // Use a simple secret for testing (the service will use its generated keys)
 const token = jwt.sign(payload, 'test-secret', {
   expiresIn: '1h',
-  algorithm: 'HS256'
+  algorithm: 'HS256',
 });
 
 console.log('Test JWT Token:');

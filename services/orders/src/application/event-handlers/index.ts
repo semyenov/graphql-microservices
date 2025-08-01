@@ -1,19 +1,19 @@
 import { EventHandler, type IEventHandler } from '@graphql-microservices/event-sourcing';
-import { PrismaClient } from '../../generated/prisma';
+import { logError, logInfo } from '@graphql-microservices/shared-logging';
+import { Decimal } from '@prisma/client/runtime/library';
 import type {
-  OrderCreatedEvent,
   OrderCancelledEvent,
-  OrderStatusUpdatedEvent,
-  OrderShippedEvent,
+  OrderCreatedEvent,
+  OrderDeliveredEvent,
   OrderItemAddedEvent,
   OrderItemRemovedEvent,
-  ShippingAddressUpdatedEvent,
-  PaymentProcessedEvent,
   OrderRefundedEvent,
-  OrderDeliveredEvent,
+  OrderShippedEvent,
+  OrderStatusUpdatedEvent,
+  PaymentProcessedEvent,
+  ShippingAddressUpdatedEvent,
 } from '../../domain/events';
-import { logInfo, logError } from '@graphql-microservices/shared-logging';
-import { Decimal } from '@prisma/client/runtime/library';
+import type { PrismaClient } from '../../generated/prisma';
 
 /**
  * Order Created Event Handler
@@ -24,9 +24,9 @@ export class OrderCreatedEventHandler implements IEventHandler<OrderCreatedEvent
 
   async handle(event: OrderCreatedEvent): Promise<void> {
     try {
-      logInfo('Handling OrderCreated event', { 
+      logInfo('Handling OrderCreated event', {
         orderId: event.aggregateId,
-        orderNumber: event.payload.orderNumber 
+        orderNumber: event.payload.orderNumber,
       });
 
       // Begin transaction to ensure consistency
@@ -64,7 +64,7 @@ export class OrderCreatedEventHandler implements IEventHandler<OrderCreatedEvent
         // Create order items
         if (event.payload.items.length > 0) {
           await tx.orderItem.createMany({
-            data: event.payload.items.map(item => ({
+            data: event.payload.items.map((item) => ({
               orderId: order.id,
               productId: item.productId,
               productName: item.name,
@@ -76,9 +76,9 @@ export class OrderCreatedEventHandler implements IEventHandler<OrderCreatedEvent
         }
       });
 
-      logInfo('Order created in read model', { 
+      logInfo('Order created in read model', {
         orderId: event.aggregateId,
-        orderNumber: event.payload.orderNumber 
+        orderNumber: event.payload.orderNumber,
       });
     } catch (error) {
       logError('Failed to handle OrderCreated event', error as Error, { event });
@@ -103,7 +103,9 @@ export class OrderCancelledEventHandler implements IEventHandler<OrderCancelledE
         data: {
           status: 'CANCELLED',
           cancelledAt: event.payload.cancelledAt,
-          refundAmount: event.payload.refundAmount ? new Decimal(event.payload.refundAmount) : undefined,
+          refundAmount: event.payload.refundAmount
+            ? new Decimal(event.payload.refundAmount)
+            : undefined,
           refundReason: event.payload.reason,
           updatedAt: event.payload.cancelledAt,
         },
@@ -126,9 +128,9 @@ export class OrderStatusUpdatedEventHandler implements IEventHandler<OrderStatus
 
   async handle(event: OrderStatusUpdatedEvent): Promise<void> {
     try {
-      logInfo('Handling OrderStatusUpdated event', { 
+      logInfo('Handling OrderStatusUpdated event', {
         orderId: event.aggregateId,
-        newStatus: event.payload.newStatus 
+        newStatus: event.payload.newStatus,
       });
 
       await this.prisma.order.update({
@@ -139,9 +141,9 @@ export class OrderStatusUpdatedEventHandler implements IEventHandler<OrderStatus
         },
       });
 
-      logInfo('Order status updated in read model', { 
+      logInfo('Order status updated in read model', {
         orderId: event.aggregateId,
-        newStatus: event.payload.newStatus 
+        newStatus: event.payload.newStatus,
       });
     } catch (error) {
       logError('Failed to handle OrderStatusUpdated event', error as Error, { event });
@@ -159,9 +161,9 @@ export class OrderShippedEventHandler implements IEventHandler<OrderShippedEvent
 
   async handle(event: OrderShippedEvent): Promise<void> {
     try {
-      logInfo('Handling OrderShipped event', { 
+      logInfo('Handling OrderShipped event', {
         orderId: event.aggregateId,
-        trackingNumber: event.payload.trackingNumber 
+        trackingNumber: event.payload.trackingNumber,
       });
 
       await this.prisma.order.update({
@@ -176,9 +178,9 @@ export class OrderShippedEventHandler implements IEventHandler<OrderShippedEvent
         },
       });
 
-      logInfo('Order shipped in read model', { 
+      logInfo('Order shipped in read model', {
         orderId: event.aggregateId,
-        trackingNumber: event.payload.trackingNumber 
+        trackingNumber: event.payload.trackingNumber,
       });
     } catch (error) {
       logError('Failed to handle OrderShipped event', error as Error, { event });
@@ -196,9 +198,9 @@ export class OrderItemAddedEventHandler implements IEventHandler<OrderItemAddedE
 
   async handle(event: OrderItemAddedEvent): Promise<void> {
     try {
-      logInfo('Handling OrderItemAdded event', { 
+      logInfo('Handling OrderItemAdded event', {
         orderId: event.aggregateId,
-        productId: event.payload.productId 
+        productId: event.payload.productId,
       });
 
       await this.prisma.$transaction(async (tx) => {
@@ -225,9 +227,9 @@ export class OrderItemAddedEventHandler implements IEventHandler<OrderItemAddedE
         });
       });
 
-      logInfo('Order item added in read model', { 
+      logInfo('Order item added in read model', {
         orderId: event.aggregateId,
-        productId: event.payload.productId 
+        productId: event.payload.productId,
       });
     } catch (error) {
       logError('Failed to handle OrderItemAdded event', error as Error, { event });
@@ -245,9 +247,9 @@ export class OrderItemRemovedEventHandler implements IEventHandler<OrderItemRemo
 
   async handle(event: OrderItemRemovedEvent): Promise<void> {
     try {
-      logInfo('Handling OrderItemRemoved event', { 
+      logInfo('Handling OrderItemRemoved event', {
         orderId: event.aggregateId,
-        productId: event.payload.productId 
+        productId: event.payload.productId,
       });
 
       await this.prisma.$transaction(async (tx) => {
@@ -270,9 +272,9 @@ export class OrderItemRemovedEventHandler implements IEventHandler<OrderItemRemo
         });
       });
 
-      logInfo('Order item removed in read model', { 
+      logInfo('Order item removed in read model', {
         orderId: event.aggregateId,
-        productId: event.payload.productId 
+        productId: event.payload.productId,
       });
     } catch (error) {
       logError('Failed to handle OrderItemRemoved event', error as Error, { event });
@@ -285,7 +287,9 @@ export class OrderItemRemovedEventHandler implements IEventHandler<OrderItemRemo
  * Shipping Address Updated Event Handler
  */
 @EventHandler('ShippingAddressUpdated')
-export class ShippingAddressUpdatedEventHandler implements IEventHandler<ShippingAddressUpdatedEvent> {
+export class ShippingAddressUpdatedEventHandler
+  implements IEventHandler<ShippingAddressUpdatedEvent>
+{
   constructor(private readonly prisma: PrismaClient) {}
 
   async handle(event: ShippingAddressUpdatedEvent): Promise<void> {
@@ -321,9 +325,9 @@ export class PaymentProcessedEventHandler implements IEventHandler<PaymentProces
 
   async handle(event: PaymentProcessedEvent): Promise<void> {
     try {
-      logInfo('Handling PaymentProcessed event', { 
+      logInfo('Handling PaymentProcessed event', {
         orderId: event.aggregateId,
-        transactionId: event.payload.transactionId 
+        transactionId: event.payload.transactionId,
       });
 
       await this.prisma.order.update({
@@ -336,9 +340,9 @@ export class PaymentProcessedEventHandler implements IEventHandler<PaymentProces
         },
       });
 
-      logInfo('Payment processed in read model', { 
+      logInfo('Payment processed in read model', {
         orderId: event.aggregateId,
-        transactionId: event.payload.transactionId 
+        transactionId: event.payload.transactionId,
       });
     } catch (error) {
       logError('Failed to handle PaymentProcessed event', error as Error, { event });
@@ -356,9 +360,9 @@ export class OrderRefundedEventHandler implements IEventHandler<OrderRefundedEve
 
   async handle(event: OrderRefundedEvent): Promise<void> {
     try {
-      logInfo('Handling OrderRefunded event', { 
+      logInfo('Handling OrderRefunded event', {
         orderId: event.aggregateId,
-        amount: event.payload.amount 
+        amount: event.payload.amount,
       });
 
       await this.prisma.order.update({
@@ -373,9 +377,9 @@ export class OrderRefundedEventHandler implements IEventHandler<OrderRefundedEve
         },
       });
 
-      logInfo('Order refunded in read model', { 
+      logInfo('Order refunded in read model', {
         orderId: event.aggregateId,
-        amount: event.payload.amount 
+        amount: event.payload.amount,
       });
     } catch (error) {
       logError('Failed to handle OrderRefunded event', error as Error, { event });

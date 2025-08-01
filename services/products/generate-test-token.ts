@@ -21,7 +21,7 @@ const authService = new AuthService(jwtKeyPair, refreshKeyPair, {
 const testToken = authService.generateAccessToken({
   userId: 'test-user-123',
   email: 'test@test.com',
-  role: 'ADMIN'
+  role: 'ADMIN',
 });
 
 console.log('Generated Test JWT Token:');

@@ -43,6 +43,7 @@ import type {
   Resolvers,
 } from '../generated/graphql';
 import { PrismaClient } from '../generated/prisma';
+import { extractAggregateId } from './application/command-result-types';
 import {
   createProductCommand,
   deactivateProductCommand,
@@ -59,17 +60,14 @@ import {
   searchProductsQuery,
 } from './application/queries';
 import {
+  extractQueryData,
   type GetAllProductsResult,
   type GetProductByIdResult,
   type GetProductBySkuResult,
   type GetProductsByIdsResult,
-  type SearchProductsResult,
-  extractQueryData,
   isSuccessResult,
+  type SearchProductsResult,
 } from './application/query-result-types';
-import {
-  extractAggregateId,
-} from './application/command-result-types';
 import { CQRSInfrastructure } from './infrastructure/cqrs-integration';
 import { RedisEventSubscriber } from './infrastructure/redis-event-subscriber';
 import { subscriptionResolvers } from './subscriptions';
@@ -97,7 +95,10 @@ const cqrsInfrastructure = new CQRSInfrastructure(
 
 // Initialize event handling
 const eventDispatcher = new ProductEventDispatcher(prisma, cacheService, pubSubService);
-const eventSubscriber = new RedisEventSubscriber(env.REDIS_URL || 'redis://localhost:6379', eventDispatcher);
+const eventSubscriber = new RedisEventSubscriber(
+  env.REDIS_URL || 'redis://localhost:6379',
+  eventDispatcher
+);
 
 // Get command and query buses
 const commandBus = cqrsInfrastructure.getCommandBus();
@@ -214,7 +215,7 @@ const typeDefs = gql`
 `;
 
 // Helper to transform product view model to GraphQL format
-function transformToGraphQLProduct(product: { 
+function transformToGraphQLProduct(product: {
   id: string;
   name: string;
   description: string;
@@ -249,17 +250,14 @@ const createProductLoader = () =>
   new DataLoader<string, GraphQLProduct | null>(async (ids) => {
     // Use query bus to fetch products
     const query = getProductsByIdsQuery(ids as string[]);
-    const result = await queryBus.execute(query) as GetProductsByIdsResult;
+    const result = (await queryBus.execute(query)) as GetProductsByIdsResult;
 
     if (!isSuccessResult(result)) {
       return ids.map(() => null);
     }
 
     const productMap = new Map(
-      result.data.map((item) => [
-        item.id,
-        transformToGraphQLProduct(item),
-      ])
+      result.data.map((item) => [item.id, transformToGraphQLProduct(item)])
     );
 
     return ids.map((id) => productMap.get(id) || null);
@@ -282,7 +280,7 @@ const resolvers: Resolvers<Context> = {
       try {
         // Use query bus to fetch product
         const query = getProductByIdQuery(id);
-        const result = await context.queryBus.execute(query) as GetProductByIdResult;
+        const result = (await context.queryBus.execute(query)) as GetProductByIdResult;
 
         if (!isSuccessResult(result) || !result.data) {
           return null;
@@ -299,7 +297,7 @@ const resolvers: Resolvers<Context> = {
       try {
         // Use query bus to fetch product by SKU
         const query = getProductBySkuQuery(sku);
-        const result = await context.queryBus.execute(query) as GetProductBySkuResult;
+        const result = (await context.queryBus.execute(query)) as GetProductBySkuResult;
 
         if (!isSuccessResult(result) || !result.data) {
           return null;
@@ -353,15 +351,14 @@ const resolvers: Resolvers<Context> = {
             filter,
             pagination
           );
-          result = await context.queryBus.execute(searchQuery) as SearchProductsResult;
+          result = (await context.queryBus.execute(searchQuery)) as SearchProductsResult;
         } else {
           // Use get all products query
-          const query = getAllProductsQuery(
-            filter,
-            pagination,
-            { field: 'createdAt', direction: 'DESC' }
-          );
-          result = await context.queryBus.execute(query) as GetAllProductsResult;
+          const query = getAllProductsQuery(filter, pagination, {
+            field: 'createdAt',
+            direction: 'DESC',
+          });
+          result = (await context.queryBus.execute(query)) as GetAllProductsResult;
         }
 
         const data = extractQueryData(result, 'Failed to fetch products');
@@ -422,7 +419,7 @@ const resolvers: Resolvers<Context> = {
           { offset: 0, limit: limit || 10 }
         );
 
-        const result = await context.queryBus.execute(searchQuery) as SearchProductsResult;
+        const result = (await context.queryBus.execute(searchQuery)) as SearchProductsResult;
         const data = extractQueryData(result, 'Failed to search products');
 
         // Transform to GraphQL format
@@ -473,8 +470,11 @@ const resolvers: Resolvers<Context> = {
 
         // Get the created product
         const getQuery = getProductByIdQuery(aggregateId);
-        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
-        const productData = extractQueryData(queryResult, 'Product created but could not be retrieved');
+        const queryResult = (await context.queryBus.execute(getQuery)) as GetProductByIdResult;
+        const productData = extractQueryData(
+          queryResult,
+          'Product created but could not be retrieved'
+        );
 
         if (!productData) {
           throw new InternalServerError('Product created but data is null');
@@ -515,8 +515,11 @@ const resolvers: Resolvers<Context> = {
 
         // Get the updated product
         const getQuery = getProductByIdQuery(id);
-        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
-        const productData = extractQueryData(queryResult, 'Product updated but could not be retrieved');
+        const queryResult = (await context.queryBus.execute(getQuery)) as GetProductByIdResult;
+        const productData = extractQueryData(
+          queryResult,
+          'Product updated but could not be retrieved'
+        );
 
         if (!productData) {
           throw new InternalServerError('Product updated but data is null');
@@ -561,8 +564,11 @@ const resolvers: Resolvers<Context> = {
 
         // Get the updated product
         const getQuery = getProductByIdQuery(id);
-        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
-        const productData = extractQueryData(queryResult, 'Product stock updated but could not be retrieved');
+        const queryResult = (await context.queryBus.execute(getQuery)) as GetProductByIdResult;
+        const productData = extractQueryData(
+          queryResult,
+          'Product stock updated but could not be retrieved'
+        );
 
         if (!productData) {
           throw new InternalServerError('Product stock updated but data is null');
@@ -601,8 +607,11 @@ const resolvers: Resolvers<Context> = {
 
         // Get the updated product
         const getQuery = getProductByIdQuery(id);
-        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
-        const productData = extractQueryData(queryResult, 'Product deactivated but could not be retrieved');
+        const queryResult = (await context.queryBus.execute(getQuery)) as GetProductByIdResult;
+        const productData = extractQueryData(
+          queryResult,
+          'Product deactivated but could not be retrieved'
+        );
 
         if (!productData) {
           throw new InternalServerError('Product deactivated but data is null');
@@ -641,8 +650,11 @@ const resolvers: Resolvers<Context> = {
 
         // Get the updated product
         const getQuery = getProductByIdQuery(id);
-        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
-        const productData = extractQueryData(queryResult, 'Product activated but could not be retrieved');
+        const queryResult = (await context.queryBus.execute(getQuery)) as GetProductByIdResult;
+        const productData = extractQueryData(
+          queryResult,
+          'Product activated but could not be retrieved'
+        );
 
         if (!productData) {
           throw new InternalServerError('Product activated but data is null');
@@ -713,8 +725,11 @@ const resolvers: Resolvers<Context> = {
         // Fetch all updated products
         const productIds = validatedInput.updates.map((u) => u.productId);
         const getQuery = getProductsByIdsQuery(productIds);
-        const queryResult = await context.queryBus.execute(getQuery) as GetProductsByIdsResult;
-        const productsData = extractQueryData(queryResult, 'Products updated but could not be retrieved');
+        const queryResult = (await context.queryBus.execute(getQuery)) as GetProductsByIdsResult;
+        const productsData = extractQueryData(
+          queryResult,
+          'Products updated but could not be retrieved'
+        );
 
         // Transform to GraphQL format
         return productsData.map(transformToGraphQLProduct);

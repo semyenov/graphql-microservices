@@ -21,10 +21,7 @@ export interface GetOrderByIdQuery extends Query {
 
 // Get Order By Order Number
 export const getOrderByNumberPayloadSchema = z.object({
-  orderNumber: z.string().regex(
-    /^ORD-\d{4}-\d{2}-\d{2}-\d{6}$/,
-    'Invalid order number format'
-  ),
+  orderNumber: z.string().regex(/^ORD-\d{4}-\d{2}-\d{2}-\d{6}$/, 'Invalid order number format'),
 });
 
 export type GetOrderByNumberPayload = z.infer<typeof getOrderByNumberPayloadSchema>;
@@ -37,7 +34,9 @@ export interface GetOrderByNumberQuery extends Query {
 // Get Orders By Customer
 export const getOrdersByCustomerPayloadSchema = z.object({
   customerId: z.uuid('Invalid customer ID format'),
-  status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']).optional(),
+  status: z
+    .enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'])
+    .optional(),
   fromDate: z.string().datetime().optional(),
   toDate: z.string().datetime().optional(),
   limit: z.number().int().positive().max(100).default(20),
@@ -55,7 +54,9 @@ export interface GetOrdersByCustomerQuery extends Query {
 
 // Get All Orders (Admin)
 export const getAllOrdersPayloadSchema = z.object({
-  status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']).optional(),
+  status: z
+    .enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'])
+    .optional(),
   customerId: z.uuid().optional(),
   fromDate: z.string().datetime().optional(),
   toDate: z.string().datetime().optional(),
@@ -63,7 +64,9 @@ export const getAllOrdersPayloadSchema = z.object({
   maxTotal: z.number().positive().optional(),
   limit: z.number().int().positive().max(100).default(20),
   offset: z.number().int().nonnegative().default(0),
-  sortBy: z.enum(['createdAt', 'updatedAt', 'total', 'status', 'customerName']).default('createdAt'),
+  sortBy: z
+    .enum(['createdAt', 'updatedAt', 'total', 'status', 'customerName'])
+    .default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
@@ -92,7 +95,10 @@ export interface GetOrderStatisticsQuery extends Query {
 // Search Orders
 export const searchOrdersPayloadSchema = z.object({
   searchTerm: z.string().min(1, 'Search term is required'),
-  searchFields: z.array(z.enum(['orderNumber', 'customerName', 'customerEmail', 'productName', 'trackingNumber']))
+  searchFields: z
+    .array(
+      z.enum(['orderNumber', 'customerName', 'customerEmail', 'productName', 'trackingNumber'])
+    )
     .default(['orderNumber', 'customerName']),
   limit: z.number().int().positive().max(50).default(10),
   offset: z.number().int().nonnegative().default(0),
@@ -107,7 +113,9 @@ export interface SearchOrdersQuery extends Query {
 
 // Get Order Count
 export const getOrderCountPayloadSchema = z.object({
-  status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']).optional(),
+  status: z
+    .enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'])
+    .optional(),
   customerId: z.uuid().optional(),
   fromDate: z.string().datetime().optional(),
   toDate: z.string().datetime().optional(),
@@ -161,7 +169,9 @@ export function getOrderByNumberQuery(payload: GetOrderByNumberPayload): GetOrde
   };
 }
 
-export function getOrdersByCustomerQuery(payload: GetOrdersByCustomerPayload): GetOrdersByCustomerQuery {
+export function getOrdersByCustomerQuery(
+  payload: GetOrdersByCustomerPayload
+): GetOrdersByCustomerQuery {
   return {
     type: 'GetOrdersByCustomer',
     payload: getOrdersByCustomerPayloadSchema.parse(payload),
@@ -175,7 +185,9 @@ export function getAllOrdersQuery(payload: GetAllOrdersPayload): GetAllOrdersQue
   };
 }
 
-export function getOrderStatisticsQuery(payload: GetOrderStatisticsPayload): GetOrderStatisticsQuery {
+export function getOrderStatisticsQuery(
+  payload: GetOrderStatisticsPayload
+): GetOrderStatisticsQuery {
   return {
     type: 'GetOrderStatistics',
     payload: getOrderStatisticsPayloadSchema.parse(payload),

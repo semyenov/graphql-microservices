@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { OutboxEventStatus, OutboxProcessor, type IOutboxEvent, type IOutboxStore } from './outbox';
+import { type IOutboxEvent, type IOutboxStore, OutboxEventStatus, OutboxProcessor } from './outbox';
 import type { IDomainEvent } from './types';
 
 /**
