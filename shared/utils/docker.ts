@@ -33,7 +33,7 @@ export async function startDocker(options: DockerOptions = {}): Promise<void> {
     console.log('Starting Docker services...');
   }
 
-  await $`docker-compose -f ${compose} up -d`;
+  await $`docker compose -f ${compose} up -d`;
 }
 
 // Stop docker compose services
@@ -44,7 +44,7 @@ export async function stopDocker(options: DockerOptions = {}): Promise<void> {
     console.log('Stopping Docker services...');
   }
 
-  await $`docker-compose -f ${compose} down`;
+  await $`docker compose -f ${compose} down`;
 }
 
 // Check if a docker container is running

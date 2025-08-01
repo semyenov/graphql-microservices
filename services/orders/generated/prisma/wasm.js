@@ -122,26 +122,51 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 
 exports.Prisma.OrderScalarFieldEnum = {
   id: 'id',
-  userId: 'userId',
   orderNumber: 'orderNumber',
+  customerId: 'customerId',
+  customerName: 'customerName',
+  customerEmail: 'customerEmail',
+  shippingStreet: 'shippingStreet',
+  shippingCity: 'shippingCity',
+  shippingState: 'shippingState',
+  shippingPostalCode: 'shippingPostalCode',
+  shippingCountry: 'shippingCountry',
+  billingStreet: 'billingStreet',
+  billingCity: 'billingCity',
+  billingState: 'billingState',
+  billingPostalCode: 'billingPostalCode',
+  billingCountry: 'billingCountry',
   subtotal: 'subtotal',
   tax: 'tax',
   shipping: 'shipping',
   total: 'total',
+  currency: 'currency',
   status: 'status',
-  shippingInfo: 'shippingInfo',
-  paymentInfo: 'paymentInfo',
+  paymentMethod: 'paymentMethod',
+  paymentTransactionId: 'paymentTransactionId',
+  paymentProcessedAt: 'paymentProcessedAt',
+  trackingNumber: 'trackingNumber',
+  carrier: 'carrier',
+  shippedDate: 'shippedDate',
+  estimatedDeliveryDate: 'estimatedDeliveryDate',
+  refundAmount: 'refundAmount',
+  refundReason: 'refundReason',
+  refundTransactionId: 'refundTransactionId',
+  refundedAt: 'refundedAt',
   notes: 'notes',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  cancelledAt: 'cancelledAt',
+  deliveredAt: 'deliveredAt'
 };
 
 exports.Prisma.OrderItemScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
   productId: 'productId',
+  productName: 'productName',
   quantity: 'quantity',
-  price: 'price',
+  unitPrice: 'unitPrice',
   total: 'total'
 };
 
@@ -150,20 +175,9 @@ exports.Prisma.SortOrder = {
   desc: 'desc'
 };
 
-exports.Prisma.NullableJsonNullValueInput = {
-  DbNull: Prisma.DbNull,
-  JsonNull: Prisma.JsonNull
-};
-
 exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
-};
-
-exports.Prisma.JsonNullValueFilter = {
-  DbNull: Prisma.DbNull,
-  JsonNull: Prisma.JsonNull,
-  AnyNull: Prisma.AnyNull
 };
 
 exports.Prisma.NullsOrder = {
@@ -172,6 +186,7 @@ exports.Prisma.NullsOrder = {
 };
 exports.OrderStatus = exports.$Enums.OrderStatus = {
   PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
   PROCESSING: 'PROCESSING',
   SHIPPED: 'SHIPPED',
   DELIVERED: 'DELIVERED',

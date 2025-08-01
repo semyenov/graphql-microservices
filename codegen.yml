@@ -7,32 +7,32 @@ generates:
       - typescript
       - typescript-resolvers
     config:
-      contextType: ../src/index#Context
+      contextType: "@graphql-microservices/users#Context"
       scalars:
         DateTime: string
-        
+
   services/products/generated/graphql.ts:
     schema: services/products/schema-clean.graphql
     plugins:
       - typescript
       - typescript-resolvers
     config:
-      contextType: ../src/index#Context
+      contextType: "@graphql-microservices/products#Context"
       scalars:
         DateTime: string
         Decimal: number
-        
+
   services/orders/generated/graphql.ts:
     schema: services/orders/schema-clean.graphql
     plugins:
       - typescript
       - typescript-resolvers
     config:
-      contextType: ../src/index#Context
+      contextType: "@graphql-microservices/orders#Context"
       scalars:
         DateTime: string
         Decimal: number
-        
+
   # Generate client types using combined schema
   shared/graphql/generated/client-types.ts:
     schema:

@@ -98,20 +98,19 @@ export const GET_ORDER_WITH_DETAILS = graphql(`
   query GetOrderWithDetails($id: ID!) {
     order(id: $id) {
       id
+      orderNumber
       status
       total
       createdAt
       updatedAt
-      user {
-        id
-        username
-        email
-        name
-      }
+      customerId
+      customerName
+      customerEmail
       items {
         id
         quantity
-        price
+        unitPrice
+        productName
         product {
           id
           name
@@ -128,13 +127,15 @@ export const GET_MY_ORDERS = graphql(`
     myOrders {
       orders {
         id
+        orderNumber
         status
         total
         createdAt
         items {
           id
           quantity
-          price
+          unitPrice
+          productName
           product {
             id
             name
@@ -163,13 +164,15 @@ export const GET_USER_WITH_ORDERS = graphql(`
       name
       orders {
         id
+        orderNumber
         status
         total
         createdAt
         items {
           id
           quantity
-          price
+          unitPrice
+          productName
           product {
             id
             name

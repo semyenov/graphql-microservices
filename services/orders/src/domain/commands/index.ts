@@ -11,9 +11,9 @@ export interface Command {
 
 // Create Order
 export const createOrderPayloadSchema = z.object({
-  customerId: z.string().uuid('Invalid customer ID format'),
+  customerId: z.uuid('Invalid customer ID format'),
   items: z.array(z.object({
-    productId: z.string().uuid('Invalid product ID format'),
+    productId: z.uuid('Invalid product ID format'),
     quantity: z.number().int().positive('Quantity must be positive'),
     price: z.number().positive('Price must be positive'),
     name: z.string().min(1, 'Product name is required'),
@@ -46,7 +46,7 @@ export interface CreateOrderCommand extends Command {
 // Cancel Order
 export const cancelOrderPayloadSchema = z.object({
   reason: z.string().min(1, 'Cancellation reason is required'),
-  cancelledBy: z.string().uuid('Invalid user ID format'),
+  cancelledBy: z.uuid('Invalid user ID format'),
 });
 
 export type CancelOrderPayload = z.infer<typeof cancelOrderPayloadSchema>;
@@ -59,7 +59,7 @@ export interface CancelOrderCommand extends Command {
 // Update Order Status
 export const updateOrderStatusPayloadSchema = z.object({
   status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']),
-  updatedBy: z.string().uuid('Invalid user ID format'),
+  updatedBy: z.uuid('Invalid user ID format'),
   notes: z.string().optional(),
 });
 
@@ -75,7 +75,7 @@ export const shipOrderPayloadSchema = z.object({
   trackingNumber: z.string().min(1, 'Tracking number is required'),
   carrier: z.string().min(1, 'Carrier is required'),
   estimatedDeliveryDate: z.string().datetime('Invalid date format'),
-  shippedBy: z.string().uuid('Invalid user ID format'),
+  shippedBy: z.uuid('Invalid user ID format'),
 });
 
 export type ShipOrderPayload = z.infer<typeof shipOrderPayloadSchema>;
@@ -87,11 +87,11 @@ export interface ShipOrderCommand extends Command {
 
 // Add Order Item
 export const addOrderItemPayloadSchema = z.object({
-  productId: z.string().uuid('Invalid product ID format'),
+  productId: z.uuid('Invalid product ID format'),
   quantity: z.number().int().positive('Quantity must be positive'),
   price: z.number().positive('Price must be positive'),
   name: z.string().min(1, 'Product name is required'),
-  addedBy: z.string().uuid('Invalid user ID format'),
+  addedBy: z.uuid('Invalid user ID format'),
 });
 
 export type AddOrderItemPayload = z.infer<typeof addOrderItemPayloadSchema>;
@@ -103,8 +103,8 @@ export interface AddOrderItemCommand extends Command {
 
 // Remove Order Item
 export const removeOrderItemPayloadSchema = z.object({
-  productId: z.string().uuid('Invalid product ID format'),
-  removedBy: z.string().uuid('Invalid user ID format'),
+  productId: z.uuid('Invalid product ID format'),
+  removedBy: z.uuid('Invalid user ID format'),
   reason: z.string().optional(),
 });
 
@@ -124,7 +124,7 @@ export const updateShippingAddressPayloadSchema = z.object({
     postalCode: z.string().min(1, 'Postal code is required'),
     country: z.string().min(1, 'Country is required'),
   }),
-  updatedBy: z.string().uuid('Invalid user ID format'),
+  updatedBy: z.uuid('Invalid user ID format'),
 });
 
 export type UpdateShippingAddressPayload = z.infer<typeof updateShippingAddressPayloadSchema>;
@@ -139,7 +139,7 @@ export const processPaymentPayloadSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
   paymentMethod: z.enum(['CREDIT_CARD', 'DEBIT_CARD', 'PAYPAL', 'BANK_TRANSFER']),
   transactionId: z.string().min(1, 'Transaction ID is required'),
-  processedBy: z.string().uuid('Invalid user ID format'),
+  processedBy: z.uuid('Invalid user ID format'),
 });
 
 export type ProcessPaymentPayload = z.infer<typeof processPaymentPayloadSchema>;
@@ -153,7 +153,7 @@ export interface ProcessPaymentCommand extends Command {
 export const refundOrderPayloadSchema = z.object({
   amount: z.number().positive('Refund amount must be positive'),
   reason: z.string().min(1, 'Refund reason is required'),
-  refundedBy: z.string().uuid('Invalid user ID format'),
+  refundedBy: z.uuid('Invalid user ID format'),
   transactionId: z.string().optional(),
 });
 
@@ -165,7 +165,7 @@ export interface RefundOrderCommand extends Command {
 }
 
 // Union type for all commands
-export type OrderCommand = 
+export type OrderCommand =
   | CreateOrderCommand
   | CancelOrderCommand
   | UpdateOrderStatusCommand

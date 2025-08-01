@@ -246,7 +246,7 @@ export type ProductQuery =
 export const getProductByIdQuerySchema = z.object({
   type: z.literal('GetProductById'),
   payload: z.object({
-    productId: z.string().uuid(),
+    productId: z.uuid(),
   }),
 });
 
@@ -260,7 +260,7 @@ export const getProductBySkuQuerySchema = z.object({
 export const getProductsByIdsQuerySchema = z.object({
   type: z.literal('GetProductsByIds'),
   payload: z.object({
-    productIds: z.array(z.string().uuid()).min(1).max(100),
+    productIds: z.array(z.uuid()).min(1).max(100),
   }),
 });
 
@@ -315,7 +315,7 @@ export const searchProductsQuerySchema = z.object({
 export const getProductEventsQuerySchema = z.object({
   type: z.literal('GetProductEvents'),
   payload: z.object({
-    productId: z.string().uuid(),
+    productId: z.uuid(),
     eventTypes: z.array(z.string()).optional(),
     fromDate: z.date().optional(),
     toDate: z.date().optional(),
@@ -326,7 +326,7 @@ export const getProductEventsQuerySchema = z.object({
 export const getProductStockReservationsQuerySchema = z.object({
   type: z.literal('GetProductStockReservations'),
   payload: z.object({
-    productId: z.string().uuid(),
+    productId: z.uuid(),
     status: z.enum(['active', 'expired', 'fulfilled', 'cancelled']).optional(),
     pagination: paginationOptionsSchema.optional(),
   }),
@@ -344,7 +344,7 @@ export const getLowStockProductsQuerySchema = z.object({
 export const getProductInventorySummaryQuerySchema = z.object({
   type: z.literal('GetProductInventorySummary'),
   payload: z.object({
-    productIds: z.array(z.string().uuid()).optional(),
+    productIds: z.array(z.uuid()).optional(),
     category: z.string().optional(),
     onlyLowStock: z.boolean().optional(),
     pagination: paginationOptionsSchema.optional(),

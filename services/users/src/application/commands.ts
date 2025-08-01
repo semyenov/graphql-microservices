@@ -31,7 +31,7 @@ export interface CreateUserCommand extends Command {
 
 export const createUserCommandSchema = z.object({
   type: z.literal('CreateUser'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     username: z
       .string()
@@ -66,7 +66,7 @@ export interface UpdateUserProfileCommand extends Command {
 
 export const updateUserProfileCommandSchema = z.object({
   type: z.literal('UpdateUserProfile'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     name: z.string().min(1).max(100).optional(),
     phoneNumber: z.string().optional(),
@@ -94,7 +94,7 @@ export interface UpdateUserCredentialsCommand extends Command {
 
 export const updateUserCredentialsCommandSchema = z.object({
   type: z.literal('UpdateUserCredentials'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     username: z
       .string()
@@ -127,10 +127,10 @@ export interface ChangeUserRoleCommand extends Command {
 
 export const changeUserRoleCommandSchema = z.object({
   type: z.literal('ChangeUserRole'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     newRole: z.enum(['USER', 'ADMIN', 'MODERATOR']),
-    changedBy: z.string().uuid(),
+    changedBy: z.uuid(),
   }),
   metadata: z
     .object({
@@ -156,11 +156,11 @@ export interface ChangeUserPasswordCommand extends Command {
 
 export const changeUserPasswordCommandSchema = z.object({
   type: z.literal('ChangeUserPassword'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     currentPassword: z.string(),
     newPassword: z.string().min(8).max(128),
-    changedBy: z.string().uuid(),
+    changedBy: z.uuid(),
   }),
   metadata: z
     .object({
@@ -185,10 +185,10 @@ export interface DeactivateUserCommand extends Command {
 
 export const deactivateUserCommandSchema = z.object({
   type: z.literal('DeactivateUser'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     reason: z.string().min(1).max(500),
-    deactivatedBy: z.string().uuid(),
+    deactivatedBy: z.uuid(),
   }),
   metadata: z
     .object({
@@ -213,10 +213,10 @@ export interface ReactivateUserCommand extends Command {
 
 export const reactivateUserCommandSchema = z.object({
   type: z.literal('ReactivateUser'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     reason: z.string().min(1).max(500),
-    reactivatedBy: z.string().uuid(),
+    reactivatedBy: z.uuid(),
   }),
   metadata: z
     .object({
@@ -241,7 +241,7 @@ export interface RecordUserSignInCommand extends Command {
 
 export const recordUserSignInCommandSchema = z.object({
   type: z.literal('RecordUserSignIn'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     ipAddress: z.string().optional(),
     userAgent: z.string().optional(),
@@ -265,7 +265,7 @@ export interface RecordUserSignOutCommand extends Command {
 
 export const recordUserSignOutCommandSchema = z.object({
   type: z.literal('RecordUserSignOut'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   metadata: z
     .object({
       correlationId: z.string().optional(),

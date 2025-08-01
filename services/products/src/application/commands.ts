@@ -153,9 +153,9 @@ const moneySchema = z.object({
 });
 
 export const createProductCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('CreateProduct'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     name: z.string().min(1).max(200),
     description: z.string().min(1).max(2000),
@@ -167,16 +167,16 @@ export const createProductCommandSchema = z.object({
     imageUrl: z.string().url().optional(),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });
 
 export const updateProductCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('UpdateProduct'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     name: z.string().min(1).max(200).optional(),
     description: z.string().min(1).max(2000).optional(),
@@ -184,118 +184,118 @@ export const updateProductCommandSchema = z.object({
     tags: z.array(z.string()).max(10).optional(),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });
 
 export const changeProductPriceCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('ChangeProductPrice'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     newPrice: moneySchema,
     reason: z.string().min(1).max(500),
-    changedBy: z.string().uuid(),
+    changedBy: z.uuid(),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });
 
 export const updateProductStockCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('UpdateProductStock'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     newStock: z.number().int().nonnegative(),
     changeType: z.enum(['increase', 'decrease', 'adjustment']),
     reason: z.string().max(500).optional(),
-    changedBy: z.string().uuid().optional(),
+    changedBy: z.uuid().optional(),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });
 
 export const changeProductCategoryCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('ChangeProductCategory'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     newCategory: z.string().min(1),
     reason: z.string().min(1).max(500),
-    changedBy: z.string().uuid(),
+    changedBy: z.uuid(),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });
 
 export const reserveProductStockCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('ReserveProductStock'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     quantity: z.number().int().positive(),
-    reservedFor: z.string().uuid(),
+    reservedFor: z.uuid(),
     expiresAt: z.date().optional(),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });
 
 export const releaseProductStockReservationCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('ReleaseProductStockReservation'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
-    reservationId: z.string().uuid(),
+    reservationId: z.uuid(),
     reason: z.enum(['expired', 'cancelled', 'fulfilled']),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });
 
 export const deactivateProductCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('DeactivateProduct'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     reason: z.string().min(1).max(500),
-    deactivatedBy: z.string().uuid(),
+    deactivatedBy: z.uuid(),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });
 
 export const reactivateProductCommandSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.literal('ReactivateProduct'),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   payload: z.object({
     reason: z.string().min(1).max(500),
-    reactivatedBy: z.string().uuid(),
+    reactivatedBy: z.uuid(),
   }),
   metadata: z.object({
-    correlationId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    correlationId: z.uuid().optional(),
+    userId: z.uuid().optional(),
     timestamp: z.date().optional(),
   }),
 });

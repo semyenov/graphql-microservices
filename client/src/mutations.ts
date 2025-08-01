@@ -159,18 +159,18 @@ export const CREATE_ORDER = graphql(`
   mutation CreateOrder($input: CreateOrderInput!) {
     createOrder(input: $input) {
       id
+      orderNumber
       status
       total
       createdAt
-      user {
-        id
-        username
-        email
-      }
+      customerId
+      customerName
+      customerEmail
       items {
         id
         quantity
-        price
+        unitPrice
+        productName
         product {
           id
           name

@@ -93,7 +93,7 @@ export const idSchema = z
   .max(255, 'ID must not exceed 255 characters');
 
 // UUID validation
-export const uuidSchema = z.string().uuid('Invalid UUID format');
+export const uuidSchema = z.uuid('Invalid UUID format');
 
 // Role enum
 export const roleSchema = z.enum(['USER', 'ADMIN', 'MODERATOR']);

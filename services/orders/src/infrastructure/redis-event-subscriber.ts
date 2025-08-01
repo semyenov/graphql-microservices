@@ -1,7 +1,6 @@
 import { Redis } from 'ioredis';
-import { logInfo, logError } from '@graphql-microservices/shared-logging';
 import { getOrdersCQRS } from './cqrs-integration';
-import type { DomainEvent } from '../domain/events';
+import { logError, logInfo } from '@shared/utils';
 
 export interface EventSubscriberConfig {
   redisUrl: string;
@@ -13,7 +12,7 @@ export class OrdersRedisEventSubscriber {
   private publisher: Redis | null = null;
   private isRunning = false;
 
-  constructor(private readonly config: EventSubscriberConfig) {}
+  constructor(private readonly config: EventSubscriberConfig) { }
 
   async initialize(): Promise<void> {
     try {
@@ -23,11 +22,11 @@ export class OrdersRedisEventSubscriber {
 
       // Set up error handlers
       this.subscriber.on('error', (error) => {
-        logError('Redis subscriber error', error);
+        logError(`Redis subscriber error: ${error}`);
       });
 
       this.publisher.on('error', (error) => {
-        logError('Redis publisher error', error);
+        logError(`Redis publisher error: ${error}`);
       });
 
       // Set up message handler
@@ -37,7 +36,7 @@ export class OrdersRedisEventSubscriber {
 
       logInfo('📡 Redis event subscriber connected');
     } catch (error) {
-      logError('Failed to initialize Redis event subscriber', error as Error);
+      logError(`Failed to initialize Redis event subscriber: ${error}`);
       throw error;
     }
   }
@@ -51,10 +50,10 @@ export class OrdersRedisEventSubscriber {
       // Subscribe to channels
       await this.subscriber.subscribe(...this.config.channels);
       this.isRunning = true;
-      
-      logInfo('📥 Subscribed to channels:', this.config.channels.join(', '));
+
+      logInfo(`📥 Subscribed to channels: ${this.config.channels.join(', ')}`);
     } catch (error) {
-      logError('Failed to start event subscriber', error as Error);
+      logError(`Failed to start event subscriber: ${error}`);
       throw error;
     }
   }
@@ -67,22 +66,22 @@ export class OrdersRedisEventSubscriber {
     try {
       await this.subscriber.unsubscribe();
       this.isRunning = false;
-      
+
       logInfo('📤 Unsubscribed from all channels');
     } catch (error) {
-      logError('Failed to stop event subscriber', error as Error);
+      logError(`Failed to stop event subscriber: ${error}`);
       throw error;
     }
   }
 
   async close(): Promise<void> {
     await this.stop();
-    
+
     if (this.subscriber) {
       this.subscriber.disconnect();
       this.subscriber = null;
     }
-    
+
     if (this.publisher) {
       this.publisher.disconnect();
       this.publisher = null;
@@ -92,53 +91,50 @@ export class OrdersRedisEventSubscriber {
   private async handleMessage(channel: string, message: string): Promise<void> {
     try {
       const event = JSON.parse(message);
-      
-      logInfo(`Received event on channel ${channel}`, {
+
+      logInfo(`Received event on channel ${channel} ${JSON.stringify({
         eventType: event.type,
         aggregateId: event.aggregateId,
-      });
+      }, null, 2)}`);
 
       // Route events based on channel
       switch (channel) {
         case 'cross-service.product.events':
           await this.handleProductEvent(event);
           break;
-          
+
         case 'cross-service.user.events':
           await this.handleUserEvent(event);
           break;
-          
+
         case 'cross-service.payment.events':
           await this.handlePaymentEvent(event);
           break;
-          
+
         case 'inventory.responses':
           await this.handleInventoryResponse(event);
           break;
-          
+
         default:
           logInfo(`Unhandled channel: ${channel}`);
       }
     } catch (error) {
-      logError(`Failed to handle message on channel ${channel}`, error as Error, { message });
+      logError(`Failed to handle message on channel ${channel}: ${error}`);
     }
   }
 
   private async handleProductEvent(event: any): Promise<void> {
     const cqrs = getOrdersCQRS();
-    
+
     switch (event.type) {
       case 'ProductDeactivated':
         // Handle product deactivation - might need to update or cancel orders
-        logInfo('Product deactivated', { productId: event.aggregateId });
+        logInfo(`Product deactivated: ${event.aggregateId}`);
         break;
-        
+
       case 'ProductPriceChanged':
         // Log price changes for audit purposes
-        logInfo('Product price changed', { 
-          productId: event.aggregateId,
-          newPrice: event.data.newPrice 
-        });
+        logInfo(`Product price changed: ${event.aggregateId} ${event.data.newPrice}`);
         break;
     }
   }
@@ -147,12 +143,12 @@ export class OrdersRedisEventSubscriber {
     switch (event.type) {
       case 'UserDeactivated':
         // Handle user deactivation - might affect order processing
-        logInfo('User deactivated', { userId: event.aggregateId });
+        logInfo(`User deactivated: ${event.aggregateId}`);
         break;
-        
+
       case 'UserAddressUpdated':
         // Could update default shipping addresses for pending orders
-        logInfo('User address updated', { userId: event.aggregateId });
+        logInfo(`User address updated: ${event.aggregateId}`);
         break;
     }
   }
@@ -160,7 +156,7 @@ export class OrdersRedisEventSubscriber {
   private async handlePaymentEvent(event: any): Promise<void> {
     const cqrs = getOrdersCQRS();
     const commandBus = cqrs.getCommandBus();
-    
+
     switch (event.type) {
       case 'PaymentSucceeded':
         // Process payment confirmation
@@ -178,15 +174,12 @@ export class OrdersRedisEventSubscriber {
           });
         }
         break;
-        
+
       case 'PaymentFailed':
         // Handle payment failure
-        logError('Payment failed for order', new Error('Payment failed'), {
-          orderId: event.data.orderId,
-          reason: event.data.reason,
-        });
+        logError(`Payment failed for order: ${event.data.orderId} ${event.data.reason}`);
         break;
-        
+
       case 'RefundCompleted':
         // Handle refund completion
         if (event.data.orderId) {
@@ -209,7 +202,7 @@ export class OrdersRedisEventSubscriber {
   private async handleInventoryResponse(event: any): Promise<void> {
     const cqrs = getOrdersCQRS();
     const commandBus = cqrs.getCommandBus();
-    
+
     switch (event.type) {
       case 'StockReserved':
         // Update order status to confirmed after stock reservation
@@ -226,7 +219,7 @@ export class OrdersRedisEventSubscriber {
           });
         }
         break;
-        
+
       case 'StockReservationFailed':
         // Cancel order if stock reservation fails
         if (event.data.orderId) {
@@ -251,13 +244,13 @@ export class OrdersRedisEventSubscriber {
 
     try {
       await this.publisher.publish(channel, JSON.stringify(event));
-      
-      logInfo(`Published event to channel ${channel}`, {
+
+      logInfo(`Published event to channel ${channel} ${JSON.stringify({
         eventType: event.type,
         aggregateId: event.aggregateId,
-      });
+      }, null, 2)}`);
     } catch (error) {
-      logError(`Failed to publish event to channel ${channel}`, error as Error, { event });
+      logError(`Failed to publish event to channel ${channel}: ${error}`);
       throw error;
     }
   }
@@ -271,16 +264,16 @@ export function createOrdersEventSubscriber(redisUrl: string): OrdersRedisEventS
     'cross-service.user.events',
     'cross-service.payment.events',
     'cross-service.shipping.events',
-    
+
     // Inventory service responses
     'inventory.responses',
     'inventory.stock.updates',
-    
+
     // Payment service events
     'payment.processed',
     'payment.failed',
     'payment.refunded',
-    
+
     // Shipping service events
     'shipping.dispatched',
     'shipping.delivered',

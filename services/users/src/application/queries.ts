@@ -26,7 +26,7 @@ export interface GetUserByIdQuery extends Query {
 export const getUserByIdQuerySchema = z.object({
   type: z.literal('GetUserById'),
   payload: z.object({
-    userId: z.string().uuid(),
+    userId: z.uuid(),
   }),
   metadata: z
     .object({
@@ -154,7 +154,7 @@ export interface GetUsersByIdsQuery extends Query {
 export const getUsersByIdsQuerySchema = z.object({
   type: z.literal('GetUsersByIds'),
   payload: z.object({
-    userIds: z.array(z.string().uuid()).min(1).max(100),
+    userIds: z.array(z.uuid()).min(1).max(100),
   }),
   metadata: z
     .object({
@@ -186,7 +186,7 @@ export interface GetUserEventsQuery extends Query {
 export const getUserEventsQuerySchema = z.object({
   type: z.literal('GetUserEvents'),
   payload: z.object({
-    userId: z.string().uuid(),
+    userId: z.uuid(),
     eventTypes: z.array(z.string()).optional(),
     fromDate: z.date().optional(),
     toDate: z.date().optional(),

@@ -30,6 +30,7 @@ export type OrderItem = $Result.DefaultSelection<Prisma.$OrderItemPayload>
 export namespace $Enums {
   export const OrderStatus: {
   PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
   PROCESSING: 'PROCESSING',
   SHIPPED: 'SHIPPED',
   DELIVERED: 'DELIVERED',
@@ -1041,6 +1042,7 @@ export namespace Prisma {
     tax: Decimal | null
     shipping: Decimal | null
     total: Decimal | null
+    refundAmount: Decimal | null
   }
 
   export type OrderSumAggregateOutputType = {
@@ -1048,50 +1050,127 @@ export namespace Prisma {
     tax: Decimal | null
     shipping: Decimal | null
     total: Decimal | null
+    refundAmount: Decimal | null
   }
 
   export type OrderMinAggregateOutputType = {
     id: string | null
-    userId: string | null
     orderNumber: string | null
+    customerId: string | null
+    customerName: string | null
+    customerEmail: string | null
+    shippingStreet: string | null
+    shippingCity: string | null
+    shippingState: string | null
+    shippingPostalCode: string | null
+    shippingCountry: string | null
+    billingStreet: string | null
+    billingCity: string | null
+    billingState: string | null
+    billingPostalCode: string | null
+    billingCountry: string | null
     subtotal: Decimal | null
     tax: Decimal | null
     shipping: Decimal | null
     total: Decimal | null
+    currency: string | null
     status: $Enums.OrderStatus | null
+    paymentMethod: string | null
+    paymentTransactionId: string | null
+    paymentProcessedAt: Date | null
+    trackingNumber: string | null
+    carrier: string | null
+    shippedDate: Date | null
+    estimatedDeliveryDate: Date | null
+    refundAmount: Decimal | null
+    refundReason: string | null
+    refundTransactionId: string | null
+    refundedAt: Date | null
     notes: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    cancelledAt: Date | null
+    deliveredAt: Date | null
   }
 
   export type OrderMaxAggregateOutputType = {
     id: string | null
-    userId: string | null
     orderNumber: string | null
+    customerId: string | null
+    customerName: string | null
+    customerEmail: string | null
+    shippingStreet: string | null
+    shippingCity: string | null
+    shippingState: string | null
+    shippingPostalCode: string | null
+    shippingCountry: string | null
+    billingStreet: string | null
+    billingCity: string | null
+    billingState: string | null
+    billingPostalCode: string | null
+    billingCountry: string | null
     subtotal: Decimal | null
     tax: Decimal | null
     shipping: Decimal | null
     total: Decimal | null
+    currency: string | null
     status: $Enums.OrderStatus | null
+    paymentMethod: string | null
+    paymentTransactionId: string | null
+    paymentProcessedAt: Date | null
+    trackingNumber: string | null
+    carrier: string | null
+    shippedDate: Date | null
+    estimatedDeliveryDate: Date | null
+    refundAmount: Decimal | null
+    refundReason: string | null
+    refundTransactionId: string | null
+    refundedAt: Date | null
     notes: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    cancelledAt: Date | null
+    deliveredAt: Date | null
   }
 
   export type OrderCountAggregateOutputType = {
     id: number
-    userId: number
     orderNumber: number
+    customerId: number
+    customerName: number
+    customerEmail: number
+    shippingStreet: number
+    shippingCity: number
+    shippingState: number
+    shippingPostalCode: number
+    shippingCountry: number
+    billingStreet: number
+    billingCity: number
+    billingState: number
+    billingPostalCode: number
+    billingCountry: number
     subtotal: number
     tax: number
     shipping: number
     total: number
+    currency: number
     status: number
-    shippingInfo: number
-    paymentInfo: number
+    paymentMethod: number
+    paymentTransactionId: number
+    paymentProcessedAt: number
+    trackingNumber: number
+    carrier: number
+    shippedDate: number
+    estimatedDeliveryDate: number
+    refundAmount: number
+    refundReason: number
+    refundTransactionId: number
+    refundedAt: number
     notes: number
     createdAt: number
     updatedAt: number
+    cancelledAt: number
+    deliveredAt: number
     _all: number
   }
 
@@ -1101,6 +1180,7 @@ export namespace Prisma {
     tax?: true
     shipping?: true
     total?: true
+    refundAmount?: true
   }
 
   export type OrderSumAggregateInputType = {
@@ -1108,50 +1188,127 @@ export namespace Prisma {
     tax?: true
     shipping?: true
     total?: true
+    refundAmount?: true
   }
 
   export type OrderMinAggregateInputType = {
     id?: true
-    userId?: true
     orderNumber?: true
+    customerId?: true
+    customerName?: true
+    customerEmail?: true
+    shippingStreet?: true
+    shippingCity?: true
+    shippingState?: true
+    shippingPostalCode?: true
+    shippingCountry?: true
+    billingStreet?: true
+    billingCity?: true
+    billingState?: true
+    billingPostalCode?: true
+    billingCountry?: true
     subtotal?: true
     tax?: true
     shipping?: true
     total?: true
+    currency?: true
     status?: true
+    paymentMethod?: true
+    paymentTransactionId?: true
+    paymentProcessedAt?: true
+    trackingNumber?: true
+    carrier?: true
+    shippedDate?: true
+    estimatedDeliveryDate?: true
+    refundAmount?: true
+    refundReason?: true
+    refundTransactionId?: true
+    refundedAt?: true
     notes?: true
     createdAt?: true
     updatedAt?: true
+    cancelledAt?: true
+    deliveredAt?: true
   }
 
   export type OrderMaxAggregateInputType = {
     id?: true
-    userId?: true
     orderNumber?: true
+    customerId?: true
+    customerName?: true
+    customerEmail?: true
+    shippingStreet?: true
+    shippingCity?: true
+    shippingState?: true
+    shippingPostalCode?: true
+    shippingCountry?: true
+    billingStreet?: true
+    billingCity?: true
+    billingState?: true
+    billingPostalCode?: true
+    billingCountry?: true
     subtotal?: true
     tax?: true
     shipping?: true
     total?: true
+    currency?: true
     status?: true
+    paymentMethod?: true
+    paymentTransactionId?: true
+    paymentProcessedAt?: true
+    trackingNumber?: true
+    carrier?: true
+    shippedDate?: true
+    estimatedDeliveryDate?: true
+    refundAmount?: true
+    refundReason?: true
+    refundTransactionId?: true
+    refundedAt?: true
     notes?: true
     createdAt?: true
     updatedAt?: true
+    cancelledAt?: true
+    deliveredAt?: true
   }
 
   export type OrderCountAggregateInputType = {
     id?: true
-    userId?: true
     orderNumber?: true
+    customerId?: true
+    customerName?: true
+    customerEmail?: true
+    shippingStreet?: true
+    shippingCity?: true
+    shippingState?: true
+    shippingPostalCode?: true
+    shippingCountry?: true
+    billingStreet?: true
+    billingCity?: true
+    billingState?: true
+    billingPostalCode?: true
+    billingCountry?: true
     subtotal?: true
     tax?: true
     shipping?: true
     total?: true
+    currency?: true
     status?: true
-    shippingInfo?: true
-    paymentInfo?: true
+    paymentMethod?: true
+    paymentTransactionId?: true
+    paymentProcessedAt?: true
+    trackingNumber?: true
+    carrier?: true
+    shippedDate?: true
+    estimatedDeliveryDate?: true
+    refundAmount?: true
+    refundReason?: true
+    refundTransactionId?: true
+    refundedAt?: true
     notes?: true
     createdAt?: true
     updatedAt?: true
+    cancelledAt?: true
+    deliveredAt?: true
     _all?: true
   }
 
@@ -1243,18 +1400,42 @@ export namespace Prisma {
 
   export type OrderGroupByOutputType = {
     id: string
-    userId: string
     orderNumber: string
+    customerId: string
+    customerName: string
+    customerEmail: string
+    shippingStreet: string
+    shippingCity: string
+    shippingState: string
+    shippingPostalCode: string
+    shippingCountry: string
+    billingStreet: string | null
+    billingCity: string | null
+    billingState: string | null
+    billingPostalCode: string | null
+    billingCountry: string | null
     subtotal: Decimal
     tax: Decimal
     shipping: Decimal
     total: Decimal
+    currency: string
     status: $Enums.OrderStatus
-    shippingInfo: JsonValue | null
-    paymentInfo: JsonValue | null
+    paymentMethod: string
+    paymentTransactionId: string | null
+    paymentProcessedAt: Date | null
+    trackingNumber: string | null
+    carrier: string | null
+    shippedDate: Date | null
+    estimatedDeliveryDate: Date | null
+    refundAmount: Decimal | null
+    refundReason: string | null
+    refundTransactionId: string | null
+    refundedAt: Date | null
     notes: string | null
     createdAt: Date
     updatedAt: Date
+    cancelledAt: Date | null
+    deliveredAt: Date | null
     _count: OrderCountAggregateOutputType | null
     _avg: OrderAvgAggregateOutputType | null
     _sum: OrderSumAggregateOutputType | null
@@ -1278,71 +1459,167 @@ export namespace Prisma {
 
   export type OrderSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    userId?: boolean
     orderNumber?: boolean
+    customerId?: boolean
+    customerName?: boolean
+    customerEmail?: boolean
+    shippingStreet?: boolean
+    shippingCity?: boolean
+    shippingState?: boolean
+    shippingPostalCode?: boolean
+    shippingCountry?: boolean
+    billingStreet?: boolean
+    billingCity?: boolean
+    billingState?: boolean
+    billingPostalCode?: boolean
+    billingCountry?: boolean
     subtotal?: boolean
     tax?: boolean
     shipping?: boolean
     total?: boolean
+    currency?: boolean
     status?: boolean
-    shippingInfo?: boolean
-    paymentInfo?: boolean
+    paymentMethod?: boolean
+    paymentTransactionId?: boolean
+    paymentProcessedAt?: boolean
+    trackingNumber?: boolean
+    carrier?: boolean
+    shippedDate?: boolean
+    estimatedDeliveryDate?: boolean
+    refundAmount?: boolean
+    refundReason?: boolean
+    refundTransactionId?: boolean
+    refundedAt?: boolean
     notes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    cancelledAt?: boolean
+    deliveredAt?: boolean
     items?: boolean | Order$itemsArgs<ExtArgs>
     _count?: boolean | OrderCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["order"]>
 
   export type OrderSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    userId?: boolean
     orderNumber?: boolean
+    customerId?: boolean
+    customerName?: boolean
+    customerEmail?: boolean
+    shippingStreet?: boolean
+    shippingCity?: boolean
+    shippingState?: boolean
+    shippingPostalCode?: boolean
+    shippingCountry?: boolean
+    billingStreet?: boolean
+    billingCity?: boolean
+    billingState?: boolean
+    billingPostalCode?: boolean
+    billingCountry?: boolean
     subtotal?: boolean
     tax?: boolean
     shipping?: boolean
     total?: boolean
+    currency?: boolean
     status?: boolean
-    shippingInfo?: boolean
-    paymentInfo?: boolean
+    paymentMethod?: boolean
+    paymentTransactionId?: boolean
+    paymentProcessedAt?: boolean
+    trackingNumber?: boolean
+    carrier?: boolean
+    shippedDate?: boolean
+    estimatedDeliveryDate?: boolean
+    refundAmount?: boolean
+    refundReason?: boolean
+    refundTransactionId?: boolean
+    refundedAt?: boolean
     notes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    cancelledAt?: boolean
+    deliveredAt?: boolean
   }, ExtArgs["result"]["order"]>
 
   export type OrderSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    userId?: boolean
     orderNumber?: boolean
+    customerId?: boolean
+    customerName?: boolean
+    customerEmail?: boolean
+    shippingStreet?: boolean
+    shippingCity?: boolean
+    shippingState?: boolean
+    shippingPostalCode?: boolean
+    shippingCountry?: boolean
+    billingStreet?: boolean
+    billingCity?: boolean
+    billingState?: boolean
+    billingPostalCode?: boolean
+    billingCountry?: boolean
     subtotal?: boolean
     tax?: boolean
     shipping?: boolean
     total?: boolean
+    currency?: boolean
     status?: boolean
-    shippingInfo?: boolean
-    paymentInfo?: boolean
+    paymentMethod?: boolean
+    paymentTransactionId?: boolean
+    paymentProcessedAt?: boolean
+    trackingNumber?: boolean
+    carrier?: boolean
+    shippedDate?: boolean
+    estimatedDeliveryDate?: boolean
+    refundAmount?: boolean
+    refundReason?: boolean
+    refundTransactionId?: boolean
+    refundedAt?: boolean
     notes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    cancelledAt?: boolean
+    deliveredAt?: boolean
   }, ExtArgs["result"]["order"]>
 
   export type OrderSelectScalar = {
     id?: boolean
-    userId?: boolean
     orderNumber?: boolean
+    customerId?: boolean
+    customerName?: boolean
+    customerEmail?: boolean
+    shippingStreet?: boolean
+    shippingCity?: boolean
+    shippingState?: boolean
+    shippingPostalCode?: boolean
+    shippingCountry?: boolean
+    billingStreet?: boolean
+    billingCity?: boolean
+    billingState?: boolean
+    billingPostalCode?: boolean
+    billingCountry?: boolean
     subtotal?: boolean
     tax?: boolean
     shipping?: boolean
     total?: boolean
+    currency?: boolean
     status?: boolean
-    shippingInfo?: boolean
-    paymentInfo?: boolean
+    paymentMethod?: boolean
+    paymentTransactionId?: boolean
+    paymentProcessedAt?: boolean
+    trackingNumber?: boolean
+    carrier?: boolean
+    shippedDate?: boolean
+    estimatedDeliveryDate?: boolean
+    refundAmount?: boolean
+    refundReason?: boolean
+    refundTransactionId?: boolean
+    refundedAt?: boolean
     notes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    cancelledAt?: boolean
+    deliveredAt?: boolean
   }
 
-  export type OrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "orderNumber" | "subtotal" | "tax" | "shipping" | "total" | "status" | "shippingInfo" | "paymentInfo" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
+  export type OrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "orderNumber" | "customerId" | "customerName" | "customerEmail" | "shippingStreet" | "shippingCity" | "shippingState" | "shippingPostalCode" | "shippingCountry" | "billingStreet" | "billingCity" | "billingState" | "billingPostalCode" | "billingCountry" | "subtotal" | "tax" | "shipping" | "total" | "currency" | "status" | "paymentMethod" | "paymentTransactionId" | "paymentProcessedAt" | "trackingNumber" | "carrier" | "shippedDate" | "estimatedDeliveryDate" | "refundAmount" | "refundReason" | "refundTransactionId" | "refundedAt" | "notes" | "createdAt" | "updatedAt" | "cancelledAt" | "deliveredAt", ExtArgs["result"]["order"]>
   export type OrderInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     items?: boolean | Order$itemsArgs<ExtArgs>
     _count?: boolean | OrderCountOutputTypeDefaultArgs<ExtArgs>
@@ -1357,18 +1634,42 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      userId: string
       orderNumber: string
+      customerId: string
+      customerName: string
+      customerEmail: string
+      shippingStreet: string
+      shippingCity: string
+      shippingState: string
+      shippingPostalCode: string
+      shippingCountry: string
+      billingStreet: string | null
+      billingCity: string | null
+      billingState: string | null
+      billingPostalCode: string | null
+      billingCountry: string | null
       subtotal: Prisma.Decimal
       tax: Prisma.Decimal
       shipping: Prisma.Decimal
       total: Prisma.Decimal
+      currency: string
       status: $Enums.OrderStatus
-      shippingInfo: Prisma.JsonValue | null
-      paymentInfo: Prisma.JsonValue | null
+      paymentMethod: string
+      paymentTransactionId: string | null
+      paymentProcessedAt: Date | null
+      trackingNumber: string | null
+      carrier: string | null
+      shippedDate: Date | null
+      estimatedDeliveryDate: Date | null
+      refundAmount: Prisma.Decimal | null
+      refundReason: string | null
+      refundTransactionId: string | null
+      refundedAt: Date | null
       notes: string | null
       createdAt: Date
       updatedAt: Date
+      cancelledAt: Date | null
+      deliveredAt: Date | null
     }, ExtArgs["result"]["order"]>
     composites: {}
   }
@@ -1794,18 +2095,42 @@ export namespace Prisma {
    */
   interface OrderFieldRefs {
     readonly id: FieldRef<"Order", 'String'>
-    readonly userId: FieldRef<"Order", 'String'>
     readonly orderNumber: FieldRef<"Order", 'String'>
+    readonly customerId: FieldRef<"Order", 'String'>
+    readonly customerName: FieldRef<"Order", 'String'>
+    readonly customerEmail: FieldRef<"Order", 'String'>
+    readonly shippingStreet: FieldRef<"Order", 'String'>
+    readonly shippingCity: FieldRef<"Order", 'String'>
+    readonly shippingState: FieldRef<"Order", 'String'>
+    readonly shippingPostalCode: FieldRef<"Order", 'String'>
+    readonly shippingCountry: FieldRef<"Order", 'String'>
+    readonly billingStreet: FieldRef<"Order", 'String'>
+    readonly billingCity: FieldRef<"Order", 'String'>
+    readonly billingState: FieldRef<"Order", 'String'>
+    readonly billingPostalCode: FieldRef<"Order", 'String'>
+    readonly billingCountry: FieldRef<"Order", 'String'>
     readonly subtotal: FieldRef<"Order", 'Decimal'>
     readonly tax: FieldRef<"Order", 'Decimal'>
     readonly shipping: FieldRef<"Order", 'Decimal'>
     readonly total: FieldRef<"Order", 'Decimal'>
+    readonly currency: FieldRef<"Order", 'String'>
     readonly status: FieldRef<"Order", 'OrderStatus'>
-    readonly shippingInfo: FieldRef<"Order", 'Json'>
-    readonly paymentInfo: FieldRef<"Order", 'Json'>
+    readonly paymentMethod: FieldRef<"Order", 'String'>
+    readonly paymentTransactionId: FieldRef<"Order", 'String'>
+    readonly paymentProcessedAt: FieldRef<"Order", 'DateTime'>
+    readonly trackingNumber: FieldRef<"Order", 'String'>
+    readonly carrier: FieldRef<"Order", 'String'>
+    readonly shippedDate: FieldRef<"Order", 'DateTime'>
+    readonly estimatedDeliveryDate: FieldRef<"Order", 'DateTime'>
+    readonly refundAmount: FieldRef<"Order", 'Decimal'>
+    readonly refundReason: FieldRef<"Order", 'String'>
+    readonly refundTransactionId: FieldRef<"Order", 'String'>
+    readonly refundedAt: FieldRef<"Order", 'DateTime'>
     readonly notes: FieldRef<"Order", 'String'>
     readonly createdAt: FieldRef<"Order", 'DateTime'>
     readonly updatedAt: FieldRef<"Order", 'DateTime'>
+    readonly cancelledAt: FieldRef<"Order", 'DateTime'>
+    readonly deliveredAt: FieldRef<"Order", 'DateTime'>
   }
     
 
@@ -2250,13 +2575,13 @@ export namespace Prisma {
 
   export type OrderItemAvgAggregateOutputType = {
     quantity: number | null
-    price: Decimal | null
+    unitPrice: Decimal | null
     total: Decimal | null
   }
 
   export type OrderItemSumAggregateOutputType = {
     quantity: number | null
-    price: Decimal | null
+    unitPrice: Decimal | null
     total: Decimal | null
   }
 
@@ -2264,8 +2589,9 @@ export namespace Prisma {
     id: string | null
     orderId: string | null
     productId: string | null
+    productName: string | null
     quantity: number | null
-    price: Decimal | null
+    unitPrice: Decimal | null
     total: Decimal | null
   }
 
@@ -2273,8 +2599,9 @@ export namespace Prisma {
     id: string | null
     orderId: string | null
     productId: string | null
+    productName: string | null
     quantity: number | null
-    price: Decimal | null
+    unitPrice: Decimal | null
     total: Decimal | null
   }
 
@@ -2282,8 +2609,9 @@ export namespace Prisma {
     id: number
     orderId: number
     productId: number
+    productName: number
     quantity: number
-    price: number
+    unitPrice: number
     total: number
     _all: number
   }
@@ -2291,13 +2619,13 @@ export namespace Prisma {
 
   export type OrderItemAvgAggregateInputType = {
     quantity?: true
-    price?: true
+    unitPrice?: true
     total?: true
   }
 
   export type OrderItemSumAggregateInputType = {
     quantity?: true
-    price?: true
+    unitPrice?: true
     total?: true
   }
 
@@ -2305,8 +2633,9 @@ export namespace Prisma {
     id?: true
     orderId?: true
     productId?: true
+    productName?: true
     quantity?: true
-    price?: true
+    unitPrice?: true
     total?: true
   }
 
@@ -2314,8 +2643,9 @@ export namespace Prisma {
     id?: true
     orderId?: true
     productId?: true
+    productName?: true
     quantity?: true
-    price?: true
+    unitPrice?: true
     total?: true
   }
 
@@ -2323,8 +2653,9 @@ export namespace Prisma {
     id?: true
     orderId?: true
     productId?: true
+    productName?: true
     quantity?: true
-    price?: true
+    unitPrice?: true
     total?: true
     _all?: true
   }
@@ -2419,8 +2750,9 @@ export namespace Prisma {
     id: string
     orderId: string
     productId: string
+    productName: string
     quantity: number
-    price: Decimal
+    unitPrice: Decimal
     total: Decimal
     _count: OrderItemCountAggregateOutputType | null
     _avg: OrderItemAvgAggregateOutputType | null
@@ -2447,8 +2779,9 @@ export namespace Prisma {
     id?: boolean
     orderId?: boolean
     productId?: boolean
+    productName?: boolean
     quantity?: boolean
-    price?: boolean
+    unitPrice?: boolean
     total?: boolean
     order?: boolean | OrderDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["orderItem"]>
@@ -2457,8 +2790,9 @@ export namespace Prisma {
     id?: boolean
     orderId?: boolean
     productId?: boolean
+    productName?: boolean
     quantity?: boolean
-    price?: boolean
+    unitPrice?: boolean
     total?: boolean
     order?: boolean | OrderDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["orderItem"]>
@@ -2467,8 +2801,9 @@ export namespace Prisma {
     id?: boolean
     orderId?: boolean
     productId?: boolean
+    productName?: boolean
     quantity?: boolean
-    price?: boolean
+    unitPrice?: boolean
     total?: boolean
     order?: boolean | OrderDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["orderItem"]>
@@ -2477,12 +2812,13 @@ export namespace Prisma {
     id?: boolean
     orderId?: boolean
     productId?: boolean
+    productName?: boolean
     quantity?: boolean
-    price?: boolean
+    unitPrice?: boolean
     total?: boolean
   }
 
-  export type OrderItemOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "orderId" | "productId" | "quantity" | "price" | "total", ExtArgs["result"]["orderItem"]>
+  export type OrderItemOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "orderId" | "productId" | "productName" | "quantity" | "unitPrice" | "total", ExtArgs["result"]["orderItem"]>
   export type OrderItemInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     order?: boolean | OrderDefaultArgs<ExtArgs>
   }
@@ -2502,8 +2838,9 @@ export namespace Prisma {
       id: string
       orderId: string
       productId: string
+      productName: string
       quantity: number
-      price: Prisma.Decimal
+      unitPrice: Prisma.Decimal
       total: Prisma.Decimal
     }, ExtArgs["result"]["orderItem"]>
     composites: {}
@@ -2932,8 +3269,9 @@ export namespace Prisma {
     readonly id: FieldRef<"OrderItem", 'String'>
     readonly orderId: FieldRef<"OrderItem", 'String'>
     readonly productId: FieldRef<"OrderItem", 'String'>
+    readonly productName: FieldRef<"OrderItem", 'String'>
     readonly quantity: FieldRef<"OrderItem", 'Int'>
-    readonly price: FieldRef<"OrderItem", 'Decimal'>
+    readonly unitPrice: FieldRef<"OrderItem", 'Decimal'>
     readonly total: FieldRef<"OrderItem", 'Decimal'>
   }
     
@@ -3365,18 +3703,42 @@ export namespace Prisma {
 
   export const OrderScalarFieldEnum: {
     id: 'id',
-    userId: 'userId',
     orderNumber: 'orderNumber',
+    customerId: 'customerId',
+    customerName: 'customerName',
+    customerEmail: 'customerEmail',
+    shippingStreet: 'shippingStreet',
+    shippingCity: 'shippingCity',
+    shippingState: 'shippingState',
+    shippingPostalCode: 'shippingPostalCode',
+    shippingCountry: 'shippingCountry',
+    billingStreet: 'billingStreet',
+    billingCity: 'billingCity',
+    billingState: 'billingState',
+    billingPostalCode: 'billingPostalCode',
+    billingCountry: 'billingCountry',
     subtotal: 'subtotal',
     tax: 'tax',
     shipping: 'shipping',
     total: 'total',
+    currency: 'currency',
     status: 'status',
-    shippingInfo: 'shippingInfo',
-    paymentInfo: 'paymentInfo',
+    paymentMethod: 'paymentMethod',
+    paymentTransactionId: 'paymentTransactionId',
+    paymentProcessedAt: 'paymentProcessedAt',
+    trackingNumber: 'trackingNumber',
+    carrier: 'carrier',
+    shippedDate: 'shippedDate',
+    estimatedDeliveryDate: 'estimatedDeliveryDate',
+    refundAmount: 'refundAmount',
+    refundReason: 'refundReason',
+    refundTransactionId: 'refundTransactionId',
+    refundedAt: 'refundedAt',
     notes: 'notes',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    cancelledAt: 'cancelledAt',
+    deliveredAt: 'deliveredAt'
   };
 
   export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
@@ -3386,8 +3748,9 @@ export namespace Prisma {
     id: 'id',
     orderId: 'orderId',
     productId: 'productId',
+    productName: 'productName',
     quantity: 'quantity',
-    price: 'price',
+    unitPrice: 'unitPrice',
     total: 'total'
   };
 
@@ -3402,29 +3765,12 @@ export namespace Prisma {
   export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
-  export const NullableJsonNullValueInput: {
-    DbNull: typeof DbNull,
-    JsonNull: typeof JsonNull
-  };
-
-  export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
-
-
   export const QueryMode: {
     default: 'default',
     insensitive: 'insensitive'
   };
 
   export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
-
-
-  export const JsonNullValueFilter: {
-    DbNull: typeof DbNull,
-    JsonNull: typeof JsonNull,
-    AnyNull: typeof AnyNull
-  };
-
-  export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
 
   export const NullsOrder: {
@@ -3483,20 +3829,6 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Json'
-   */
-  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-    
-
-
-  /**
-   * Reference to a field of type 'QueryMode'
-   */
-  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
-    
-
-
-  /**
    * Reference to a field of type 'DateTime'
    */
   export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -3546,35 +3878,83 @@ export namespace Prisma {
     OR?: OrderWhereInput[]
     NOT?: OrderWhereInput | OrderWhereInput[]
     id?: StringFilter<"Order"> | string
-    userId?: StringFilter<"Order"> | string
     orderNumber?: StringFilter<"Order"> | string
+    customerId?: StringFilter<"Order"> | string
+    customerName?: StringFilter<"Order"> | string
+    customerEmail?: StringFilter<"Order"> | string
+    shippingStreet?: StringFilter<"Order"> | string
+    shippingCity?: StringFilter<"Order"> | string
+    shippingState?: StringFilter<"Order"> | string
+    shippingPostalCode?: StringFilter<"Order"> | string
+    shippingCountry?: StringFilter<"Order"> | string
+    billingStreet?: StringNullableFilter<"Order"> | string | null
+    billingCity?: StringNullableFilter<"Order"> | string | null
+    billingState?: StringNullableFilter<"Order"> | string | null
+    billingPostalCode?: StringNullableFilter<"Order"> | string | null
+    billingCountry?: StringNullableFilter<"Order"> | string | null
     subtotal?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
     tax?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
     shipping?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
     total?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
+    currency?: StringFilter<"Order"> | string
     status?: EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
-    shippingInfo?: JsonNullableFilter<"Order">
-    paymentInfo?: JsonNullableFilter<"Order">
+    paymentMethod?: StringFilter<"Order"> | string
+    paymentTransactionId?: StringNullableFilter<"Order"> | string | null
+    paymentProcessedAt?: DateTimeNullableFilter<"Order"> | Date | string | null
+    trackingNumber?: StringNullableFilter<"Order"> | string | null
+    carrier?: StringNullableFilter<"Order"> | string | null
+    shippedDate?: DateTimeNullableFilter<"Order"> | Date | string | null
+    estimatedDeliveryDate?: DateTimeNullableFilter<"Order"> | Date | string | null
+    refundAmount?: DecimalNullableFilter<"Order"> | Decimal | DecimalJsLike | number | string | null
+    refundReason?: StringNullableFilter<"Order"> | string | null
+    refundTransactionId?: StringNullableFilter<"Order"> | string | null
+    refundedAt?: DateTimeNullableFilter<"Order"> | Date | string | null
     notes?: StringNullableFilter<"Order"> | string | null
     createdAt?: DateTimeFilter<"Order"> | Date | string
     updatedAt?: DateTimeFilter<"Order"> | Date | string
+    cancelledAt?: DateTimeNullableFilter<"Order"> | Date | string | null
+    deliveredAt?: DateTimeNullableFilter<"Order"> | Date | string | null
     items?: OrderItemListRelationFilter
   }
 
   export type OrderOrderByWithRelationInput = {
     id?: SortOrder
-    userId?: SortOrder
     orderNumber?: SortOrder
+    customerId?: SortOrder
+    customerName?: SortOrder
+    customerEmail?: SortOrder
+    shippingStreet?: SortOrder
+    shippingCity?: SortOrder
+    shippingState?: SortOrder
+    shippingPostalCode?: SortOrder
+    shippingCountry?: SortOrder
+    billingStreet?: SortOrderInput | SortOrder
+    billingCity?: SortOrderInput | SortOrder
+    billingState?: SortOrderInput | SortOrder
+    billingPostalCode?: SortOrderInput | SortOrder
+    billingCountry?: SortOrderInput | SortOrder
     subtotal?: SortOrder
     tax?: SortOrder
     shipping?: SortOrder
     total?: SortOrder
+    currency?: SortOrder
     status?: SortOrder
-    shippingInfo?: SortOrderInput | SortOrder
-    paymentInfo?: SortOrderInput | SortOrder
+    paymentMethod?: SortOrder
+    paymentTransactionId?: SortOrderInput | SortOrder
+    paymentProcessedAt?: SortOrderInput | SortOrder
+    trackingNumber?: SortOrderInput | SortOrder
+    carrier?: SortOrderInput | SortOrder
+    shippedDate?: SortOrderInput | SortOrder
+    estimatedDeliveryDate?: SortOrderInput | SortOrder
+    refundAmount?: SortOrderInput | SortOrder
+    refundReason?: SortOrderInput | SortOrder
+    refundTransactionId?: SortOrderInput | SortOrder
+    refundedAt?: SortOrderInput | SortOrder
     notes?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    cancelledAt?: SortOrderInput | SortOrder
+    deliveredAt?: SortOrderInput | SortOrder
     items?: OrderItemOrderByRelationAggregateInput
   }
 
@@ -3584,34 +3964,82 @@ export namespace Prisma {
     AND?: OrderWhereInput | OrderWhereInput[]
     OR?: OrderWhereInput[]
     NOT?: OrderWhereInput | OrderWhereInput[]
-    userId?: StringFilter<"Order"> | string
+    customerId?: StringFilter<"Order"> | string
+    customerName?: StringFilter<"Order"> | string
+    customerEmail?: StringFilter<"Order"> | string
+    shippingStreet?: StringFilter<"Order"> | string
+    shippingCity?: StringFilter<"Order"> | string
+    shippingState?: StringFilter<"Order"> | string
+    shippingPostalCode?: StringFilter<"Order"> | string
+    shippingCountry?: StringFilter<"Order"> | string
+    billingStreet?: StringNullableFilter<"Order"> | string | null
+    billingCity?: StringNullableFilter<"Order"> | string | null
+    billingState?: StringNullableFilter<"Order"> | string | null
+    billingPostalCode?: StringNullableFilter<"Order"> | string | null
+    billingCountry?: StringNullableFilter<"Order"> | string | null
     subtotal?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
     tax?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
     shipping?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
     total?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
+    currency?: StringFilter<"Order"> | string
     status?: EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
-    shippingInfo?: JsonNullableFilter<"Order">
-    paymentInfo?: JsonNullableFilter<"Order">
+    paymentMethod?: StringFilter<"Order"> | string
+    paymentTransactionId?: StringNullableFilter<"Order"> | string | null
+    paymentProcessedAt?: DateTimeNullableFilter<"Order"> | Date | string | null
+    trackingNumber?: StringNullableFilter<"Order"> | string | null
+    carrier?: StringNullableFilter<"Order"> | string | null
+    shippedDate?: DateTimeNullableFilter<"Order"> | Date | string | null
+    estimatedDeliveryDate?: DateTimeNullableFilter<"Order"> | Date | string | null
+    refundAmount?: DecimalNullableFilter<"Order"> | Decimal | DecimalJsLike | number | string | null
+    refundReason?: StringNullableFilter<"Order"> | string | null
+    refundTransactionId?: StringNullableFilter<"Order"> | string | null
+    refundedAt?: DateTimeNullableFilter<"Order"> | Date | string | null
     notes?: StringNullableFilter<"Order"> | string | null
     createdAt?: DateTimeFilter<"Order"> | Date | string
     updatedAt?: DateTimeFilter<"Order"> | Date | string
+    cancelledAt?: DateTimeNullableFilter<"Order"> | Date | string | null
+    deliveredAt?: DateTimeNullableFilter<"Order"> | Date | string | null
     items?: OrderItemListRelationFilter
   }, "id" | "orderNumber">
 
   export type OrderOrderByWithAggregationInput = {
     id?: SortOrder
-    userId?: SortOrder
     orderNumber?: SortOrder
+    customerId?: SortOrder
+    customerName?: SortOrder
+    customerEmail?: SortOrder
+    shippingStreet?: SortOrder
+    shippingCity?: SortOrder
+    shippingState?: SortOrder
+    shippingPostalCode?: SortOrder
+    shippingCountry?: SortOrder
+    billingStreet?: SortOrderInput | SortOrder
+    billingCity?: SortOrderInput | SortOrder
+    billingState?: SortOrderInput | SortOrder
+    billingPostalCode?: SortOrderInput | SortOrder
+    billingCountry?: SortOrderInput | SortOrder
     subtotal?: SortOrder
     tax?: SortOrder
     shipping?: SortOrder
     total?: SortOrder
+    currency?: SortOrder
     status?: SortOrder
-    shippingInfo?: SortOrderInput | SortOrder
-    paymentInfo?: SortOrderInput | SortOrder
+    paymentMethod?: SortOrder
+    paymentTransactionId?: SortOrderInput | SortOrder
+    paymentProcessedAt?: SortOrderInput | SortOrder
+    trackingNumber?: SortOrderInput | SortOrder
+    carrier?: SortOrderInput | SortOrder
+    shippedDate?: SortOrderInput | SortOrder
+    estimatedDeliveryDate?: SortOrderInput | SortOrder
+    refundAmount?: SortOrderInput | SortOrder
+    refundReason?: SortOrderInput | SortOrder
+    refundTransactionId?: SortOrderInput | SortOrder
+    refundedAt?: SortOrderInput | SortOrder
     notes?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    cancelledAt?: SortOrderInput | SortOrder
+    deliveredAt?: SortOrderInput | SortOrder
     _count?: OrderCountOrderByAggregateInput
     _avg?: OrderAvgOrderByAggregateInput
     _max?: OrderMaxOrderByAggregateInput
@@ -3624,18 +4052,42 @@ export namespace Prisma {
     OR?: OrderScalarWhereWithAggregatesInput[]
     NOT?: OrderScalarWhereWithAggregatesInput | OrderScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Order"> | string
-    userId?: StringWithAggregatesFilter<"Order"> | string
     orderNumber?: StringWithAggregatesFilter<"Order"> | string
+    customerId?: StringWithAggregatesFilter<"Order"> | string
+    customerName?: StringWithAggregatesFilter<"Order"> | string
+    customerEmail?: StringWithAggregatesFilter<"Order"> | string
+    shippingStreet?: StringWithAggregatesFilter<"Order"> | string
+    shippingCity?: StringWithAggregatesFilter<"Order"> | string
+    shippingState?: StringWithAggregatesFilter<"Order"> | string
+    shippingPostalCode?: StringWithAggregatesFilter<"Order"> | string
+    shippingCountry?: StringWithAggregatesFilter<"Order"> | string
+    billingStreet?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    billingCity?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    billingState?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    billingPostalCode?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    billingCountry?: StringNullableWithAggregatesFilter<"Order"> | string | null
     subtotal?: DecimalWithAggregatesFilter<"Order"> | Decimal | DecimalJsLike | number | string
     tax?: DecimalWithAggregatesFilter<"Order"> | Decimal | DecimalJsLike | number | string
     shipping?: DecimalWithAggregatesFilter<"Order"> | Decimal | DecimalJsLike | number | string
     total?: DecimalWithAggregatesFilter<"Order"> | Decimal | DecimalJsLike | number | string
+    currency?: StringWithAggregatesFilter<"Order"> | string
     status?: EnumOrderStatusWithAggregatesFilter<"Order"> | $Enums.OrderStatus
-    shippingInfo?: JsonNullableWithAggregatesFilter<"Order">
-    paymentInfo?: JsonNullableWithAggregatesFilter<"Order">
+    paymentMethod?: StringWithAggregatesFilter<"Order"> | string
+    paymentTransactionId?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    paymentProcessedAt?: DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
+    trackingNumber?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    carrier?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    shippedDate?: DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
+    estimatedDeliveryDate?: DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
+    refundAmount?: DecimalNullableWithAggregatesFilter<"Order"> | Decimal | DecimalJsLike | number | string | null
+    refundReason?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    refundTransactionId?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    refundedAt?: DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
     notes?: StringNullableWithAggregatesFilter<"Order"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Order"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Order"> | Date | string
+    cancelledAt?: DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
+    deliveredAt?: DateTimeNullableWithAggregatesFilter<"Order"> | Date | string | null
   }
 
   export type OrderItemWhereInput = {
@@ -3645,8 +4097,9 @@ export namespace Prisma {
     id?: StringFilter<"OrderItem"> | string
     orderId?: StringFilter<"OrderItem"> | string
     productId?: StringFilter<"OrderItem"> | string
+    productName?: StringFilter<"OrderItem"> | string
     quantity?: IntFilter<"OrderItem"> | number
-    price?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
     total?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
     order?: XOR<OrderScalarRelationFilter, OrderWhereInput>
   }
@@ -3655,8 +4108,9 @@ export namespace Prisma {
     id?: SortOrder
     orderId?: SortOrder
     productId?: SortOrder
+    productName?: SortOrder
     quantity?: SortOrder
-    price?: SortOrder
+    unitPrice?: SortOrder
     total?: SortOrder
     order?: OrderOrderByWithRelationInput
   }
@@ -3668,8 +4122,9 @@ export namespace Prisma {
     NOT?: OrderItemWhereInput | OrderItemWhereInput[]
     orderId?: StringFilter<"OrderItem"> | string
     productId?: StringFilter<"OrderItem"> | string
+    productName?: StringFilter<"OrderItem"> | string
     quantity?: IntFilter<"OrderItem"> | number
-    price?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
     total?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
     order?: XOR<OrderScalarRelationFilter, OrderWhereInput>
   }, "id">
@@ -3678,8 +4133,9 @@ export namespace Prisma {
     id?: SortOrder
     orderId?: SortOrder
     productId?: SortOrder
+    productName?: SortOrder
     quantity?: SortOrder
-    price?: SortOrder
+    unitPrice?: SortOrder
     total?: SortOrder
     _count?: OrderItemCountOrderByAggregateInput
     _avg?: OrderItemAvgOrderByAggregateInput
@@ -3695,132 +4151,302 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"OrderItem"> | string
     orderId?: StringWithAggregatesFilter<"OrderItem"> | string
     productId?: StringWithAggregatesFilter<"OrderItem"> | string
+    productName?: StringWithAggregatesFilter<"OrderItem"> | string
     quantity?: IntWithAggregatesFilter<"OrderItem"> | number
-    price?: DecimalWithAggregatesFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalWithAggregatesFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
     total?: DecimalWithAggregatesFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
   }
 
   export type OrderCreateInput = {
     id?: string
-    userId: string
-    orderNumber?: string
+    orderNumber: string
+    customerId: string
+    customerName: string
+    customerEmail: string
+    shippingStreet: string
+    shippingCity: string
+    shippingState: string
+    shippingPostalCode: string
+    shippingCountry: string
+    billingStreet?: string | null
+    billingCity?: string | null
+    billingState?: string | null
+    billingPostalCode?: string | null
+    billingCountry?: string | null
     subtotal: Decimal | DecimalJsLike | number | string
     tax: Decimal | DecimalJsLike | number | string
     shipping: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
+    currency?: string
     status?: $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod: string
+    paymentTransactionId?: string | null
+    paymentProcessedAt?: Date | string | null
+    trackingNumber?: string | null
+    carrier?: string | null
+    shippedDate?: Date | string | null
+    estimatedDeliveryDate?: Date | string | null
+    refundAmount?: Decimal | DecimalJsLike | number | string | null
+    refundReason?: string | null
+    refundTransactionId?: string | null
+    refundedAt?: Date | string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cancelledAt?: Date | string | null
+    deliveredAt?: Date | string | null
     items?: OrderItemCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUncheckedCreateInput = {
     id?: string
-    userId: string
-    orderNumber?: string
+    orderNumber: string
+    customerId: string
+    customerName: string
+    customerEmail: string
+    shippingStreet: string
+    shippingCity: string
+    shippingState: string
+    shippingPostalCode: string
+    shippingCountry: string
+    billingStreet?: string | null
+    billingCity?: string | null
+    billingState?: string | null
+    billingPostalCode?: string | null
+    billingCountry?: string | null
     subtotal: Decimal | DecimalJsLike | number | string
     tax: Decimal | DecimalJsLike | number | string
     shipping: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
+    currency?: string
     status?: $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod: string
+    paymentTransactionId?: string | null
+    paymentProcessedAt?: Date | string | null
+    trackingNumber?: string | null
+    carrier?: string | null
+    shippedDate?: Date | string | null
+    estimatedDeliveryDate?: Date | string | null
+    refundAmount?: Decimal | DecimalJsLike | number | string | null
+    refundReason?: string | null
+    refundTransactionId?: string | null
+    refundedAt?: Date | string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cancelledAt?: Date | string | null
+    deliveredAt?: Date | string | null
     items?: OrderItemUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
     orderNumber?: StringFieldUpdateOperationsInput | string
+    customerId?: StringFieldUpdateOperationsInput | string
+    customerName?: StringFieldUpdateOperationsInput | string
+    customerEmail?: StringFieldUpdateOperationsInput | string
+    shippingStreet?: StringFieldUpdateOperationsInput | string
+    shippingCity?: StringFieldUpdateOperationsInput | string
+    shippingState?: StringFieldUpdateOperationsInput | string
+    shippingPostalCode?: StringFieldUpdateOperationsInput | string
+    shippingCountry?: StringFieldUpdateOperationsInput | string
+    billingStreet?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCity?: NullableStringFieldUpdateOperationsInput | string | null
+    billingState?: NullableStringFieldUpdateOperationsInput | string | null
+    billingPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCountry?: NullableStringFieldUpdateOperationsInput | string | null
     subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     tax?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     shipping?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currency?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod?: StringFieldUpdateOperationsInput | string
+    paymentTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentProcessedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trackingNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    carrier?: NullableStringFieldUpdateOperationsInput | string | null
+    shippedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedDeliveryDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    refundAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    refundReason?: NullableStringFieldUpdateOperationsInput | string | null
+    refundTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    refundedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    deliveredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     items?: OrderItemUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
     orderNumber?: StringFieldUpdateOperationsInput | string
+    customerId?: StringFieldUpdateOperationsInput | string
+    customerName?: StringFieldUpdateOperationsInput | string
+    customerEmail?: StringFieldUpdateOperationsInput | string
+    shippingStreet?: StringFieldUpdateOperationsInput | string
+    shippingCity?: StringFieldUpdateOperationsInput | string
+    shippingState?: StringFieldUpdateOperationsInput | string
+    shippingPostalCode?: StringFieldUpdateOperationsInput | string
+    shippingCountry?: StringFieldUpdateOperationsInput | string
+    billingStreet?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCity?: NullableStringFieldUpdateOperationsInput | string | null
+    billingState?: NullableStringFieldUpdateOperationsInput | string | null
+    billingPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCountry?: NullableStringFieldUpdateOperationsInput | string | null
     subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     tax?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     shipping?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currency?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod?: StringFieldUpdateOperationsInput | string
+    paymentTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentProcessedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trackingNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    carrier?: NullableStringFieldUpdateOperationsInput | string | null
+    shippedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedDeliveryDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    refundAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    refundReason?: NullableStringFieldUpdateOperationsInput | string | null
+    refundTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    refundedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    deliveredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     items?: OrderItemUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderCreateManyInput = {
     id?: string
-    userId: string
-    orderNumber?: string
+    orderNumber: string
+    customerId: string
+    customerName: string
+    customerEmail: string
+    shippingStreet: string
+    shippingCity: string
+    shippingState: string
+    shippingPostalCode: string
+    shippingCountry: string
+    billingStreet?: string | null
+    billingCity?: string | null
+    billingState?: string | null
+    billingPostalCode?: string | null
+    billingCountry?: string | null
     subtotal: Decimal | DecimalJsLike | number | string
     tax: Decimal | DecimalJsLike | number | string
     shipping: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
+    currency?: string
     status?: $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod: string
+    paymentTransactionId?: string | null
+    paymentProcessedAt?: Date | string | null
+    trackingNumber?: string | null
+    carrier?: string | null
+    shippedDate?: Date | string | null
+    estimatedDeliveryDate?: Date | string | null
+    refundAmount?: Decimal | DecimalJsLike | number | string | null
+    refundReason?: string | null
+    refundTransactionId?: string | null
+    refundedAt?: Date | string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cancelledAt?: Date | string | null
+    deliveredAt?: Date | string | null
   }
 
   export type OrderUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
     orderNumber?: StringFieldUpdateOperationsInput | string
+    customerId?: StringFieldUpdateOperationsInput | string
+    customerName?: StringFieldUpdateOperationsInput | string
+    customerEmail?: StringFieldUpdateOperationsInput | string
+    shippingStreet?: StringFieldUpdateOperationsInput | string
+    shippingCity?: StringFieldUpdateOperationsInput | string
+    shippingState?: StringFieldUpdateOperationsInput | string
+    shippingPostalCode?: StringFieldUpdateOperationsInput | string
+    shippingCountry?: StringFieldUpdateOperationsInput | string
+    billingStreet?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCity?: NullableStringFieldUpdateOperationsInput | string | null
+    billingState?: NullableStringFieldUpdateOperationsInput | string | null
+    billingPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCountry?: NullableStringFieldUpdateOperationsInput | string | null
     subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     tax?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     shipping?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currency?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod?: StringFieldUpdateOperationsInput | string
+    paymentTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentProcessedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trackingNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    carrier?: NullableStringFieldUpdateOperationsInput | string | null
+    shippedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedDeliveryDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    refundAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    refundReason?: NullableStringFieldUpdateOperationsInput | string | null
+    refundTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    refundedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    deliveredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type OrderUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
     orderNumber?: StringFieldUpdateOperationsInput | string
+    customerId?: StringFieldUpdateOperationsInput | string
+    customerName?: StringFieldUpdateOperationsInput | string
+    customerEmail?: StringFieldUpdateOperationsInput | string
+    shippingStreet?: StringFieldUpdateOperationsInput | string
+    shippingCity?: StringFieldUpdateOperationsInput | string
+    shippingState?: StringFieldUpdateOperationsInput | string
+    shippingPostalCode?: StringFieldUpdateOperationsInput | string
+    shippingCountry?: StringFieldUpdateOperationsInput | string
+    billingStreet?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCity?: NullableStringFieldUpdateOperationsInput | string | null
+    billingState?: NullableStringFieldUpdateOperationsInput | string | null
+    billingPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCountry?: NullableStringFieldUpdateOperationsInput | string | null
     subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     tax?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     shipping?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currency?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod?: StringFieldUpdateOperationsInput | string
+    paymentTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentProcessedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trackingNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    carrier?: NullableStringFieldUpdateOperationsInput | string | null
+    shippedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedDeliveryDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    refundAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    refundReason?: NullableStringFieldUpdateOperationsInput | string | null
+    refundTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    refundedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    deliveredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type OrderItemCreateInput = {
     id?: string
     productId: string
+    productName: string
     quantity: number
-    price: Decimal | DecimalJsLike | number | string
+    unitPrice: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
     order: OrderCreateNestedOneWithoutItemsInput
   }
@@ -3829,16 +4455,18 @@ export namespace Prisma {
     id?: string
     orderId: string
     productId: string
+    productName: string
     quantity: number
-    price: Decimal | DecimalJsLike | number | string
+    unitPrice: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
   }
 
   export type OrderItemUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
+    productName?: StringFieldUpdateOperationsInput | string
     quantity?: IntFieldUpdateOperationsInput | number
-    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     order?: OrderUpdateOneRequiredWithoutItemsNestedInput
   }
@@ -3847,8 +4475,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     orderId?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
+    productName?: StringFieldUpdateOperationsInput | string
     quantity?: IntFieldUpdateOperationsInput | number
-    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
@@ -3856,16 +4485,18 @@ export namespace Prisma {
     id?: string
     orderId: string
     productId: string
+    productName: string
     quantity: number
-    price: Decimal | DecimalJsLike | number | string
+    unitPrice: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
   }
 
   export type OrderItemUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
+    productName?: StringFieldUpdateOperationsInput | string
     quantity?: IntFieldUpdateOperationsInput | number
-    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
@@ -3873,8 +4504,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     orderId?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
+    productName?: StringFieldUpdateOperationsInput | string
     quantity?: IntFieldUpdateOperationsInput | number
-    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
@@ -3891,6 +4523,21 @@ export namespace Prisma {
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     mode?: QueryMode
     not?: NestedStringFilter<$PrismaModel> | string
+  }
+
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type DecimalFilter<$PrismaModel = never> = {
@@ -3910,43 +4557,27 @@ export namespace Prisma {
     notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel>
     not?: NestedEnumOrderStatusFilter<$PrismaModel> | $Enums.OrderStatus
   }
-  export type JsonNullableFilter<$PrismaModel = never> =
-    | PatchUndefined<
-        Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
-        Required<JsonNullableFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>
 
-  export type JsonNullableFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
   }
 
-  export type StringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  export type DecimalNullableFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel> | null
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalNullableFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
   }
 
   export type DateTimeFilter<$PrismaModel = never> = {
@@ -3977,18 +4608,42 @@ export namespace Prisma {
 
   export type OrderCountOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
     orderNumber?: SortOrder
+    customerId?: SortOrder
+    customerName?: SortOrder
+    customerEmail?: SortOrder
+    shippingStreet?: SortOrder
+    shippingCity?: SortOrder
+    shippingState?: SortOrder
+    shippingPostalCode?: SortOrder
+    shippingCountry?: SortOrder
+    billingStreet?: SortOrder
+    billingCity?: SortOrder
+    billingState?: SortOrder
+    billingPostalCode?: SortOrder
+    billingCountry?: SortOrder
     subtotal?: SortOrder
     tax?: SortOrder
     shipping?: SortOrder
     total?: SortOrder
+    currency?: SortOrder
     status?: SortOrder
-    shippingInfo?: SortOrder
-    paymentInfo?: SortOrder
+    paymentMethod?: SortOrder
+    paymentTransactionId?: SortOrder
+    paymentProcessedAt?: SortOrder
+    trackingNumber?: SortOrder
+    carrier?: SortOrder
+    shippedDate?: SortOrder
+    estimatedDeliveryDate?: SortOrder
+    refundAmount?: SortOrder
+    refundReason?: SortOrder
+    refundTransactionId?: SortOrder
+    refundedAt?: SortOrder
     notes?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    cancelledAt?: SortOrder
+    deliveredAt?: SortOrder
   }
 
   export type OrderAvgOrderByAggregateInput = {
@@ -3996,34 +4651,87 @@ export namespace Prisma {
     tax?: SortOrder
     shipping?: SortOrder
     total?: SortOrder
+    refundAmount?: SortOrder
   }
 
   export type OrderMaxOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
     orderNumber?: SortOrder
+    customerId?: SortOrder
+    customerName?: SortOrder
+    customerEmail?: SortOrder
+    shippingStreet?: SortOrder
+    shippingCity?: SortOrder
+    shippingState?: SortOrder
+    shippingPostalCode?: SortOrder
+    shippingCountry?: SortOrder
+    billingStreet?: SortOrder
+    billingCity?: SortOrder
+    billingState?: SortOrder
+    billingPostalCode?: SortOrder
+    billingCountry?: SortOrder
     subtotal?: SortOrder
     tax?: SortOrder
     shipping?: SortOrder
     total?: SortOrder
+    currency?: SortOrder
     status?: SortOrder
+    paymentMethod?: SortOrder
+    paymentTransactionId?: SortOrder
+    paymentProcessedAt?: SortOrder
+    trackingNumber?: SortOrder
+    carrier?: SortOrder
+    shippedDate?: SortOrder
+    estimatedDeliveryDate?: SortOrder
+    refundAmount?: SortOrder
+    refundReason?: SortOrder
+    refundTransactionId?: SortOrder
+    refundedAt?: SortOrder
     notes?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    cancelledAt?: SortOrder
+    deliveredAt?: SortOrder
   }
 
   export type OrderMinOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
     orderNumber?: SortOrder
+    customerId?: SortOrder
+    customerName?: SortOrder
+    customerEmail?: SortOrder
+    shippingStreet?: SortOrder
+    shippingCity?: SortOrder
+    shippingState?: SortOrder
+    shippingPostalCode?: SortOrder
+    shippingCountry?: SortOrder
+    billingStreet?: SortOrder
+    billingCity?: SortOrder
+    billingState?: SortOrder
+    billingPostalCode?: SortOrder
+    billingCountry?: SortOrder
     subtotal?: SortOrder
     tax?: SortOrder
     shipping?: SortOrder
     total?: SortOrder
+    currency?: SortOrder
     status?: SortOrder
+    paymentMethod?: SortOrder
+    paymentTransactionId?: SortOrder
+    paymentProcessedAt?: SortOrder
+    trackingNumber?: SortOrder
+    carrier?: SortOrder
+    shippedDate?: SortOrder
+    estimatedDeliveryDate?: SortOrder
+    refundAmount?: SortOrder
+    refundReason?: SortOrder
+    refundTransactionId?: SortOrder
+    refundedAt?: SortOrder
     notes?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    cancelledAt?: SortOrder
+    deliveredAt?: SortOrder
   }
 
   export type OrderSumOrderByAggregateInput = {
@@ -4031,6 +4739,7 @@ export namespace Prisma {
     tax?: SortOrder
     shipping?: SortOrder
     total?: SortOrder
+    refundAmount?: SortOrder
   }
 
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
@@ -4049,6 +4758,24 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type DecimalWithAggregatesFilter<$PrismaModel = never> = {
@@ -4076,49 +4803,35 @@ export namespace Prisma {
     _min?: NestedEnumOrderStatusFilter<$PrismaModel>
     _max?: NestedEnumOrderStatusFilter<$PrismaModel>
   }
-  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
-    | PatchUndefined<
-        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
-        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
 
-  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
     _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedJsonNullableFilter<$PrismaModel>
-    _max?: NestedJsonNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
-  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+  export type DecimalNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel> | null
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalNullableWithAggregatesFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
     _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
+    _avg?: NestedDecimalNullableFilter<$PrismaModel>
+    _sum?: NestedDecimalNullableFilter<$PrismaModel>
+    _min?: NestedDecimalNullableFilter<$PrismaModel>
+    _max?: NestedDecimalNullableFilter<$PrismaModel>
   }
 
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -4155,14 +4868,15 @@ export namespace Prisma {
     id?: SortOrder
     orderId?: SortOrder
     productId?: SortOrder
+    productName?: SortOrder
     quantity?: SortOrder
-    price?: SortOrder
+    unitPrice?: SortOrder
     total?: SortOrder
   }
 
   export type OrderItemAvgOrderByAggregateInput = {
     quantity?: SortOrder
-    price?: SortOrder
+    unitPrice?: SortOrder
     total?: SortOrder
   }
 
@@ -4170,8 +4884,9 @@ export namespace Prisma {
     id?: SortOrder
     orderId?: SortOrder
     productId?: SortOrder
+    productName?: SortOrder
     quantity?: SortOrder
-    price?: SortOrder
+    unitPrice?: SortOrder
     total?: SortOrder
   }
 
@@ -4179,14 +4894,15 @@ export namespace Prisma {
     id?: SortOrder
     orderId?: SortOrder
     productId?: SortOrder
+    productName?: SortOrder
     quantity?: SortOrder
-    price?: SortOrder
+    unitPrice?: SortOrder
     total?: SortOrder
   }
 
   export type OrderItemSumOrderByAggregateInput = {
     quantity?: SortOrder
-    price?: SortOrder
+    unitPrice?: SortOrder
     total?: SortOrder
   }
 
@@ -4224,6 +4940,10 @@ export namespace Prisma {
     set?: string
   }
 
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
+  }
+
   export type DecimalFieldUpdateOperationsInput = {
     set?: Decimal | DecimalJsLike | number | string
     increment?: Decimal | DecimalJsLike | number | string
@@ -4236,8 +4956,16 @@ export namespace Prisma {
     set?: $Enums.OrderStatus
   }
 
-  export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null
+  export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null
+  }
+
+  export type NullableDecimalFieldUpdateOperationsInput = {
+    set?: Decimal | DecimalJsLike | number | string | null
+    increment?: Decimal | DecimalJsLike | number | string
+    decrement?: Decimal | DecimalJsLike | number | string
+    multiply?: Decimal | DecimalJsLike | number | string
+    divide?: Decimal | DecimalJsLike | number | string
   }
 
   export type DateTimeFieldUpdateOperationsInput = {
@@ -4308,6 +5036,20 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type NestedDecimalFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -4326,18 +5068,26 @@ export namespace Prisma {
     not?: NestedEnumOrderStatusFilter<$PrismaModel> | $Enums.OrderStatus
   }
 
-  export type NestedStringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
+  export type NestedDecimalNullableFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel> | null
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalNullableFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
   }
 
   export type NestedDateTimeFilter<$PrismaModel = never> = {
@@ -4379,6 +5129,34 @@ export namespace Prisma {
     not?: NestedIntFilter<$PrismaModel> | number
   }
 
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
   export type NestedDecimalWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -4405,55 +5183,34 @@ export namespace Prisma {
     _max?: NestedEnumOrderStatusFilter<$PrismaModel>
   }
 
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-  export type NestedJsonNullableFilter<$PrismaModel = never> =
-    | PatchUndefined<
-        Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
-        Required<NestedJsonNullableFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>
-
-  export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-  }
-
-  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
     _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
+  export type NestedDecimalNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel> | null
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalNullableWithAggregatesFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedDecimalNullableFilter<$PrismaModel>
+    _sum?: NestedDecimalNullableFilter<$PrismaModel>
+    _min?: NestedDecimalNullableFilter<$PrismaModel>
+    _max?: NestedDecimalNullableFilter<$PrismaModel>
   }
 
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -4500,16 +5257,18 @@ export namespace Prisma {
   export type OrderItemCreateWithoutOrderInput = {
     id?: string
     productId: string
+    productName: string
     quantity: number
-    price: Decimal | DecimalJsLike | number | string
+    unitPrice: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
   }
 
   export type OrderItemUncheckedCreateWithoutOrderInput = {
     id?: string
     productId: string
+    productName: string
     quantity: number
-    price: Decimal | DecimalJsLike | number | string
+    unitPrice: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
   }
 
@@ -4546,41 +5305,90 @@ export namespace Prisma {
     id?: StringFilter<"OrderItem"> | string
     orderId?: StringFilter<"OrderItem"> | string
     productId?: StringFilter<"OrderItem"> | string
+    productName?: StringFilter<"OrderItem"> | string
     quantity?: IntFilter<"OrderItem"> | number
-    price?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
     total?: DecimalFilter<"OrderItem"> | Decimal | DecimalJsLike | number | string
   }
 
   export type OrderCreateWithoutItemsInput = {
     id?: string
-    userId: string
-    orderNumber?: string
+    orderNumber: string
+    customerId: string
+    customerName: string
+    customerEmail: string
+    shippingStreet: string
+    shippingCity: string
+    shippingState: string
+    shippingPostalCode: string
+    shippingCountry: string
+    billingStreet?: string | null
+    billingCity?: string | null
+    billingState?: string | null
+    billingPostalCode?: string | null
+    billingCountry?: string | null
     subtotal: Decimal | DecimalJsLike | number | string
     tax: Decimal | DecimalJsLike | number | string
     shipping: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
+    currency?: string
     status?: $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod: string
+    paymentTransactionId?: string | null
+    paymentProcessedAt?: Date | string | null
+    trackingNumber?: string | null
+    carrier?: string | null
+    shippedDate?: Date | string | null
+    estimatedDeliveryDate?: Date | string | null
+    refundAmount?: Decimal | DecimalJsLike | number | string | null
+    refundReason?: string | null
+    refundTransactionId?: string | null
+    refundedAt?: Date | string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cancelledAt?: Date | string | null
+    deliveredAt?: Date | string | null
   }
 
   export type OrderUncheckedCreateWithoutItemsInput = {
     id?: string
-    userId: string
-    orderNumber?: string
+    orderNumber: string
+    customerId: string
+    customerName: string
+    customerEmail: string
+    shippingStreet: string
+    shippingCity: string
+    shippingState: string
+    shippingPostalCode: string
+    shippingCountry: string
+    billingStreet?: string | null
+    billingCity?: string | null
+    billingState?: string | null
+    billingPostalCode?: string | null
+    billingCountry?: string | null
     subtotal: Decimal | DecimalJsLike | number | string
     tax: Decimal | DecimalJsLike | number | string
     shipping: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
+    currency?: string
     status?: $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod: string
+    paymentTransactionId?: string | null
+    paymentProcessedAt?: Date | string | null
+    trackingNumber?: string | null
+    carrier?: string | null
+    shippedDate?: Date | string | null
+    estimatedDeliveryDate?: Date | string | null
+    refundAmount?: Decimal | DecimalJsLike | number | string | null
+    refundReason?: string | null
+    refundTransactionId?: string | null
+    refundedAt?: Date | string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cancelledAt?: Date | string | null
+    deliveredAt?: Date | string | null
   }
 
   export type OrderCreateOrConnectWithoutItemsInput = {
@@ -4601,65 +5409,117 @@ export namespace Prisma {
 
   export type OrderUpdateWithoutItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
     orderNumber?: StringFieldUpdateOperationsInput | string
+    customerId?: StringFieldUpdateOperationsInput | string
+    customerName?: StringFieldUpdateOperationsInput | string
+    customerEmail?: StringFieldUpdateOperationsInput | string
+    shippingStreet?: StringFieldUpdateOperationsInput | string
+    shippingCity?: StringFieldUpdateOperationsInput | string
+    shippingState?: StringFieldUpdateOperationsInput | string
+    shippingPostalCode?: StringFieldUpdateOperationsInput | string
+    shippingCountry?: StringFieldUpdateOperationsInput | string
+    billingStreet?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCity?: NullableStringFieldUpdateOperationsInput | string | null
+    billingState?: NullableStringFieldUpdateOperationsInput | string | null
+    billingPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCountry?: NullableStringFieldUpdateOperationsInput | string | null
     subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     tax?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     shipping?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currency?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod?: StringFieldUpdateOperationsInput | string
+    paymentTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentProcessedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trackingNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    carrier?: NullableStringFieldUpdateOperationsInput | string | null
+    shippedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedDeliveryDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    refundAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    refundReason?: NullableStringFieldUpdateOperationsInput | string | null
+    refundTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    refundedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    deliveredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type OrderUncheckedUpdateWithoutItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
     orderNumber?: StringFieldUpdateOperationsInput | string
+    customerId?: StringFieldUpdateOperationsInput | string
+    customerName?: StringFieldUpdateOperationsInput | string
+    customerEmail?: StringFieldUpdateOperationsInput | string
+    shippingStreet?: StringFieldUpdateOperationsInput | string
+    shippingCity?: StringFieldUpdateOperationsInput | string
+    shippingState?: StringFieldUpdateOperationsInput | string
+    shippingPostalCode?: StringFieldUpdateOperationsInput | string
+    shippingCountry?: StringFieldUpdateOperationsInput | string
+    billingStreet?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCity?: NullableStringFieldUpdateOperationsInput | string | null
+    billingState?: NullableStringFieldUpdateOperationsInput | string | null
+    billingPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    billingCountry?: NullableStringFieldUpdateOperationsInput | string | null
     subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     tax?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     shipping?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currency?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
-    shippingInfo?: NullableJsonNullValueInput | InputJsonValue
-    paymentInfo?: NullableJsonNullValueInput | InputJsonValue
+    paymentMethod?: StringFieldUpdateOperationsInput | string
+    paymentTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentProcessedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trackingNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    carrier?: NullableStringFieldUpdateOperationsInput | string | null
+    shippedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    estimatedDeliveryDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    refundAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    refundReason?: NullableStringFieldUpdateOperationsInput | string | null
+    refundTransactionId?: NullableStringFieldUpdateOperationsInput | string | null
+    refundedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    deliveredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type OrderItemCreateManyOrderInput = {
     id?: string
     productId: string
+    productName: string
     quantity: number
-    price: Decimal | DecimalJsLike | number | string
+    unitPrice: Decimal | DecimalJsLike | number | string
     total: Decimal | DecimalJsLike | number | string
   }
 
   export type OrderItemUpdateWithoutOrderInput = {
     id?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
+    productName?: StringFieldUpdateOperationsInput | string
     quantity?: IntFieldUpdateOperationsInput | number
-    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
   export type OrderItemUncheckedUpdateWithoutOrderInput = {
     id?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
+    productName?: StringFieldUpdateOperationsInput | string
     quantity?: IntFieldUpdateOperationsInput | number
-    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
   export type OrderItemUncheckedUpdateManyWithoutOrderInput = {
     id?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
+    productName?: StringFieldUpdateOperationsInput | string
     quantity?: IntFieldUpdateOperationsInput | number
-    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unitPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 

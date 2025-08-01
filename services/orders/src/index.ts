@@ -23,7 +23,6 @@ import { PubSubService } from '@graphql-microservices/shared-pubsub';
 import {
   createOrderInputSchema,
   orderStatusSchema,
-  shippingInfoSchema,
   validateInput,
   validateOrderStatusTransition,
 } from '@graphql-microservices/validation';
@@ -33,8 +32,6 @@ import gql from 'graphql-tag';
 import type {
   Order as GraphQLOrder,
   OrderStatus as GraphQLOrderStatus,
-  PaymentInfo as GraphQLPaymentInfo,
-  ShippingInfo as GraphQLShippingInfo,
   MutationResolvers,
   OrderItem,
   OrderItemResolvers,
@@ -102,48 +99,72 @@ const typeDefs = gql`
 
   type Order @key(fields: "id") {
     id: ID!
-    userId: ID!
-    user: User
     orderNumber: String!
+    customerId: ID!
+    customerName: String!
+    customerEmail: String!
     items: [OrderItem!]!
     subtotal: Float!
     tax: Float!
     shipping: Float!
     total: Float!
+    currency: String!
     status: OrderStatus!
-    shippingInfo: ShippingInfo
-    paymentInfo: PaymentInfo
+    
+    # Shipping Address
+    shippingStreet: String!
+    shippingCity: String!
+    shippingState: String!
+    shippingPostalCode: String!
+    shippingCountry: String!
+    
+    # Billing Address (optional)
+    billingStreet: String
+    billingCity: String
+    billingState: String
+    billingPostalCode: String
+    billingCountry: String
+    
+    # Payment
+    paymentMethod: String!
+    paymentTransactionId: String
+    paymentProcessedAt: String
+    
+    # Shipping Info
+    trackingNumber: String
+    carrier: String
+    shippedDate: String
+    estimatedDeliveryDate: String
+    deliveredAt: String
+    
+    # Refund Info
+    refundAmount: Float
+    refundReason: String
+    refundTransactionId: String
+    refundedAt: String
+    
+    # Metadata
     notes: String
     createdAt: String!
     updatedAt: String!
+    cancelledAt: String
   }
 
   type OrderItem {
     id: ID!
     productId: ID!
     product: Product
+    productName: String!
     quantity: Int!
-    price: Float!
+    unitPrice: Float!
     total: Float!
   }
 
-  type ShippingInfo {
-    address: String!
-    city: String!
-    state: String!
-    zipCode: String!
-    country: String!
-    phone: String
-  }
-
-  type PaymentInfo {
-    method: String!
-    transactionId: String
-    paidAt: String
-  }
+  # Removed ShippingInfo and PaymentInfo types as they are now part of Order
 
   enum OrderStatus {
     PENDING
+    CONFIRMED
     PROCESSING
     SHIPPED
     DELIVERED
@@ -197,65 +218,107 @@ const typeDefs = gql`
     updateOrderNotes(id: ID!, notes: String!): Order!
     cancelOrder(id: ID!, reason: String): Order!
     refundOrder(id: ID!, reason: String!): Order!
-    updateShippingInfo(id: ID!, shippingInfo: ShippingInfoInput!): Order!
+    updateShippingAddress(
+      id: ID!
+      street: String!
+      city: String!
+      state: String!
+      postalCode: String!
+      country: String!
+    ): Order!
   }
 
   type Subscription {
-    orderCreated(userId: ID): Order!
-    orderStatusChanged(userId: ID): Order!
+    orderCreated(customerId: ID): Order!
+    orderStatusChanged(customerId: ID): Order!
     orderCancelled: Order!
     orderRefunded: Order!
   }
 
   input CreateOrderInput {
+    customerId: ID!
+    customerName: String!
+    customerEmail: String!
+    shippingStreet: String!
+    shippingCity: String!
+    shippingState: String!
+    shippingPostalCode: String!
+    shippingCountry: String!
+    billingStreet: String
+    billingCity: String
+    billingState: String
+    billingPostalCode: String
+    billingCountry: String
+    paymentMethod: String!
     items: [OrderItemInput!]!
-    shippingInfo: ShippingInfoInput!
     notes: String
   }
 
   input OrderItemInput {
     productId: ID!
+    productName: String!
     quantity: Int!
-    price: Float!
+    unitPrice: Float!
   }
 
-  input ShippingInfoInput {
-    address: String!
-    city: String!
-    state: String!
-    zipCode: String!
-    country: String!
-    phone: String
-  }
+  # Removed ShippingInfoInput as fields are now part of CreateOrderInput
 `;
 
 // Helper function to transform Prisma order to GraphQL format
 const transformOrder = (order: PrismaOrder & { items?: PrismaOrderItem[] }): GraphQLOrder => {
-  const shippingInfo = order.shippingInfo as GraphQLShippingInfo | null;
-  const paymentInfo = order.paymentInfo as GraphQLPaymentInfo | null;
-
   return {
     id: order.id,
-    userId: order.userId,
     orderNumber: order.orderNumber,
+    customerId: order.customerId,
+    customerName: order.customerName,
+    customerEmail: order.customerEmail,
     items:
       order.items?.map((item) => ({
         id: item.id,
         productId: item.productId,
+        productName: item.productName,
         quantity: item.quantity,
-        price: Number(item.price),
+        unitPrice: Number(item.unitPrice),
         total: Number(item.total),
       })) || [],
     subtotal: Number(order.subtotal),
     tax: Number(order.tax),
     shipping: Number(order.shipping),
     total: Number(order.total),
+    currency: order.currency,
     status: order.status as GraphQLOrderStatus,
-    shippingInfo,
-    paymentInfo,
+    // Shipping Address
+    shippingStreet: order.shippingStreet,
+    shippingCity: order.shippingCity,
+    shippingState: order.shippingState,
+    shippingPostalCode: order.shippingPostalCode,
+    shippingCountry: order.shippingCountry,
+    // Billing Address
+    billingStreet: order.billingStreet,
+    billingCity: order.billingCity,
+    billingState: order.billingState,
+    billingPostalCode: order.billingPostalCode,
+    billingCountry: order.billingCountry,
+    // Payment
+    paymentMethod: order.paymentMethod,
+    paymentTransactionId: order.paymentTransactionId,
+    paymentProcessedAt: order.paymentProcessedAt?.toISOString() || null,
+    // Shipping Info
+    trackingNumber: order.trackingNumber,
+    carrier: order.carrier,
+    shippedDate: order.shippedDate?.toISOString() || null,
+    estimatedDeliveryDate: order.estimatedDeliveryDate?.toISOString() || null,
+    deliveredAt: order.deliveredAt?.toISOString() || null,
+    // Refund Info
+    refundAmount: order.refundAmount ? Number(order.refundAmount) : null,
+    refundReason: order.refundReason,
+    refundTransactionId: order.refundTransactionId,
+    refundedAt: order.refundedAt?.toISOString() || null,
+    // Metadata
     notes: order.notes,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
+    cancelledAt: order.cancelledAt?.toISOString() || null,
   };
 };
 
@@ -275,7 +338,7 @@ async function clearOrderCaches(order: PrismaOrder, cacheService: CacheService) 
   await Promise.all([
     cacheService.delete(`order:${order.id}`),
     cacheService.delete(`order:number:${order.orderNumber}`),
-    cacheService.invalidatePattern(`orders:user:${order.userId}:*`),
+    cacheService.invalidatePattern(`orders:customer:${order.customerId}:*`),
   ]);
 }
 
@@ -331,7 +394,7 @@ const queryResolvers: QueryResolvers<Context> = {
 
   orders: async (_, args, context) => {
     try {
-      const { first = 20, after, userId, status, dateFrom, dateTo } = args;
+      const { first = 20, after, customerId, status, dateFrom, dateTo } = args;
 
       // Validate pagination
       if (first && first > 100) {
@@ -353,7 +416,7 @@ const queryResolvers: QueryResolvers<Context> = {
 
       // Build where clause
       const where: Prisma.OrderWhereInput = {};
-      if (userId) where.userId = userId;
+      if (customerId) where.customerId = customerId;
       if (status) where.status = status as OrderStatus;
       if (dateFrom || dateTo) {
         where.createdAt = {};
@@ -411,7 +474,7 @@ const queryResolvers: QueryResolvers<Context> = {
 
       // Build where clause
       const where: Prisma.OrderWhereInput = {
-        userId: context.user.userId,
+        customerId: context.user.userId,
       };
       if (status) where.status = status as OrderStatus;
 
@@ -444,7 +507,7 @@ const queryResolvers: QueryResolvers<Context> = {
         },
       };
     } catch (error) {
-      logError(error, { operation: 'myOrders', userId: context.user.userId });
+      logError(error, { operation: 'myOrders', customerId: context.user.userId });
       throw toGraphQLError(error, 'Failed to fetch your orders');
     }
   },
@@ -468,10 +531,10 @@ const mutationResolvers: MutationResolvers<Context> = {
       // Validate each item
       for (const item of validatedInput.items) {
         // Validate price (prevent negative prices)
-        if (item.price <= 0) {
+        if (item.unitPrice <= 0) {
           throw new ValidationError('Invalid item price', [
             {
-              field: 'price',
+              field: 'unitPrice',
               message: `Price must be greater than 0 for product ${item.productId}`,
             },
           ]);
@@ -493,12 +556,13 @@ const mutationResolvers: MutationResolvers<Context> = {
       const orderItems: Prisma.OrderItemCreateManyOrderInput[] = [];
 
       for (const item of validatedInput.items) {
-        const itemTotal = item.price * item.quantity;
+        const itemTotal = item.unitPrice * item.quantity;
         subtotal += itemTotal;
         orderItems.push({
           productId: item.productId,
+          productName: item.productName,
           quantity: item.quantity,
-          price: item.price,
+          unitPrice: item.unitPrice,
           total: itemTotal,
         });
       }
@@ -509,12 +573,28 @@ const mutationResolvers: MutationResolvers<Context> = {
 
       const order = await context.prisma.order.create({
         data: {
-          userId: context.user.userId,
+          customerId: validatedInput.customerId,
+          customerName: validatedInput.customerName,
+          customerEmail: validatedInput.customerEmail,
           subtotal,
           tax,
           shipping,
           total,
-          shippingInfo: validatedInput.shippingInfo,
+          currency: 'USD',
+          // Shipping Address
+          shippingStreet: validatedInput.shippingStreet,
+          shippingCity: validatedInput.shippingCity,
+          shippingState: validatedInput.shippingState,
+          shippingPostalCode: validatedInput.shippingPostalCode,
+          shippingCountry: validatedInput.shippingCountry,
+          // Billing Address (optional)
+          billingStreet: validatedInput.billingStreet,
+          billingCity: validatedInput.billingCity,
+          billingState: validatedInput.billingState,
+          billingPostalCode: validatedInput.billingPostalCode,
+          billingCountry: validatedInput.billingCountry,
+          // Payment
+          paymentMethod: validatedInput.paymentMethod,
           notes: validatedInput.notes,
           items: {
             createMany: {
@@ -534,7 +614,7 @@ const mutationResolvers: MutationResolvers<Context> = {
     } catch (error) {
       if (error instanceof GraphQLError) throw error;
 
-      logError(error, { operation: 'createOrder', userId: context.user?.userId });
+      logError(error, { operation: 'createOrder', customerId: context.user?.userId });
       throw new InternalServerError('Failed to create order');
     }
   },
@@ -549,7 +629,7 @@ const mutationResolvers: MutationResolvers<Context> = {
       // Check if order exists and get current status
       const existingOrder = await context.prisma.order.findUnique({
         where: { id },
-        select: { id: true, status: true, userId: true },
+        select: { id: true, status: true, customerId: true },
       });
 
       if (!existingOrder) {
@@ -557,7 +637,7 @@ const mutationResolvers: MutationResolvers<Context> = {
       }
 
       // Check authorization - only order owner or admin can update status
-      if (context.user.userId !== existingOrder.userId && context.user.role !== 'ADMIN') {
+      if (context.user.userId !== existingOrder.customerId && context.user.role !== 'ADMIN') {
         throw new AuthorizationError('You can only update your own orders');
       }
 
@@ -600,7 +680,7 @@ const mutationResolvers: MutationResolvers<Context> = {
       // Check if order exists
       const existingOrder = await context.prisma.order.findUnique({
         where: { id },
-        select: { id: true, userId: true },
+        select: { id: true, customerId: true },
       });
 
       if (!existingOrder) {
@@ -608,7 +688,7 @@ const mutationResolvers: MutationResolvers<Context> = {
       }
 
       // Check authorization
-      if (context.user.userId !== existingOrder.userId && context.user.role !== 'ADMIN') {
+      if (context.user.userId !== existingOrder.customerId && context.user.role !== 'ADMIN') {
         throw new AuthorizationError('You can only update your own orders');
       }
 
@@ -636,7 +716,7 @@ const mutationResolvers: MutationResolvers<Context> = {
       // Check if order exists and get current status
       const existingOrder = await context.prisma.order.findUnique({
         where: { id },
-        select: { id: true, status: true, userId: true, createdAt: true },
+        select: { id: true, status: true, customerId: true, createdAt: true },
       });
 
       if (!existingOrder) {
@@ -644,7 +724,7 @@ const mutationResolvers: MutationResolvers<Context> = {
       }
 
       // Check authorization
-      if (context.user.userId !== existingOrder.userId && context.user.role !== 'ADMIN') {
+      if (context.user.userId !== existingOrder.customerId && context.user.role !== 'ADMIN') {
         throw new AuthorizationError('You can only cancel your own orders');
       }
 
@@ -697,7 +777,7 @@ const mutationResolvers: MutationResolvers<Context> = {
       // Check if order exists and get current status
       const existingOrder = await context.prisma.order.findUnique({
         where: { id },
-        select: { id: true, status: true, userId: true },
+        select: { id: true, status: true, customerId: true },
       });
 
       if (!existingOrder) {
@@ -737,17 +817,14 @@ const mutationResolvers: MutationResolvers<Context> = {
     }
   },
 
-  updateShippingInfo: async (_, { id, shippingInfo }, context) => {
+  updateShippingAddress: async (_, { id, street, city, state, postalCode, country }, context) => {
     if (!context.user) throw new AuthenticationError();
 
     try {
-      // Validate shipping info
-      const validatedShippingInfo = validateInput(shippingInfoSchema, shippingInfo);
-
       // Check if order exists and get current details
       const existingOrder = await context.prisma.order.findUnique({
         where: { id },
-        select: { id: true, userId: true, status: true },
+        select: { id: true, customerId: true, status: true },
       });
 
       if (!existingOrder) {
@@ -755,7 +832,7 @@ const mutationResolvers: MutationResolvers<Context> = {
       }
 
       // Check authorization - only order owner or admin can update shipping info
-      if (context.user.userId !== existingOrder.userId && context.user.role !== 'ADMIN') {
+      if (context.user.userId !== existingOrder.customerId && context.user.role !== 'ADMIN') {
         throw new AuthorizationError('You can only update shipping info for your own orders');
       }
 
@@ -768,7 +845,13 @@ const mutationResolvers: MutationResolvers<Context> = {
 
       const order = await context.prisma.order.update({
         where: { id },
-        data: { shippingInfo: validatedShippingInfo },
+        data: {
+          shippingStreet: street,
+          shippingCity: city,
+          shippingState: state,
+          shippingPostalCode: postalCode,
+          shippingCountry: country,
+        },
         include: { items: true },
       });
 
@@ -778,8 +861,8 @@ const mutationResolvers: MutationResolvers<Context> = {
     } catch (error) {
       if (error instanceof GraphQLError) throw error;
 
-      logError(error, { operation: 'updateShippingInfo', orderId: id });
-      throw new InternalServerError('Failed to update shipping information');
+      logError(error, { operation: 'updateShippingAddress', orderId: id });
+      throw new InternalServerError('Failed to update shipping address');
     }
   },
 };
@@ -792,7 +875,7 @@ const orderResolvers: OrderResolvers<Context> & {
   },
   user: (order) => ({
     __typename: 'User' as const,
-    id: order.userId,
+    id: order.customerId,
     orders: [],
   }),
   items: async (order, _, context) => {
@@ -809,8 +892,9 @@ const orderResolvers: OrderResolvers<Context> & {
     return items.map((item) => ({
       id: item.id,
       productId: item.productId,
+      productName: item.productName,
       quantity: item.quantity,
-      price: Number(item.price),
+      unitPrice: Number(item.unitPrice),
       total: Number(item.total),
     }));
   },
@@ -826,7 +910,7 @@ const orderItemResolvers: OrderItemResolvers<Context> = {
 const userResolvers: UserResolvers<Context> = {
   orders: async (user: User, _: unknown, context: Context) => {
     const orders = await context.prisma.order.findMany({
-      where: { userId: user.id },
+      where: { customerId: user.id },
       orderBy: { createdAt: 'desc' },
       include: { items: true },
     });

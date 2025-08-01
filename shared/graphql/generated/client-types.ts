@@ -27,9 +27,22 @@ export type ChangePasswordInput = {
 };
 
 export type CreateOrderInput = {
+  billingCity?: InputMaybe<Scalars['String']['input']>;
+  billingCountry?: InputMaybe<Scalars['String']['input']>;
+  billingPostalCode?: InputMaybe<Scalars['String']['input']>;
+  billingState?: InputMaybe<Scalars['String']['input']>;
+  billingStreet?: InputMaybe<Scalars['String']['input']>;
+  customerEmail: Scalars['String']['input'];
+  customerId: Scalars['ID']['input'];
+  customerName: Scalars['String']['input'];
   items: Array<OrderItemInput>;
   notes?: InputMaybe<Scalars['String']['input']>;
-  shippingInfo: ShippingInfoInput;
+  paymentMethod: Scalars['String']['input'];
+  shippingCity: Scalars['String']['input'];
+  shippingCountry: Scalars['String']['input'];
+  shippingPostalCode: Scalars['String']['input'];
+  shippingState: Scalars['String']['input'];
+  shippingStreet: Scalars['String']['input'];
 };
 
 export type CreateProductInput = {
@@ -62,7 +75,7 @@ export type Mutation = {
   updateOrderStatus: Order;
   updateProduct: Product;
   updateProfile: User;
-  updateShippingInfo: Order;
+  updateShippingAddress: Order;
   updateStock: Product;
   updateUser: User;
 };
@@ -153,9 +166,13 @@ export type MutationUpdateProfileArgs = {
 };
 
 
-export type MutationUpdateShippingInfoArgs = {
+export type MutationUpdateShippingAddressArgs = {
+  city: Scalars['String']['input'];
+  country: Scalars['String']['input'];
   id: Scalars['ID']['input'];
-  shippingInfo: ShippingInfoInput;
+  postalCode: Scalars['String']['input'];
+  state: Scalars['String']['input'];
+  street: Scalars['String']['input'];
 };
 
 
@@ -172,41 +189,67 @@ export type MutationUpdateUserArgs = {
 
 export type Order = {
   __typename?: 'Order';
+  billingCity?: Maybe<Scalars['String']['output']>;
+  billingCountry?: Maybe<Scalars['String']['output']>;
+  billingPostalCode?: Maybe<Scalars['String']['output']>;
+  billingState?: Maybe<Scalars['String']['output']>;
+  billingStreet?: Maybe<Scalars['String']['output']>;
+  cancelledAt?: Maybe<Scalars['String']['output']>;
+  carrier?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['String']['output'];
+  currency: Scalars['String']['output'];
+  customerEmail: Scalars['String']['output'];
+  customerId: Scalars['ID']['output'];
+  customerName: Scalars['String']['output'];
+  deliveredAt?: Maybe<Scalars['String']['output']>;
+  estimatedDeliveryDate?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   items: Array<OrderItem>;
   notes?: Maybe<Scalars['String']['output']>;
   orderNumber: Scalars['String']['output'];
-  paymentInfo?: Maybe<PaymentInfo>;
+  paymentMethod: Scalars['String']['output'];
+  paymentProcessedAt?: Maybe<Scalars['String']['output']>;
+  paymentTransactionId?: Maybe<Scalars['String']['output']>;
+  refundAmount?: Maybe<Scalars['Float']['output']>;
+  refundReason?: Maybe<Scalars['String']['output']>;
+  refundTransactionId?: Maybe<Scalars['String']['output']>;
+  refundedAt?: Maybe<Scalars['String']['output']>;
+  shippedDate?: Maybe<Scalars['String']['output']>;
   shipping: Scalars['Float']['output'];
-  shippingInfo?: Maybe<ShippingInfo>;
+  shippingCity: Scalars['String']['output'];
+  shippingCountry: Scalars['String']['output'];
+  shippingPostalCode: Scalars['String']['output'];
+  shippingState: Scalars['String']['output'];
+  shippingStreet: Scalars['String']['output'];
   status: OrderStatus;
   subtotal: Scalars['Float']['output'];
   tax: Scalars['Float']['output'];
   total: Scalars['Float']['output'];
+  trackingNumber?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['String']['output'];
-  user?: Maybe<User>;
-  userId: Scalars['ID']['output'];
 };
 
 export type OrderItem = {
   __typename?: 'OrderItem';
   id: Scalars['ID']['output'];
-  price: Scalars['Float']['output'];
   product?: Maybe<Product>;
   productId: Scalars['ID']['output'];
+  productName: Scalars['String']['output'];
   quantity: Scalars['Int']['output'];
   total: Scalars['Float']['output'];
+  unitPrice: Scalars['Float']['output'];
 };
 
 export type OrderItemInput = {
-  price: Scalars['Float']['input'];
   productId: Scalars['ID']['input'];
+  productName: Scalars['String']['input'];
   quantity: Scalars['Int']['input'];
+  unitPrice: Scalars['Float']['input'];
 };
 
 export enum OrderStatus {
   Cancelled = 'CANCELLED',
+  Confirmed = 'CONFIRMED',
   Delivered = 'DELIVERED',
   Pending = 'PENDING',
   Processing = 'PROCESSING',
@@ -227,13 +270,6 @@ export type PageInfo = {
   hasNextPage: Scalars['Boolean']['output'];
   hasPreviousPage: Scalars['Boolean']['output'];
   startCursor?: Maybe<Scalars['String']['output']>;
-};
-
-export type PaymentInfo = {
-  __typename?: 'PaymentInfo';
-  method: Scalars['String']['output'];
-  paidAt?: Maybe<Scalars['String']['output']>;
-  transactionId?: Maybe<Scalars['String']['output']>;
 };
 
 export type Product = {
@@ -351,25 +387,6 @@ export enum Role {
   User = 'USER'
 }
 
-export type ShippingInfo = {
-  __typename?: 'ShippingInfo';
-  address: Scalars['String']['output'];
-  city: Scalars['String']['output'];
-  country: Scalars['String']['output'];
-  phone?: Maybe<Scalars['String']['output']>;
-  state: Scalars['String']['output'];
-  zipCode: Scalars['String']['output'];
-};
-
-export type ShippingInfoInput = {
-  address: Scalars['String']['input'];
-  city: Scalars['String']['input'];
-  country: Scalars['String']['input'];
-  phone?: InputMaybe<Scalars['String']['input']>;
-  state: Scalars['String']['input'];
-  zipCode: Scalars['String']['input'];
-};
-
 export type SignInInput = {
   password: Scalars['String']['input'];
   username: Scalars['String']['input'];
@@ -405,12 +422,12 @@ export type Subscription = {
 
 
 export type SubscriptionOrderCreatedArgs = {
-  userId?: InputMaybe<Scalars['ID']['input']>;
+  customerId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
 export type SubscriptionOrderStatusChangedArgs = {
-  userId?: InputMaybe<Scalars['ID']['input']>;
+  customerId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -555,7 +572,7 @@ export type CreateOrderMutationVariables = Exact<{
 }>;
 
 
-export type CreateOrderMutation = { __typename?: 'Mutation', createOrder: { __typename?: 'Order', id: string, status: OrderStatus, total: number, createdAt: string, user?: { __typename?: 'User', id: string, username: string, email: string } | null, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, price: number, product?: { __typename?: 'Product', id: string, name: string, price: number } | null }> } };
+export type CreateOrderMutation = { __typename?: 'Mutation', createOrder: { __typename?: 'Order', id: string, orderNumber: string, status: OrderStatus, total: number, createdAt: string, customerId: string, customerName: string, customerEmail: string, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, unitPrice: number, productName: string, product?: { __typename?: 'Product', id: string, name: string, price: number } | null }> } };
 
 export type UpdateOrderStatusMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -610,16 +627,16 @@ export type GetOrderWithDetailsQueryVariables = Exact<{
 }>;
 
 
-export type GetOrderWithDetailsQuery = { __typename?: 'Query', order?: { __typename?: 'Order', id: string, status: OrderStatus, total: number, createdAt: string, updatedAt: string, user?: { __typename?: 'User', id: string, username: string, email: string, name: string } | null, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, price: number, product?: { __typename?: 'Product', id: string, name: string, description: string, price: number } | null }> } | null };
+export type GetOrderWithDetailsQuery = { __typename?: 'Query', order?: { __typename?: 'Order', id: string, orderNumber: string, status: OrderStatus, total: number, createdAt: string, updatedAt: string, customerId: string, customerName: string, customerEmail: string, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, unitPrice: number, productName: string, product?: { __typename?: 'Product', id: string, name: string, description: string, price: number } | null }> } | null };
 
 export type GetMyOrdersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMyOrdersQuery = { __typename?: 'Query', myOrders: { __typename?: 'OrdersPage', totalCount: number, orders: Array<{ __typename?: 'Order', id: string, status: OrderStatus, total: number, createdAt: string, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, price: number, product?: { __typename?: 'Product', id: string, name: string, price: number } | null }> }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
+export type GetMyOrdersQuery = { __typename?: 'Query', myOrders: { __typename?: 'OrdersPage', totalCount: number, orders: Array<{ __typename?: 'Order', id: string, orderNumber: string, status: OrderStatus, total: number, createdAt: string, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, unitPrice: number, productName: string, product?: { __typename?: 'Product', id: string, name: string, price: number } | null }> }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
 
 export type GetUserWithOrdersQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetUserWithOrdersQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username: string, email: string, name: string, orders: Array<{ __typename?: 'Order', id: string, status: OrderStatus, total: number, createdAt: string, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, price: number, product?: { __typename?: 'Product', id: string, name: string } | null }> }> } | null };
+export type GetUserWithOrdersQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username: string, email: string, name: string, orders: Array<{ __typename?: 'Order', id: string, orderNumber: string, status: OrderStatus, total: number, createdAt: string, items: Array<{ __typename?: 'OrderItem', id: string, quantity: number, unitPrice: number, productName: string, product?: { __typename?: 'Product', id: string, name: string } | null }> }> } | null };

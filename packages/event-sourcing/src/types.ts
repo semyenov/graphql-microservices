@@ -165,9 +165,9 @@ export const eventMetadataSchema = z.object({
 });
 
 export const domainEventSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.string().min(1),
-  aggregateId: z.string().uuid(),
+  aggregateId: z.uuid(),
   aggregateType: z.string().min(1),
   data: z.record(z.string(), z.unknown()),
   metadata: eventMetadataSchema,

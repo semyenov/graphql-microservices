@@ -9,7 +9,7 @@ export interface Query {
 
 // Get Order By ID
 export const getOrderByIdPayloadSchema = z.object({
-  orderId: z.string().uuid('Invalid order ID format'),
+  orderId: z.uuid('Invalid order ID format'),
 });
 
 export type GetOrderByIdPayload = z.infer<typeof getOrderByIdPayloadSchema>;
@@ -36,7 +36,7 @@ export interface GetOrderByNumberQuery extends Query {
 
 // Get Orders By Customer
 export const getOrdersByCustomerPayloadSchema = z.object({
-  customerId: z.string().uuid('Invalid customer ID format'),
+  customerId: z.uuid('Invalid customer ID format'),
   status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']).optional(),
   fromDate: z.string().datetime().optional(),
   toDate: z.string().datetime().optional(),
@@ -56,7 +56,7 @@ export interface GetOrdersByCustomerQuery extends Query {
 // Get All Orders (Admin)
 export const getAllOrdersPayloadSchema = z.object({
   status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']).optional(),
-  customerId: z.string().uuid().optional(),
+  customerId: z.uuid().optional(),
   fromDate: z.string().datetime().optional(),
   toDate: z.string().datetime().optional(),
   minTotal: z.number().positive().optional(),
@@ -76,7 +76,7 @@ export interface GetAllOrdersQuery extends Query {
 
 // Get Order Statistics
 export const getOrderStatisticsPayloadSchema = z.object({
-  customerId: z.string().uuid().optional(),
+  customerId: z.uuid().optional(),
   fromDate: z.string().datetime(),
   toDate: z.string().datetime(),
   groupBy: z.enum(['day', 'week', 'month', 'year']).default('day'),
@@ -108,7 +108,7 @@ export interface SearchOrdersQuery extends Query {
 // Get Order Count
 export const getOrderCountPayloadSchema = z.object({
   status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']).optional(),
-  customerId: z.string().uuid().optional(),
+  customerId: z.uuid().optional(),
   fromDate: z.string().datetime().optional(),
   toDate: z.string().datetime().optional(),
 });
@@ -136,7 +136,7 @@ export interface GetRevenueReportQuery extends Query {
 }
 
 // Union type for all queries
-export type OrderQuery = 
+export type OrderQuery =
   | GetOrderByIdQuery
   | GetOrderByNumberQuery
   | GetOrdersByCustomerQuery

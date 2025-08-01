@@ -53,9 +53,13 @@ async function main() {
   for (const service of servicesWithPrisma) {
     logStep(`Running migrations for ${service} service...`);
     const databaseUrl = getServiceDatabaseUrl(service);
-    await $`cd services/${service} && bunx prisma migrate dev --name init`.env({
-      DATABASE_URL: databaseUrl,
-    });
+    try {
+      await $`cd services/${service} && bunx prisma migrate dev --name init`.env({
+        DATABASE_URL: databaseUrl,
+      });
+    } catch (error) {
+      logError(`Error running migrations for ${service}: ${error}`);
+    }
   }
 
   logSuccess('\nDatabase setup complete!');

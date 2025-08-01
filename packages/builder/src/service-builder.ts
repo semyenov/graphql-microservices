@@ -12,7 +12,7 @@ export async function buildService(
   try {
     const config = createServiceConfig(service.path, options);
     await build(config);
-    logSuccess(`Built ${service.name}`);
+    logSuccess(`Built ${service.name}\n`);
   } catch (error) {
     logError(`Failed to build ${service.name}: ${error}`);
     throw error;

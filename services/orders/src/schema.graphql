@@ -1,0 +1,170 @@
+extend schema @link(
+    url: "https://specs.apollo.dev/federation/v2.0", 
+    import: ["@key", "@shareable", "@external"]
+  )
+
+  type Order @key(fields: "id") {
+    id: ID!
+    orderNumber: String!
+    customerId: ID!
+    customerName: String!
+    customerEmail: String!
+    items: [OrderItem!]!
+    subtotal: Float!
+    tax: Float!
+    shipping: Float!
+    total: Float!
+    currency: String!
+    status: OrderStatus!
+    
+    # Shipping Address
+    shippingStreet: String!
+    shippingCity: String!
+    shippingState: String!
+    shippingPostalCode: String!
+    shippingCountry: String!
+    
+    # Billing Address (optional)
+    billingStreet: String
+    billingCity: String
+    billingState: String
+    billingPostalCode: String
+    billingCountry: String
+    
+    # Payment
+    paymentMethod: String!
+    paymentTransactionId: String
+    paymentProcessedAt: String
+    
+    # Shipping Info
+    trackingNumber: String
+    carrier: String
+    shippedDate: String
+    estimatedDeliveryDate: String
+    deliveredAt: String
+    
+    # Refund Info
+    refundAmount: Float
+    refundReason: String
+    refundTransactionId: String
+    refundedAt: String
+    
+    # Metadata
+    notes: String
+    createdAt: String!
+    updatedAt: String!
+    cancelledAt: String
+  }
+
+  type OrderItem {
+    id: ID!
+    productId: ID!
+    product: Product
+    productName: String!
+    quantity: Int!
+    unitPrice: Float!
+    total: Float!
+  }
+
+  # Removed ShippingInfo and PaymentInfo types as they are now part of Order
+
+  enum OrderStatus {
+    PENDING
+    CONFIRMED
+    PROCESSING
+    SHIPPED
+    DELIVERED
+    CANCELLED
+    REFUNDED
+  }
+
+  extend type User @key(fields: "id") {
+    id: ID! @external
+    orders: [Order!]!
+  }
+
+  extend type Product @key(fields: "id") {
+    id: ID! @external
+  }
+
+  type OrdersPage {
+    orders: [Order!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
+  }
+
+  type PageInfo @shareable {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+  }
+
+  type Query {
+    order(id: ID!): Order
+    orderByNumber(orderNumber: String!): Order
+    orders(
+      first: Int
+      after: String
+      userId: ID
+      status: OrderStatus
+      dateFrom: String
+      dateTo: String
+    ): OrdersPage!
+    myOrders(
+      first: Int
+      after: String
+      status: OrderStatus
+    ): OrdersPage!
+  }
+
+  type Mutation {
+    createOrder(input: CreateOrderInput!): Order!
+    updateOrderStatus(id: ID!, status: OrderStatus!): Order!
+    updateOrderNotes(id: ID!, notes: String!): Order!
+    cancelOrder(id: ID!, reason: String): Order!
+    refundOrder(id: ID!, reason: String!): Order!
+    updateShippingAddress(
+      id: ID!
+      street: String!
+      city: String!
+      state: String!
+      postalCode: String!
+      country: String!
+    ): Order!
+  }
+
+  type Subscription {
+    orderCreated(customerId: ID): Order!
+    orderStatusChanged(customerId: ID): Order!
+    orderCancelled: Order!
+    orderRefunded: Order!
+  }
+
+  input CreateOrderInput {
+    customerId: ID!
+    customerName: String!
+    customerEmail: String!
+    shippingStreet: String!
+    shippingCity: String!
+    shippingState: String!
+    shippingPostalCode: String!
+    shippingCountry: String!
+    billingStreet: String
+    billingCity: String
+    billingState: String
+    billingPostalCode: String
+    billingCountry: String
+    paymentMethod: String!
+    items: [OrderItemInput!]!
+    notes: String
+  }
+
+  input OrderItemInput {
+    productId: ID!
+    productName: String!
+    quantity: Int!
+    unitPrice: Float!
+  }
+
+  # Removed ShippingInfoInput as fields are now part of CreateOrderInput

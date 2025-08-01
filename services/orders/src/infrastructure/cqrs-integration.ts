@@ -1,15 +1,15 @@
-import { 
-  PostgresEventStore,
-  PostgresOutboxStore,
+import {
+  PostgreSQLEventStore,
+  PostgreSQLOutboxStore,
   OutboxProcessor,
-  RedisEventPublisher,
 } from '@graphql-microservices/event-sourcing';
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '../../generated/prisma';
 import { OrderCommandBus } from '../application/commands/command-bus';
 import { OrderQueryBus } from '../application/queries/query-bus';
 import { OrderProjectionService } from '../application/projections/order-projection';
-import { logInfo, logError } from '@graphql-microservices/shared-logging';
+import { logInfo, logError } from '@shared/utils';
 import type { Pool } from 'pg';
+import { RedisEventPublisher } from '@graphql-microservices/users/src/infrastructure/redis-event-publisher';
 
 export interface CQRSConfig {
   databaseUrl: string;
@@ -20,8 +20,8 @@ export interface CQRSConfig {
 }
 
 export class OrdersCQRSIntegration {
-  private eventStore!: PostgresEventStore;
-  private outboxStore!: PostgresOutboxStore;
+  private eventStore!: PostgreSQLEventStore;
+  private outboxStore!: PostgreSQLOutboxStore;
   private outboxProcessor!: OutboxProcessor;
   private eventPublisher!: RedisEventPublisher;
   private commandBus!: OrderCommandBus;
@@ -30,7 +30,7 @@ export class OrdersCQRSIntegration {
   private prisma!: PrismaClient;
   private pool!: Pool;
 
-  constructor(private readonly config: CQRSConfig) {}
+  constructor(private readonly config: CQRSConfig) { }
 
   async initialize(): Promise<void> {
     try {
@@ -55,22 +55,21 @@ export class OrdersCQRSIntegration {
       });
 
       // Initialize event store
-      this.eventStore = new PostgresEventStore(this.pool);
+      this.eventStore = new PostgreSQLEventStore({
+        connectionString: this.config.databaseUrl,
+      });
       await this.eventStore.initialize();
       logInfo('✅ Event store initialized');
 
       // Initialize outbox store
-      this.outboxStore = new PostgresOutboxStore(this.pool);
+      this.outboxStore = new PostgreSQLOutboxStore(this.config.databaseUrl);
       await this.outboxStore.initialize();
       logInfo('✅ Outbox store initialized');
 
       // Initialize Redis event publisher if Redis URL is provided
       if (this.config.redisUrl) {
-        this.eventPublisher = new RedisEventPublisher({
-          redisUrl: this.config.redisUrl,
-          defaultChannel: 'order.events',
-        });
-        await this.eventPublisher.connect();
+        this.eventPublisher = new RedisEventPublisher(this.config.redisUrl);
+        await this.eventPublisher.initialize();
         logInfo('📡 Redis event publisher connected');
       }
 
@@ -80,7 +79,7 @@ export class OrdersCQRSIntegration {
           this.outboxStore,
           this.eventPublisher,
           {
-            pollInterval: this.config.outboxPollInterval || 5000,
+            processingInterval: this.config.outboxPollInterval || 5000,
             batchSize: 100,
           }
         );
@@ -104,7 +103,7 @@ export class OrdersCQRSIntegration {
 
       logInfo('🎉 Orders CQRS infrastructure ready!');
     } catch (error) {
-      logError('Failed to initialize Orders CQRS infrastructure', error as Error);
+      logError(`Failed to initialize Orders CQRS infrastructure: ${error}`);
       throw error;
     }
   }
@@ -123,7 +122,7 @@ export class OrdersCQRSIntegration {
         logInfo('✅ Projection service started');
       }
     } catch (error) {
-      logError('Failed to start Orders CQRS services', error as Error);
+      logError(`Failed to start Orders CQRS services: ${error}`);
       throw error;
     }
   }
@@ -144,7 +143,7 @@ export class OrdersCQRSIntegration {
 
       // Disconnect event publisher
       if (this.eventPublisher) {
-        await this.eventPublisher.disconnect();
+        await this.eventPublisher.close();
       }
 
       // Close database connections
@@ -153,7 +152,7 @@ export class OrdersCQRSIntegration {
 
       logInfo('Orders CQRS infrastructure stopped');
     } catch (error) {
-      logError('Error stopping Orders CQRS infrastructure', error as Error);
+      logError(`Error stopping Orders CQRS infrastructure: ${error}`);
       throw error;
     }
   }
@@ -170,7 +169,7 @@ export class OrdersCQRSIntegration {
     return this.prisma;
   }
 
-  getEventStore(): PostgresEventStore {
+  getEventStore(): PostgreSQLEventStore {
     return this.eventStore;
   }
 

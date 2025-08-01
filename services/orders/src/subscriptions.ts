@@ -5,18 +5,26 @@ import type { Context } from './index';
 export const subscriptionResolvers: { Subscription: SubscriptionResolvers<Context> } = {
   Subscription: {
     orderCreated: {
-      subscribe: (_, _args, context) => {
+      subscribe: (_, { customerId }, context) => {
         return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.ORDER_CREATED]);
       },
-      resolve: (payload: { orderCreated: GraphQLOrder }) => {
+      resolve: (payload: { orderCreated: GraphQLOrder }, { customerId }) => {
+        // Filter by customerId if provided
+        if (customerId && payload.orderCreated.customerId !== customerId) {
+          return null;
+        }
         return payload.orderCreated;
       },
     },
     orderStatusChanged: {
-      subscribe: (_, _args, context) => {
+      subscribe: (_, { customerId }, context) => {
         return context.pubsub.asyncIterator([SUBSCRIPTION_EVENTS.ORDER_STATUS_CHANGED]);
       },
-      resolve: (payload: { orderStatusChanged: GraphQLOrder }) => {
+      resolve: (payload: { orderStatusChanged: GraphQLOrder }, { customerId }) => {
+        // Filter by customerId if provided
+        if (customerId && payload.orderStatusChanged.customerId !== customerId) {
+          return null;
+        }
         return payload.orderStatusChanged;
       },
     },

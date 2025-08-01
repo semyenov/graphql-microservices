@@ -1,4 +1,8 @@
-extend schema @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key", "@shareable"])
+extend schema
+    @link(
+        url: "https://specs.apollo.dev/federation/v2.0"
+        import: ["@key", "@shareable"]
+    )
 # Auth directive imported from shared module
 type User @key(fields: "id") {
   id: ID!

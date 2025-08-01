@@ -140,7 +140,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/aleksandrsemenov/Projects/graphql-microservices/services/users/generated/prisma",
+      "value": "/home/semyenov/Projects/graphql-microservices/services/users/generated/prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -149,12 +149,12 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin-arm64",
+        "value": "debian-openssl-3.0.x",
         "native": true
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/Users/aleksandrsemenov/Projects/graphql-microservices/services/users/prisma/schema.prisma",
+    "sourceFilePath": "/home/semyenov/Projects/graphql-microservices/services/users/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {

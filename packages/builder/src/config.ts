@@ -12,7 +12,7 @@ export function createServiceConfig(servicePath: string, options: BuildOptions =
     dts: true,
     sourcemap: options.sourcemap ?? true,
     minify: options.minify ?? false,
-    external: [/^@graphql-microservices\//, /^@apollo\//, /^@prisma\//, 'graphql', 'dataloader'],
+    external: [/^@graphql-microservices\//, /^@apollo\//, /^@prisma\//, 'graphql', 'dataloader', 'tsdown'],
     // Enable shims for __dirname and __filename in ESM
     shims: true,
   });
