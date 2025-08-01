@@ -442,7 +442,7 @@ export class ProcessPaymentCommandHandler implements ICommandHandler<ProcessPaym
 
       // Update payment info
       const updatedPaymentInfo = PaymentInfo.fromJSON({
-        method: command.payload.method,
+        method: command.payload.method.toLowerCase() as "credit_card" | "paypal" | "debit_card" | "bank_transfer" | "cash_on_delivery",
         status: 'captured',
         transactionId: command.payload.transactionId,
         processedAt: new Date().toISOString(),
@@ -532,7 +532,7 @@ export class RefundOrderCommandHandler implements ICommandHandler<RefundOrderCom
 /**
  * Command handler factory
  */
-export function createOrderCommandHandlers(eventStore: EventStore) {
+export function createOrderCommandHandlers(eventStore: IEventStore) {
   return {
     createOrder: new CreateOrderCommandHandler(eventStore),
     cancelOrder: new CancelOrderCommandHandler(eventStore),

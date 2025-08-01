@@ -29,6 +29,7 @@ import {
 import DataLoader from 'dataloader';
 import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
+import { generateId } from '@graphql-microservices/shared-errors';
 import type {
   Order as GraphQLOrder,
   OrderStatus as GraphQLOrderStatus,
@@ -55,15 +56,20 @@ import {
   publishOrderStatusChanged,
   subscriptionResolvers,
 } from './subscriptions';
+import { initializeOrdersCQRS, type OrdersCQRSIntegration } from './infrastructure/cqrs-integration';
+import { createOrderCommand } from './domain/commands';
 
 // Parse and validate environment variables
 const env = parseEnv(orderServiceEnvSchema);
 
 // Initialize services
-const prisma = new PrismaClient();
 const cacheService = new CacheService(env.REDIS_URL || 'redis://localhost:6379');
 const pubSubService = new PubSubService({ redisUrl: env.REDIS_URL });
 const pubsub = pubSubService.getPubSub();
+
+// Initialize CQRS
+let cqrsIntegration: OrdersCQRSIntegration;
+let prisma: PrismaClient;
 
 // Initialize auth service with same keys as users service
 const jwtKeyPair = AuthService.loadKeyPairFromEnv(
@@ -88,6 +94,7 @@ export interface Context extends AuthContext {
   cacheService: CacheService;
   pubsub: typeof pubsub;
   orderLoader: DataLoader<string, GraphQLOrder | null>;
+  cqrs: OrdersCQRSIntegration;
 }
 
 // GraphQL schema
@@ -521,89 +528,76 @@ const mutationResolvers: MutationResolvers<Context> = {
       // Validate input
       const validatedInput = validateInput(createOrderInputSchema, input);
 
-      // Validate items array
-      if (validatedInput.items.length === 0) {
-        throw new ValidationError('Order must contain at least one item', [
-          { field: 'items', message: 'No items provided' },
-        ]);
-      }
+      // Generate order number
+      const orderNumber = `ORD-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
-      // Validate each item
-      for (const item of validatedInput.items) {
-        // Validate price (prevent negative prices)
-        if (item.unitPrice <= 0) {
-          throw new ValidationError('Invalid item price', [
-            {
-              field: 'unitPrice',
-              message: `Price must be greater than 0 for product ${item.productId}`,
-            },
-          ]);
-        }
-
-        // Validate quantity
-        if (item.quantity <= 0) {
-          throw new ValidationError('Invalid item quantity', [
-            {
-              field: 'quantity',
-              message: `Quantity must be greater than 0 for product ${item.productId}`,
-            },
-          ]);
-        }
-      }
-
-      // Calculate totals
-      let subtotal = 0;
-      const orderItems: Prisma.OrderItemCreateManyOrderInput[] = [];
-
-      for (const item of validatedInput.items) {
-        const itemTotal = item.unitPrice * item.quantity;
-        subtotal += itemTotal;
-        orderItems.push({
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          total: itemTotal,
-        });
-      }
-
-      const tax = subtotal * 0.1; // 10% tax
-      const shipping = subtotal > 50 ? 0 : 9.99; // Free shipping over $50
-      const total = subtotal + tax + shipping;
-
-      const order = await context.prisma.order.create({
-        data: {
-          customerId: validatedInput.customerId,
-          customerName: validatedInput.customerName,
-          customerEmail: validatedInput.customerEmail,
-          subtotal,
-          tax,
-          shipping,
-          total,
-          currency: 'USD',
-          // Shipping Address
-          shippingStreet: validatedInput.shippingStreet,
-          shippingCity: validatedInput.shippingCity,
-          shippingState: validatedInput.shippingState,
-          shippingPostalCode: validatedInput.shippingPostalCode,
-          shippingCountry: validatedInput.shippingCountry,
-          // Billing Address (optional)
-          billingStreet: validatedInput.billingStreet,
-          billingCity: validatedInput.billingCity,
-          billingState: validatedInput.billingState,
-          billingPostalCode: validatedInput.billingPostalCode,
-          billingCountry: validatedInput.billingCountry,
-          // Payment
-          paymentMethod: validatedInput.paymentMethod,
-          notes: validatedInput.notes,
-          items: {
-            createMany: {
-              data: orderItems,
-            },
+      // Create command for CQRS
+      const aggregateId = generateId();
+      const command = {
+        aggregateId,
+        type: 'CreateOrder' as const,
+        payload: {
+          orderNumber,
+          customerId: context.user.userId,
+          items: validatedInput.items.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            productSku: item.productId, // Using productId as SKU for now
+            quantity: item.quantity,
+            unitPrice: {
+              amount: item.unitPrice,
+              currency: 'USD'
+            }
+          })),
+          shippingAddress: {
+            street: validatedInput.shippingStreet,
+            city: validatedInput.shippingCity,
+            state: validatedInput.shippingState,
+            postalCode: validatedInput.shippingPostalCode,
+            country: validatedInput.shippingCountry
           },
+          billingAddress: validatedInput.billingStreet ? {
+            street: validatedInput.billingStreet,
+            city: validatedInput.billingCity || '',
+            state: validatedInput.billingState || '',
+            postalCode: validatedInput.billingPostalCode || '',
+            country: validatedInput.billingCountry || 'US'
+          } : undefined,
+          paymentInfo: {
+            method: validatedInput.paymentMethod as 'CREDIT_CARD' | 'DEBIT_CARD' | 'PAYPAL' | 'BANK_TRANSFER',
+            status: 'pending' as const
+          },
+          shippingInfo: {
+            method: 'standard',
+            cost: {
+              amount: 9.99,
+              currency: 'USD'
+            }
+          }
         },
-        include: { items: true },
+        metadata: {
+          userId: context.user.userId,
+          correlationId: generateId()
+        }
+      };
+
+      // Execute command
+      const commandBus = context.cqrs.getCommandBus();
+      const result = await commandBus.execute(command);
+
+      if (!result.success) {
+        throw new InternalServerError(result.error || 'Failed to create order');
+      }
+
+      // Load the created order
+      const order = await context.prisma.order.findUnique({
+        where: { orderNumber },
+        include: { items: true }
       });
+
+      if (!order) {
+        throw new InternalServerError('Order created but not found');
+      }
 
       const transformedOrder = transformOrder(order);
 
@@ -928,6 +922,20 @@ const resolvers: Resolvers<Context> = {
   ...subscriptionResolvers,
 };
 
+// Initialize CQRS before starting server
+async function initializeServices() {
+  cqrsIntegration = await initializeOrdersCQRS({
+    databaseUrl: env.DATABASE_URL,
+    redisUrl: env.REDIS_URL,
+    enableProjections: true,
+    enableOutboxProcessor: true,
+  });
+  
+  prisma = cqrsIntegration.getPrisma();
+  
+  console.log('✅ CQRS infrastructure initialized');
+}
+
 // Create Apollo Server with error formatting
 const server = new ApolloServer({
   schema: buildSubgraphSchema([{ typeDefs, resolvers }]),
@@ -939,6 +947,9 @@ const server = new ApolloServer({
     );
   },
 });
+
+// Initialize services before starting
+await initializeServices();
 
 // Start server
 const { url } = await startStandaloneServer(server, {
@@ -953,6 +964,7 @@ const { url } = await startStandaloneServer(server, {
       prisma,
       cacheService,
       pubsub,
+      cqrs: cqrsIntegration,
       orderLoader,
       user,
       isAuthenticated: !!user,

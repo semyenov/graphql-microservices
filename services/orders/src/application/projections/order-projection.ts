@@ -1,5 +1,5 @@
 import { EventBus } from '@graphql-microservices/event-sourcing';
-import { logError, logInfo } from '@graphql-microservices/shared-logging';
+import { logError, logInfo } from '@graphql-microservices/logger';
 import type { DomainEvent } from '../../domain/events';
 import type { PrismaClient } from '../../generated/prisma';
 import { createOrderEventHandlers } from '../event-handlers';
@@ -22,14 +22,12 @@ export class OrderProjectionService {
     // Register all event handlers with the event bus
     this.eventBus.subscribe('OrderCreated', this.eventHandlers.orderCreated);
     this.eventBus.subscribe('OrderCancelled', this.eventHandlers.orderCancelled);
-    this.eventBus.subscribe('OrderStatusUpdated', this.eventHandlers.orderStatusUpdated);
-    this.eventBus.subscribe('OrderShipped', this.eventHandlers.orderShipped);
+    this.eventBus.subscribe('OrderStatusChanged', this.eventHandlers.orderStatusChanged);
+    this.eventBus.subscribe('OrderShippingUpdated', this.eventHandlers.orderShippingUpdated);
     this.eventBus.subscribe('OrderItemAdded', this.eventHandlers.orderItemAdded);
     this.eventBus.subscribe('OrderItemRemoved', this.eventHandlers.orderItemRemoved);
-    this.eventBus.subscribe('ShippingAddressUpdated', this.eventHandlers.shippingAddressUpdated);
-    this.eventBus.subscribe('PaymentProcessed', this.eventHandlers.paymentProcessed);
+    this.eventBus.subscribe('OrderPaymentUpdated', this.eventHandlers.orderPaymentUpdated);
     this.eventBus.subscribe('OrderRefunded', this.eventHandlers.orderRefunded);
-    this.eventBus.subscribe('OrderDelivered', this.eventHandlers.orderDelivered);
   }
 
   /**
@@ -138,7 +136,7 @@ export class OrderProjectionService {
 export class OrderEventRouter {
   constructor(
     private readonly redisPublisher: any // Redis publisher from shared package
-  ) {}
+  ) { }
 
   async routeOrderCreated(event: any): Promise<void> {
     // Publish to inventory service for stock reservation

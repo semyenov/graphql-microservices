@@ -40,7 +40,7 @@ export class OrderCommandBus {
 
   async execute(command: OrderCommand): Promise<CommandResult> {
     try {
-      const result = await this.commandBus.execute(command);
+      const result = await this.commandBus.execute<any>(command);
 
       // Map the result based on command type
       switch (command.type) {
