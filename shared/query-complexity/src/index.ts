@@ -158,7 +158,7 @@ export const fieldComplexityConfig = {
  * Create validation rules for query complexity
  */
 export const createComplexityValidationRules = (
-  schema: GraphQLSchema,
+  _schema: GraphQLSchema,
   config: QueryComplexityConfig = {}
 ): ValidationRule[] => {
   const finalConfig = { ...defaultConfig, ...config };
@@ -329,7 +329,7 @@ export const estimateQueryComplexity = (
   schema: GraphQLSchema,
   query: string,
   variables: Record<string, unknown> = {},
-  config: QueryComplexityConfig = {}
+  _config: QueryComplexityConfig = {}
 ): number => {
   // const _finalConfig = { ...defaultConfig, ...config };
 

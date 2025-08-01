@@ -8,6 +8,7 @@
     "jsx": "react-jsx",
     "allowJs": true,
     "typeRoots": ["./node_modules/@types"],
+    "types": ["node"],
 
     // Bundler mode
     "moduleResolution": "bundler",
@@ -18,6 +19,7 @@
     // Best practices
     "strict": true,
     "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,

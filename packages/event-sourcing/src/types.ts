@@ -101,14 +101,18 @@ export interface EventStoreQuery {
 /**
  * Aggregate root base class
  */
-export abstract class AggregateRoot {
+export abstract class AggregateRoot<T extends Record<string, unknown> = Record<string, unknown>> {
   protected readonly _id: string;
-  protected _version: number = 0;
+  protected readonly _aggregateType: string;
   protected readonly _uncommittedEvents: DomainEvent[] = [];
+  protected _version: number = 0;
+  protected _data: T;
 
-  constructor(id: string, version: number = 0) {
+  constructor(id: string, data: T, version: number = 0) {
     this._id = id;
+    this._data = data;
     this._version = version;
+    this._aggregateType = this.constructor.name;
   }
 
   get id(): string {
@@ -119,8 +123,12 @@ export abstract class AggregateRoot {
     return this._version;
   }
 
+  get aggregateType(): string {
+    return this._aggregateType;
+  }
+
   get uncommittedEvents(): readonly DomainEvent[] {
-    return this._uncommittedEvents;
+    return this._uncommittedEvents.filter((event) => event.version > this._version);
   }
 
   /**
@@ -136,31 +144,6 @@ export abstract class AggregateRoot {
    * Apply event data to aggregate state (to be implemented by subclasses)
    */
   protected abstract applyEventData(event: DomainEvent): void;
-
-  /**
-   * Load aggregate from historical events
-   */
-  public static fromEvents<T extends AggregateRoot>(
-    AggregateConstructor: new (id: string, version: number) => T,
-    events: DomainEvent[]
-  ): T {
-    if (events.length === 0) {
-      throw new Error('Cannot create aggregate from empty event stream');
-    }
-
-    const firstEvent = events[0];
-    if (!firstEvent) {
-      throw new Error('Cannot create aggregate from empty event stream');
-    }
-    const aggregate = new AggregateConstructor(firstEvent.aggregateId, 0);
-
-    for (const event of events) {
-      aggregate.applyEventData(event);
-      aggregate._version = event.version;
-    }
-
-    return aggregate;
-  }
 
   /**
    * Mark all uncommitted events as committed
