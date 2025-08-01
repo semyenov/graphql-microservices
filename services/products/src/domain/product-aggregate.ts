@@ -208,7 +208,7 @@ export class Product extends AggregateRoot {
     imageUrl?: string,
     metadata?: { correlationId?: string; userId?: string }
   ): Product {
-    const product = new Product(id);
+    const product = new Product(id, {});
 
     // Validate required fields
     if (!name || name.trim().length === 0) {
@@ -265,13 +265,13 @@ export class Product extends AggregateRoot {
   /**
    * Create product from events (for event sourcing reconstruction)
    */
-  static override fromEvents(events: DomainEvent[]): Product {
+  static fromEvents(events: DomainEvent[]): Product {
     if (events.length === 0) {
       throw new Error('Cannot create product from empty event stream');
     }
 
     const firstEvent = events[0];
-    const product = new Product(firstEvent?.aggregateId ?? '');
+    const product = new Product(firstEvent?.aggregateId ?? '', {});
 
     // Apply all events to reconstruct state
     for (const event of events) {

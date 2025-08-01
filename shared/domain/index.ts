@@ -373,7 +373,7 @@ export class PhoneNumberFormatSpecification extends AbstractSpecification<string
 
   isSatisfiedBy(phoneNumber: string): boolean {
     // Note: PhoneNumber.isValid is not available, using basic validation
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    const phoneRegex = /^[+]?[1-9][\d]{0,15}$/;
     return phoneRegex.test(phoneNumber.replace(/\D/g, ''));
   }
 }

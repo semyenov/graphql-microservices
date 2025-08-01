@@ -135,9 +135,58 @@ exports.Prisma.ProductScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.EventsScalarFieldEnum = {
+  id: 'id',
+  aggregate_id: 'aggregate_id',
+  aggregate_type: 'aggregate_type',
+  type: 'type',
+  data: 'data',
+  metadata: 'metadata',
+  stream_position: 'stream_position',
+  global_position: 'global_position',
+  occurred_at: 'occurred_at'
+};
+
+exports.Prisma.SnapshotsScalarFieldEnum = {
+  id: 'id',
+  aggregate_id: 'aggregate_id',
+  aggregate_type: 'aggregate_type',
+  data: 'data',
+  version: 'version',
+  created_at: 'created_at'
+};
+
+exports.Prisma.Outbox_eventsScalarFieldEnum = {
+  id: 'id',
+  event_id: 'event_id',
+  aggregate_id: 'aggregate_id',
+  aggregate_type: 'aggregate_type',
+  event_type: 'event_type',
+  event_data: 'event_data',
+  event_metadata: 'event_metadata',
+  status: 'status',
+  retry_count: 'retry_count',
+  max_retries: 'max_retries',
+  routing_key: 'routing_key',
+  publish_metadata: 'publish_metadata',
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  next_retry_at: 'next_retry_at',
+  last_error: 'last_error'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
+};
+
+exports.Prisma.JsonNullValueInput = {
+  JsonNull: Prisma.JsonNull
+};
+
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
 };
 
 exports.Prisma.QueryMode = {
@@ -150,9 +199,18 @@ exports.Prisma.NullsOrder = {
   last: 'last'
 };
 
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
+};
+
 
 exports.Prisma.ModelName = {
-  Product: 'Product'
+  Product: 'Product',
+  events: 'events',
+  snapshots: 'snapshots',
+  outbox_events: 'outbox_events'
 };
 
 /**

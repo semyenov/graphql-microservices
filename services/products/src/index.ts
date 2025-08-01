@@ -6,7 +6,7 @@ import {
   AuthService,
   extractAndVerifyUser,
 } from '@graphql-microservices/shared-auth';
-import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
+import { CacheService } from '@graphql-microservices/shared-cache';
 import { parseEnv, productServiceEnvSchema } from '@graphql-microservices/shared-config';
 import {
   AuthenticationError,
@@ -42,14 +42,37 @@ import type {
   QuerySearchProductsArgs,
   Resolvers,
 } from '../generated/graphql';
-import { type Prisma, PrismaClient, type Product } from '../generated/prisma';
+import { PrismaClient } from '../generated/prisma';
 import {
-  publishProductCreated,
-  publishProductDeactivated,
-  publishProductStockChanged,
-  publishProductUpdated,
-  subscriptionResolvers,
-} from './subscriptions';
+  createProductCommand,
+  deactivateProductCommand,
+  reactivateProductCommand,
+  updateProductCommand,
+  updateProductStockCommand,
+} from './application/commands';
+import { ProductEventDispatcher } from './application/event-handlers';
+import {
+  getAllProductsQuery,
+  getProductByIdQuery,
+  getProductBySkuQuery,
+  getProductsByIdsQuery,
+  searchProductsQuery,
+} from './application/queries';
+import {
+  type GetAllProductsResult,
+  type GetProductByIdResult,
+  type GetProductBySkuResult,
+  type GetProductsByIdsResult,
+  type SearchProductsResult,
+  extractQueryData,
+  isSuccessResult,
+} from './application/query-result-types';
+import {
+  extractAggregateId,
+} from './application/command-result-types';
+import { CQRSInfrastructure } from './infrastructure/cqrs-integration';
+import { RedisEventSubscriber } from './infrastructure/redis-event-subscriber';
+import { subscriptionResolvers } from './subscriptions';
 
 // Parse and validate environment variables
 const env = parseEnv(productServiceEnvSchema);
@@ -59,6 +82,26 @@ const prisma = new PrismaClient();
 const cacheService = new CacheService(env.REDIS_URL || 'redis://localhost:6379');
 const pubSubService = new PubSubService({ redisUrl: env.REDIS_URL });
 const pubsub = pubSubService.getPubSub();
+
+// Initialize CQRS infrastructure
+const cqrsInfrastructure = new CQRSInfrastructure(
+  {
+    databaseUrl: env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/products_db',
+    redisUrl: env.REDIS_URL || 'redis://localhost:6379',
+    enableSnapshots: true,
+    snapshotFrequency: 50,
+  },
+  prisma,
+  cacheService
+);
+
+// Initialize event handling
+const eventDispatcher = new ProductEventDispatcher(prisma, cacheService, pubSubService);
+const eventSubscriber = new RedisEventSubscriber(env.REDIS_URL || 'redis://localhost:6379', eventDispatcher);
+
+// Get command and query buses
+const commandBus = cqrsInfrastructure.getCommandBus();
+const queryBus = cqrsInfrastructure.getQueryBus();
 
 // Initialize auth service with same keys as users service
 const jwtKeyPair = AuthService.loadKeyPairFromEnv(
@@ -170,23 +213,55 @@ const typeDefs = gql`
   }
 `;
 
-// Helper function to transform Prisma product to GraphQL format
-const transformProduct = (product: Product): GraphQLProduct => ({
-  ...product,
-  createdAt:
-    product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
-  updatedAt:
-    product.updatedAt instanceof Date ? product.updatedAt.toISOString() : product.updatedAt,
-  price: Number(product.price),
-});
+// Helper to transform product view model to GraphQL format
+function transformToGraphQLProduct(product: { 
+  id: string;
+  name: string;
+  description: string;
+  price: { amount: number; currency: string };
+  stock: number;
+  sku: string;
+  category: string;
+  tags: string[];
+  imageUrl?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}): GraphQLProduct {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    price: product.price.amount,
+    stock: product.stock,
+    sku: product.sku,
+    category: product.category,
+    tags: product.tags,
+    imageUrl: product.imageUrl,
+    isActive: product.isActive,
+    createdAt: product.createdAt.toISOString(),
+    updatedAt: product.updatedAt.toISOString(),
+  };
+}
 
 // DataLoader for batch loading products
 const createProductLoader = () =>
   new DataLoader<string, GraphQLProduct | null>(async (ids) => {
-    const products = await prisma.product.findMany({
-      where: { id: { in: ids as string[] } },
-    });
-    const productMap = new Map(products.map((product) => [product.id, transformProduct(product)]));
+    // Use query bus to fetch products
+    const query = getProductsByIdsQuery(ids as string[]);
+    const result = await queryBus.execute(query) as GetProductsByIdsResult;
+
+    if (!isSuccessResult(result)) {
+      return ids.map(() => null);
+    }
+
+    const productMap = new Map(
+      result.data.map((item) => [
+        item.id,
+        transformToGraphQLProduct(item),
+      ])
+    );
+
     return ids.map((id) => productMap.get(id) || null);
   });
 
@@ -196,15 +271,8 @@ export interface Context extends AuthContext {
   cacheService: CacheService;
   pubsub: typeof pubsub;
   productLoader: DataLoader<string, GraphQLProduct | null>;
-}
-
-// Helper function to clear product caches
-async function clearProductCaches(product: Product, cacheService: CacheService) {
-  await Promise.all([
-    cacheService.delete(cacheKeys.product(product.id)),
-    cacheService.delete(cacheKeys.productBySku(product.sku)),
-    cacheService.invalidatePattern(`products:category:${product.category}:*`),
-  ]);
+  commandBus: typeof commandBus;
+  queryBus: typeof queryBus;
 }
 
 // Resolvers
@@ -212,19 +280,15 @@ const resolvers: Resolvers<Context> = {
   Query: {
     product: async (_, { id }: QueryProductArgs, context: Context) => {
       try {
-        // Check cache first
-        const cached = await context.cacheService.get<GraphQLProduct>(cacheKeys.product(id));
-        if (cached) return cached;
+        // Use query bus to fetch product
+        const query = getProductByIdQuery(id);
+        const result = await context.queryBus.execute(query) as GetProductByIdResult;
 
-        // Load from database
-        const product = await context.productLoader.load(id);
-
-        // Cache the result
-        if (product) {
-          await context.cacheService.set(cacheKeys.product(id), product, cacheTTL.product);
+        if (!isSuccessResult(result) || !result.data) {
+          return null;
         }
 
-        return product;
+        return transformToGraphQLProduct(result.data);
       } catch (error) {
         logError(error, { operation: 'product', productId: id });
         throw toGraphQLError(error, 'Failed to fetch product');
@@ -233,22 +297,15 @@ const resolvers: Resolvers<Context> = {
 
     productBySku: async (_, { sku }: QueryProductBySkuArgs, context: Context) => {
       try {
-        const cached = await context.cacheService.get<GraphQLProduct>(cacheKeys.productBySku(sku));
-        if (cached) return cached;
+        // Use query bus to fetch product by SKU
+        const query = getProductBySkuQuery(sku);
+        const result = await context.queryBus.execute(query) as GetProductBySkuResult;
 
-        const product = await context.prisma.product.findUnique({ where: { sku } });
-
-        if (product) {
-          const transformedProduct = transformProduct(product);
-          await context.cacheService.set(
-            cacheKeys.productBySku(sku),
-            transformedProduct,
-            cacheTTL.product
-          );
-          return transformedProduct;
+        if (!isSuccessResult(result) || !result.data) {
+          return null;
         }
 
-        return null;
+        return transformToGraphQLProduct(result.data);
       } catch (error) {
         logError(error, { operation: 'productBySku', sku });
         throw toGraphQLError(error, 'Failed to fetch product by SKU');
@@ -266,43 +323,60 @@ const resolvers: Resolvers<Context> = {
           ]);
         }
 
-        // Build where clause
-        const where: Prisma.ProductWhereInput = {};
-        if (isActive !== null && isActive !== undefined) where.isActive = isActive;
-        if (category) where.category = category;
-        if (tags && tags.length > 0) where.tags = { hasSome: tags };
+        // Build filter
+        const filter: {
+          category?: string;
+          tags?: string[];
+          isActive?: boolean;
+          inStock?: boolean;
+          priceMin?: number;
+          priceMax?: number;
+        } = {};
+
+        if (category) filter.category = category;
+        if (tags && tags.length > 0) filter.tags = tags;
+        if (isActive !== null && isActive !== undefined) filter.isActive = isActive;
+
+        // Build pagination
+        const pagination = {
+          offset: after ? 1 : 0, // Simple cursor implementation - would need to be improved
+          limit: first || 20,
+        };
+
+        // Handle search separately
+        let result: GetAllProductsResult | SearchProductsResult;
         if (search) {
-          where.OR = [
-            { name: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-          ];
+          // Use search query
+          const searchQuery = searchProductsQuery(
+            search,
+            ['name', 'description'],
+            filter,
+            pagination
+          );
+          result = await context.queryBus.execute(searchQuery) as SearchProductsResult;
+        } else {
+          // Use get all products query
+          const query = getAllProductsQuery(
+            filter,
+            pagination,
+            { field: 'createdAt', direction: 'DESC' }
+          );
+          result = await context.queryBus.execute(query) as GetAllProductsResult;
         }
 
-        // Parse cursor
-        const cursor = after ? { id: after } : undefined;
-        const take = first || 20;
+        const data = extractQueryData(result, 'Failed to fetch products');
 
-        // Fetch products
-        const products = await context.prisma.product.findMany({
-          where,
-          take: take + 1,
-          cursor,
-          orderBy: { createdAt: 'desc' },
-        });
-
-        const hasNextPage = products.length > take;
-        const nodes = hasNextPage ? products.slice(0, -1) : products;
-
-        const totalCount = await context.prisma.product.count({ where });
+        // Transform to GraphQL format
+        const products = data.items.map(transformToGraphQLProduct);
 
         return {
-          products: nodes.map(transformProduct),
-          totalCount,
+          products,
+          totalCount: data.totalCount,
           pageInfo: {
-            hasNextPage,
-            hasPreviousPage: !!after,
-            startCursor: nodes[0]?.id,
-            endCursor: nodes[nodes.length - 1]?.id,
+            hasNextPage: data.hasMore,
+            hasPreviousPage: pagination.offset > 0,
+            startCursor: products[0]?.id,
+            endCursor: products[products.length - 1]?.id,
           },
         };
       } catch (error) {
@@ -340,19 +414,19 @@ const resolvers: Resolvers<Context> = {
           ]);
         }
 
-        const results = await context.prisma.product.findMany({
-          where: {
-            isActive: true,
-            OR: [
-              { name: { contains: query, mode: 'insensitive' } },
-              { description: { contains: query, mode: 'insensitive' } },
-              { sku: { contains: query, mode: 'insensitive' } },
-            ],
-          },
-          take: limit || 10,
-          orderBy: { name: 'asc' },
-        });
-        return results.map(transformProduct);
+        // Use search query
+        const searchQuery = searchProductsQuery(
+          query,
+          ['name', 'description', 'sku'],
+          { isActive: true },
+          { offset: 0, limit: limit || 10 }
+        );
+
+        const result = await context.queryBus.execute(searchQuery) as SearchProductsResult;
+        const data = extractQueryData(result, 'Failed to search products');
+
+        // Transform to GraphQL format
+        return data.items.map(transformToGraphQLProduct);
       } catch (error) {
         if (error instanceof GraphQLError) throw error;
         logError(error, { operation: 'searchProducts', query, limit });
@@ -369,51 +443,46 @@ const resolvers: Resolvers<Context> = {
         // Validate input
         const validatedInput = validateInput(createProductInputSchema, input);
 
-        // Check if SKU already exists
-        const existingProduct = await context.prisma.product.findUnique({
-          where: { sku: validatedInput.sku },
-        });
-
-        if (existingProduct) {
-          throw new ValidationError('Product with this SKU already exists', [
-            { field: 'sku', message: `SKU '${validatedInput.sku}' is already in use` },
-          ]);
-        }
-
-        const createData: Prisma.ProductCreateInput = {
+        // Create command with new product ID
+        const productId = `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const command = createProductCommand(productId, {
           name: validatedInput.name,
           description: validatedInput.description,
-          price: validatedInput.price,
-          stock: validatedInput.stock,
+          price: { amount: validatedInput.price, currency: 'USD' },
+          initialStock: validatedInput.stock,
           sku: validatedInput.sku,
           category: validatedInput.category,
           tags: validatedInput.tags || [],
-          imageUrl: validatedInput.imageUrl,
-          isActive: true,
-        };
-
-        const product = await context.prisma.product.create({
-          data: createData,
+          imageUrl: validatedInput.imageUrl || undefined,
         });
 
-        const transformedProduct = transformProduct(product);
+        // Execute command
+        const result = await context.commandBus.execute(command);
 
-        // Publish event
-        await publishProductCreated(context, transformedProduct);
-
-        return transformedProduct;
-      } catch (error) {
-        if (error instanceof GraphQLError) throw error;
-
-        // Handle Prisma unique constraint errors
-        if (error instanceof Error && error.message.includes('Unique constraint failed')) {
-          if (error.message.includes('sku')) {
-            throw new ValidationError('Product SKU must be unique', [
-              { field: 'sku', message: 'This SKU is already in use' },
+        if (!result.success) {
+          // Handle specific errors
+          if (result.error?.includes('SKU already exists')) {
+            throw new ValidationError('Product with this SKU already exists', [
+              { field: 'sku', message: `SKU '${validatedInput.sku}' is already in use` },
             ]);
           }
+          throw new Error(result.error || 'Failed to create product');
         }
 
+        const aggregateId = extractAggregateId(result, 'Product created but no ID returned');
+
+        // Get the created product
+        const getQuery = getProductByIdQuery(aggregateId);
+        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
+        const productData = extractQueryData(queryResult, 'Product created but could not be retrieved');
+
+        if (!productData) {
+          throw new InternalServerError('Product created but data is null');
+        }
+
+        return transformToGraphQLProduct(productData);
+      } catch (error) {
+        if (error instanceof GraphQLError) throw error;
         logError(error, { operation: 'createProduct', input });
         throw new InternalServerError('Failed to create product');
       }
@@ -426,42 +495,36 @@ const resolvers: Resolvers<Context> = {
         // Validate input
         const validatedInput = validateInput(updateProductInputSchema, input);
 
-        // Check if product exists
-        const existingProduct = await context.prisma.product.findUnique({
-          where: { id },
+        // Create command
+        const command = updateProductCommand(id, {
+          name: validatedInput.name,
+          description: validatedInput.description,
+          imageUrl: validatedInput.imageUrl || undefined,
+          tags: validatedInput.tags,
         });
 
-        if (!existingProduct) {
-          throw new NotFoundError('Product', id);
+        // Execute command
+        const result = await context.commandBus.execute(command);
+
+        if (!result.success) {
+          if (result.error?.includes('Product not found')) {
+            throw new NotFoundError('Product', id);
+          }
+          throw new Error(result.error || 'Failed to update product');
         }
 
-        // Handle InputMaybe fields properly
-        const updateData: Prisma.ProductUpdateInput = {};
-        if (validatedInput.name !== undefined) updateData.name = validatedInput.name;
-        if (validatedInput.description !== undefined)
-          updateData.description = validatedInput.description;
-        if (validatedInput.price !== undefined) updateData.price = validatedInput.price;
-        if (validatedInput.stock !== undefined) updateData.stock = validatedInput.stock;
-        if (validatedInput.category !== undefined) updateData.category = validatedInput.category;
-        if (validatedInput.tags !== undefined) updateData.tags = validatedInput.tags;
-        if (validatedInput.imageUrl !== undefined) updateData.imageUrl = validatedInput.imageUrl;
+        // Get the updated product
+        const getQuery = getProductByIdQuery(id);
+        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
+        const productData = extractQueryData(queryResult, 'Product updated but could not be retrieved');
 
-        const product = await context.prisma.product.update({
-          where: { id },
-          data: updateData,
-        });
+        if (!productData) {
+          throw new InternalServerError('Product updated but data is null');
+        }
 
-        await clearProductCaches(product, context.cacheService);
-
-        const transformedProduct = transformProduct(product);
-
-        // Publish event
-        await publishProductUpdated(context, transformedProduct);
-
-        return transformedProduct;
+        return transformToGraphQLProduct(productData);
       } catch (error) {
         if (error instanceof GraphQLError) throw error;
-
         logError(error, { operation: 'updateProduct', productId: id, input });
         throw new InternalServerError('Failed to update product');
       }
@@ -478,31 +541,36 @@ const resolvers: Resolvers<Context> = {
           ]);
         }
 
-        // Check if product exists
-        const existingProduct = await context.prisma.product.findUnique({
-          where: { id },
+        // Create command
+        const command = updateProductStockCommand(id, {
+          newStock: quantity,
+          changeType: 'adjustment',
+          reason: 'Manual stock update',
+          changedBy: context.user.userId,
         });
 
-        if (!existingProduct) {
-          throw new NotFoundError('Product', id);
+        // Execute command
+        const result = await context.commandBus.execute(command);
+
+        if (!result.success) {
+          if (result.error?.includes('Product not found')) {
+            throw new NotFoundError('Product', id);
+          }
+          throw new Error(result.error || 'Failed to update product stock');
         }
 
-        const product = await context.prisma.product.update({
-          where: { id },
-          data: { stock: quantity },
-        });
+        // Get the updated product
+        const getQuery = getProductByIdQuery(id);
+        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
+        const productData = extractQueryData(queryResult, 'Product stock updated but could not be retrieved');
 
-        await clearProductCaches(product, context.cacheService);
+        if (!productData) {
+          throw new InternalServerError('Product stock updated but data is null');
+        }
 
-        const transformedProduct = transformProduct(product);
-
-        // Publish event
-        await publishProductStockChanged(context, transformedProduct);
-
-        return transformedProduct;
+        return transformToGraphQLProduct(productData);
       } catch (error) {
         if (error instanceof GraphQLError) throw error;
-
         logError(error, { operation: 'updateStock', productId: id, quantity });
         throw new InternalServerError('Failed to update product stock');
       }
@@ -512,35 +580,37 @@ const resolvers: Resolvers<Context> = {
       if (!context.user) throw new AuthenticationError();
 
       try {
-        // Check if product exists
-        const existingProduct = await context.prisma.product.findUnique({
-          where: { id },
+        // Create command
+        const command = deactivateProductCommand(id, {
+          reason: 'Manual deactivation',
+          deactivatedBy: context.user.userId,
         });
 
-        if (!existingProduct) {
-          throw new NotFoundError('Product', id);
+        // Execute command
+        const result = await context.commandBus.execute(command);
+
+        if (!result.success) {
+          if (result.error?.includes('Product not found')) {
+            throw new NotFoundError('Product', id);
+          }
+          if (result.error?.includes('already deactivated')) {
+            throw new BusinessRuleError('Product is already deactivated');
+          }
+          throw new Error(result.error || 'Failed to deactivate product');
         }
 
-        if (!existingProduct.isActive) {
-          throw new BusinessRuleError('Product is already deactivated');
+        // Get the updated product
+        const getQuery = getProductByIdQuery(id);
+        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
+        const productData = extractQueryData(queryResult, 'Product deactivated but could not be retrieved');
+
+        if (!productData) {
+          throw new InternalServerError('Product deactivated but data is null');
         }
 
-        const product = await context.prisma.product.update({
-          where: { id },
-          data: { isActive: false },
-        });
-
-        await clearProductCaches(product, context.cacheService);
-
-        const transformedProduct = transformProduct(product);
-
-        // Publish event
-        await publishProductDeactivated(context, transformedProduct);
-
-        return transformedProduct;
+        return transformToGraphQLProduct(productData);
       } catch (error) {
         if (error instanceof GraphQLError) throw error;
-
         logError(error, { operation: 'deactivateProduct', productId: id });
         throw new InternalServerError('Failed to deactivate product');
       }
@@ -550,35 +620,37 @@ const resolvers: Resolvers<Context> = {
       if (!context.user) throw new AuthenticationError();
 
       try {
-        // Check if product exists
-        const existingProduct = await context.prisma.product.findUnique({
-          where: { id },
+        // Create command
+        const command = reactivateProductCommand(id, {
+          reason: 'Manual reactivation',
+          reactivatedBy: context.user.userId,
         });
 
-        if (!existingProduct) {
-          throw new NotFoundError('Product', id);
+        // Execute command
+        const result = await context.commandBus.execute(command);
+
+        if (!result.success) {
+          if (result.error?.includes('Product not found')) {
+            throw new NotFoundError('Product', id);
+          }
+          if (result.error?.includes('already active')) {
+            throw new BusinessRuleError('Product is already active');
+          }
+          throw new Error(result.error || 'Failed to activate product');
         }
 
-        if (existingProduct.isActive) {
-          throw new BusinessRuleError('Product is already active');
+        // Get the updated product
+        const getQuery = getProductByIdQuery(id);
+        const queryResult = await context.queryBus.execute(getQuery) as GetProductByIdResult;
+        const productData = extractQueryData(queryResult, 'Product activated but could not be retrieved');
+
+        if (!productData) {
+          throw new InternalServerError('Product activated but data is null');
         }
 
-        const product = await context.prisma.product.update({
-          where: { id },
-          data: { isActive: true },
-        });
-
-        await clearProductCaches(product, context.cacheService);
-
-        const transformedProduct = transformProduct(product);
-
-        // Publish event
-        await publishProductUpdated(context, transformedProduct);
-
-        return transformedProduct;
+        return transformToGraphQLProduct(productData);
       } catch (error) {
         if (error instanceof GraphQLError) throw error;
-
         logError(error, { operation: 'activateProduct', productId: id });
         throw new InternalServerError('Failed to activate product');
       }
@@ -590,21 +662,6 @@ const resolvers: Resolvers<Context> = {
       try {
         // Validate input
         const validatedInput = validateInput(bulkUpdateStockInputSchema, { updates });
-
-        // Validate all products exist before updating
-        const productIds = validatedInput.updates.map((u) => u.productId);
-        const existingProducts = await context.prisma.product.findMany({
-          where: { id: { in: productIds } },
-        });
-
-        const existingIds = new Set(existingProducts.map((p) => p.id));
-        const missingIds = productIds.filter((id) => !existingIds.has(id));
-
-        if (missingIds.length > 0) {
-          throw new ValidationError('Some products not found', [
-            { field: 'updates', message: `Products not found: ${missingIds.join(', ')}` },
-          ]);
-        }
 
         // Validate quantities
         const invalidUpdates = validatedInput.updates.filter((u) => u.quantity < 0);
@@ -619,31 +676,50 @@ const resolvers: Resolvers<Context> = {
           );
         }
 
-        // Perform updates
-        const results = await Promise.all(
-          validatedInput.updates.map(({ productId, quantity }) =>
-            context.prisma.product.update({
-              where: { id: productId },
-              data: { stock: quantity },
-            })
-          )
+        // Execute stock update commands in parallel
+        const commandResults = await Promise.all(
+          validatedInput.updates.map(({ productId, quantity }) => {
+            const command = updateProductStockCommand(productId, {
+              newStock: quantity,
+              changeType: 'adjustment',
+              reason: 'Bulk stock update',
+              changedBy: context.user?.userId || 'system',
+            });
+            return context.commandBus.execute(command).then((result) => ({
+              productId,
+              result,
+            }));
+          })
         );
 
-        // Clear caches for all updated products
-        await Promise.all(
-          results.map((product) => clearProductCaches(product, context.cacheService))
-        );
+        // Check for failures
+        const failures = commandResults.filter(({ result }) => !result.success);
+        if (failures.length > 0) {
+          const missingIds = failures
+            .filter(({ result }) => result.error?.includes('Product not found'))
+            .map(({ productId }) => productId);
 
-        // Publish events for all updated products
-        const transformedProducts = results.map(transformProduct);
-        await Promise.all(
-          transformedProducts.map((product) => publishProductStockChanged(context, product))
-        );
+          if (missingIds.length > 0) {
+            throw new ValidationError('Some products not found', [
+              { field: 'updates', message: `Products not found: ${missingIds.join(', ')}` },
+            ]);
+          }
 
-        return transformedProducts;
+          throw new Error(
+            `Failed to update some products: ${failures.map(({ result }) => result.error).join(', ')}`
+          );
+        }
+
+        // Fetch all updated products
+        const productIds = validatedInput.updates.map((u) => u.productId);
+        const getQuery = getProductsByIdsQuery(productIds);
+        const queryResult = await context.queryBus.execute(getQuery) as GetProductsByIdsResult;
+        const productsData = extractQueryData(queryResult, 'Products updated but could not be retrieved');
+
+        // Transform to GraphQL format
+        return productsData.map(transformToGraphQLProduct);
       } catch (error) {
         if (error instanceof GraphQLError) throw error;
-
         logError(error, { operation: 'bulkUpdateStock', updates });
         throw new InternalServerError('Failed to bulk update product stock');
       }
@@ -676,6 +752,12 @@ const server = new ApolloServer({
   },
 });
 
+// Initialize CQRS infrastructure
+await cqrsInfrastructure.initialize();
+
+// Initialize event subscriber
+await eventSubscriber.start();
+
 // Start server
 const { url } = await startStandaloneServer(server, {
   listen: { port: env.PORT },
@@ -692,6 +774,8 @@ const { url } = await startStandaloneServer(server, {
       productLoader,
       user,
       isAuthenticated: !!user,
+      commandBus,
+      queryBus,
     };
   },
 });
@@ -699,8 +783,18 @@ const { url } = await startStandaloneServer(server, {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down Products service...');
+
+  // Stop event subscriber
+  await eventSubscriber.stop();
+
+  // Shutdown CQRS infrastructure
+  await cqrsInfrastructure.shutdown();
+
+  // Disconnect services
   await prisma.$disconnect();
   await cacheService.disconnect();
+  await pubSubService.disconnect();
+
   process.exit(0);
 });
 

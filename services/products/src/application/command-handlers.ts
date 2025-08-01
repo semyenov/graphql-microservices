@@ -4,7 +4,13 @@ import {
   type PostgreSQLOutboxStore,
 } from '@graphql-microservices/event-sourcing';
 import { Product } from '../domain/product-aggregate';
-import { Money, ProductCategory, ProductSKU, ProductTags, StockQuantity } from '../domain/value-objects';
+import {
+  Money,
+  ProductCategory,
+  ProductSKU,
+  ProductTags,
+  StockQuantity,
+} from '../domain/value-objects';
 import {
   type ChangeProductCategoryCommand,
   type ChangeProductPriceCommand,

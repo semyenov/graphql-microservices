@@ -26,3 +26,59 @@ model Product {
   @@index([name])
   @@index([sku])
 }
+
+// Event sourcing tables
+model events {
+  id              String   @id @default(uuid())
+  aggregate_id    String
+  aggregate_type  String
+  type            String
+  data            Json
+  metadata        Json
+  stream_position Int
+  global_position BigInt   @default(autoincrement())
+  occurred_at     DateTime @default(now())
+  
+  @@unique([aggregate_id, stream_position])
+  @@unique([id])
+  @@index([aggregate_id])
+  @@index([aggregate_type])
+  @@index([type])
+  @@index([occurred_at])
+  @@index([global_position])
+}
+
+model snapshots {
+  id             String   @id @default(uuid())
+  aggregate_id   String
+  aggregate_type String
+  data           Json
+  version        Int
+  created_at     DateTime @default(now())
+  
+  @@unique([aggregate_id, version])
+  @@index([aggregate_type])
+}
+
+model outbox_events {
+  id               String   @id @default(uuid())
+  event_id         String   @unique
+  aggregate_id     String
+  aggregate_type   String
+  event_type       String
+  event_data       Json
+  event_metadata   Json
+  status           String   @default("pending")
+  retry_count      Int      @default(0)
+  max_retries      Int      @default(3)
+  routing_key      String?
+  publish_metadata Json?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  next_retry_at    DateTime?
+  last_error       String?
+  
+  @@index([status])
+  @@index([created_at])
+  @@index([aggregate_type, aggregate_id])
+}

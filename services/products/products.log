@@ -1,0 +1,457 @@
+$ bun run --watch src/index.ts
+Warning: JWT_ACCESS_PRIVATE_KEY or JWT_ACCESS_PUBLIC_KEY not found in environment. Using generated keys for development.
+Warning: JWT_REFRESH_PRIVATE_KEY or JWT_REFRESH_PUBLIC_KEY not found in environment. Using generated keys for development.
+🏗️  Initializing Products CQRS infrastructure...
+✅ Event store initialized
+✅ Outbox store initialized
+📡 Redis event publisher connected
+✅ Event publisher initialized
+🎉 Products CQRS infrastructure ready!
+📡 Redis event subscriber connected
+📥 Subscribed to channels: product.events, product.created, product.stock.changed, inventory.updates, product.price.changed, pricing.updates, product.status.changed, product.reservations, inventory.reservations, cross-service.user.events, cross-service.order.events, cross-service.inventory.requests, order.created, order.cancelled, order.status.changed
+Enabling inline tracing for this subgraph. To disable, use ApolloServerPluginInlineTraceDisabled.
+🚀 Products service ready at http://localhost:4002/
+Failed to load product aggregate product-test-4: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-4"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-1: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-1"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-2: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-2"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-3: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-3"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-4: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-4"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-1: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-1"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-3: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-3"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-2: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-2"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Query GetProductById failed: ZodError: [
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "uuid",
+    "pattern": "/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$/",
+    "path": [
+      "payload",
+      "productId"
+    ],
+    "message": "Invalid UUID"
+  }
+]
+
+Query GetProductBySku failed: ZodError: [
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^[A-Z]{2,10}-\\d{4,10}$/",
+    "path": [
+      "payload",
+      "sku"
+    ],
+    "message": "Invalid string: must match pattern /^[A-Z]{2,10}-\\d{4,10}$/"
+  }
+]
+
+Failed to load product aggregate product-test-1: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-1"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-3: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-3"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-4: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-4"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-1: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-1"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-2: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-2"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-2: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-2"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-3: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-3"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+
+Failed to load product aggregate product-test-1: 540 |         result = new this._Promise((resolve, reject) => {
+541 |           query.callback = (err, res) => (err ? reject(err) : resolve(res))
+542 |         }).catch((err) => {
+543 |           // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+544 |           // application that created the query
+545 |           Error.captureStackTrace(err)
+                      ^
+error: invalid input syntax for type uuid: "product-test-1"
+     length: 146,
+   severity: "ERROR",
+     detail: undefined,
+       hint: undefined,
+   position: undefined,
+ internalPosition: undefined,
+ internalQuery: undefined,
+      where: "unnamed portal parameter $1 = '...'",
+     schema: undefined,
+      table: undefined,
+   dataType: undefined,
+ constraint: undefined,
+       file: "uuid.c",
+    routine: "string_to_uuid",
+       code: "22P02"
+
+      at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
+

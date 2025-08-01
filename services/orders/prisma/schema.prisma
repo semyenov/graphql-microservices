@@ -9,34 +9,76 @@ datasource db {
 }
 
 model Order {
-  id           String      @id @default(uuid())
-  userId       String
-  orderNumber  String      @unique @default(cuid())
-  items        OrderItem[]
-  subtotal     Decimal     @db.Decimal(10, 2)
-  tax          Decimal     @db.Decimal(10, 2)
-  shipping     Decimal     @db.Decimal(10, 2)
-  total        Decimal     @db.Decimal(10, 2)
-  status       OrderStatus @default(PENDING)
-  shippingInfo Json?
-  paymentInfo  Json?
-  notes        String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id                   String      @id @default(uuid())
+  orderNumber          String      @unique
+  customerId           String
+  customerName         String
+  customerEmail        String
+  items                OrderItem[]
+  
+  // Address fields
+  shippingStreet       String
+  shippingCity         String
+  shippingState        String
+  shippingPostalCode   String
+  shippingCountry      String
+  
+  billingStreet        String?
+  billingCity          String?
+  billingState         String?
+  billingPostalCode    String?
+  billingCountry       String?
+  
+  // Financial fields
+  subtotal             Decimal     @db.Decimal(10, 2)
+  tax                  Decimal     @db.Decimal(10, 2)
+  shipping             Decimal     @db.Decimal(10, 2)
+  total                Decimal     @db.Decimal(10, 2)
+  currency             String      @default("USD")
+  
+  // Payment and status
+  status               OrderStatus @default(PENDING)
+  paymentMethod        String
+  paymentTransactionId String?
+  paymentProcessedAt   DateTime?
+  
+  // Shipping info
+  trackingNumber       String?
+  carrier              String?
+  shippedDate          DateTime?
+  estimatedDeliveryDate DateTime?
+  
+  // Refund info
+  refundAmount         Decimal?    @db.Decimal(10, 2)
+  refundReason         String?
+  refundTransactionId  String?
+  refundedAt           DateTime?
+  
+  // Metadata
+  notes                String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  cancelledAt          DateTime?
+  deliveredAt          DateTime?
+  
+  // Customer relationship (if you have a Customer model)
+  // customer           Customer    @relation(fields: [customerId], references: [id])
 
-  @@index([userId])
+  @@index([customerId])
   @@index([orderNumber])
   @@index([status])
+  @@index([createdAt])
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  quantity  Int
-  price     Decimal @db.Decimal(10, 2)
-  total     Decimal @db.Decimal(10, 2)
+  id           String  @id @default(uuid())
+  orderId      String
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  productName  String
+  quantity     Int
+  unitPrice    Decimal @db.Decimal(10, 2)
+  total        Decimal @db.Decimal(10, 2)
 
   @@index([orderId])
   @@index([productId])
@@ -44,6 +86,7 @@ model OrderItem {
 
 enum OrderStatus {
   PENDING
+  CONFIRMED
   PROCESSING
   SHIPPED
   DELIVERED
