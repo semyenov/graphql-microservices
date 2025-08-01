@@ -603,3 +603,14 @@ bun run docs:generate
 - Implement event store archiving strategy for old events
 - Consider read model projections for query optimization
 - Set up event replay capabilities for disaster recovery
+
+## Bun Runtime Preferences
+
+This project uses Bun.sh as the runtime. Always prefer Bun commands and APIs:
+
+- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
+- Use `bun test` instead of `jest` or `vitest`
+- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
+- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>`
+- Bun automatically loads .env files, so dotenv is not needed
+- The project uses `ioredis` for Redis compatibility with the existing architecture

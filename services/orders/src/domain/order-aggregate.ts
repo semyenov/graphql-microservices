@@ -1,6 +1,5 @@
 import {
   AggregateRoot,
-  type DomainEvent,
   EventFactory,
 } from '@graphql-microservices/event-sourcing';
 import {
@@ -16,6 +15,7 @@ import {
   PaymentInfo,
   ShippingInfo,
 } from './value-objects';
+import type { DomainEvent } from './events';
 
 /**
  * Order Status enum
@@ -225,7 +225,7 @@ export class InvalidOrderTotalError extends OrderDomainError {
 /**
  * Order aggregate root
  */
-export class Order extends AggregateRoot<Record<string, unknown>> {
+export class Order extends AggregateRoot {
   private _orderNumber: OrderNumber = OrderNumber.fromString('ORD-20240101-00001');
   private _customerId: string = '';
   private _status: OrderStatus = 'pending';
@@ -263,18 +263,9 @@ export class Order extends AggregateRoot<Record<string, unknown>> {
 
   constructor(
     id: string,
-    data: {
-      orderNumber: OrderNumber;
-      customerId: string;
-      items: OrderItem[];
-      shippingAddress: Address;
-      paymentInfo: PaymentInfo;
-      shippingInfo: ShippingInfo;
-      billingAddress?: Address;
-    },
     version: number = 0
   ) {
-    super(id, data, version);
+    super(id, version);
   }
 
   get orderNumber(): OrderNumber {
@@ -349,19 +340,7 @@ export class Order extends AggregateRoot<Record<string, unknown>> {
     },
     metadata?: { correlationId?: string; userId?: string }
   ): Order {
-    const order = new Order(
-      input.id,
-      {
-        orderNumber: input.orderNumber,
-        customerId: input.customerId,
-        items: input.items,
-        shippingAddress: input.shippingAddress,
-        paymentInfo: input.paymentInfo,
-        shippingInfo: input.shippingInfo,
-        billingAddress: input.billingAddress,
-      },
-      0
-    );
+    const order = new Order(input.id, 0);
 
     // Validate required fields
     if (!input.customerId || input.customerId.trim().length === 0) {
@@ -1131,3 +1110,6 @@ export class Order extends AggregateRoot<Record<string, unknown>> {
     return this._status === 'cancelled';
   }
 }
+
+// Export with alias for backward compatibility
+export { Order as OrderAggregate };

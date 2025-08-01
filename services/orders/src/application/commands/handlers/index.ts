@@ -14,6 +14,7 @@ import type {
 } from '../../../domain/commands';
 import { generateId } from '@graphql-microservices/shared-errors';
 import { logInfo, logError } from '@shared/utils';
+import { OrderNumber, OrderQuantity, Money, Address, PaymentInfo, ShippingInfo } from '../../../domain/value-objects';
 
 /**
  * Create Order Command Handler
@@ -26,22 +27,42 @@ export class CreateOrderCommandHandler implements ICommandHandler<CreateOrderCom
       logInfo('Creating new order', { customerId: command.payload.customerId });
       
       // Create new order aggregate
-      const aggregate = OrderAggregate.create(command);
+      const aggregate = OrderAggregate.createOrder({
+        id: command.aggregateId || generateId(),
+        orderNumber: OrderNumber.fromString(command.payload.orderNumber),
+        customerId: command.payload.customerId,
+        items: command.payload.items.map(item => ({
+          id: generateId(),
+          productId: item.productId,
+          productName: item.productName,
+          productSku: item.productSku,
+          quantity: OrderQuantity.fromNumber(item.quantity),
+          unitPrice: Money.fromJSON(item.unitPrice),
+          totalPrice: Money.fromJSON({ amount: item.quantity * item.unitPrice.amount, currency: item.unitPrice.currency })
+        })),
+        shippingAddress: Address.fromJSON(command.payload.shippingAddress),
+        paymentInfo: PaymentInfo.fromJSON(command.payload.paymentInfo),
+        shippingInfo: ShippingInfo.fromJSON(command.payload.shippingInfo),
+        billingAddress: command.payload.billingAddress ? Address.fromJSON(command.payload.billingAddress) : undefined
+      }, {
+        correlationId: command.metadata?.correlationId,
+        userId: command.metadata?.userId
+      });
       
       // Save events to event store
-      await this.eventStore.save(aggregate.getId(), aggregate.getUncommittedEvents(), 0);
+      await this.eventStore.save(aggregate.id, aggregate.uncommittedEvents, 0);
       
       // Get order number from aggregate
-      const orderNumber = aggregate.getOrderNumber();
+      const orderNumber = aggregate.getOrderNumber().getValue();
       
       logInfo('Order created successfully', { 
-        orderId: aggregate.getId(), 
+        orderId: aggregate.id, 
         orderNumber,
         customerId: command.payload.customerId 
       });
       
       return { 
-        aggregateId: aggregate.getId(),
+        aggregateId: aggregate.id,
         orderNumber 
       };
     } catch (error) {
@@ -63,22 +84,25 @@ export class CancelOrderCommandHandler implements ICommandHandler<CancelOrderCom
       
       // Load aggregate from event store
       const events = await this.eventStore.getEvents(command.aggregateId);
-      const aggregate = new OrderAggregate(command.aggregateId);
-      aggregate.loadFromHistory(events);
+      const aggregate = OrderAggregate.fromOrderEvents(events);
       
-      // Handle command
-      aggregate.handle(command);
+      // Cancel the order
+      aggregate.cancel(
+        command.payload.reason,
+        command.payload.cancelledBy || command.metadata?.userId || 'system',
+        { correlationId: command.metadata?.correlationId }
+      );
       
       // Save new events
       await this.eventStore.save(
-        aggregate.getId(),
-        aggregate.getUncommittedEvents(),
-        aggregate.getVersion()
+        aggregate.id,
+        aggregate.uncommittedEvents,
+        aggregate.version
       );
       
       logInfo('Order cancelled successfully', { orderId: command.aggregateId });
       
-      return { aggregateId: aggregate.getId() };
+      return { aggregateId: aggregate.id };
     } catch (error) {
       logError('Failed to cancel order', error as Error, { command });
       throw error;
@@ -101,17 +125,21 @@ export class UpdateOrderStatusCommandHandler implements ICommandHandler<UpdateOr
       
       // Load aggregate
       const events = await this.eventStore.getEvents(command.aggregateId);
-      const aggregate = new OrderAggregate(command.aggregateId);
-      aggregate.loadFromHistory(events);
+      const aggregate = OrderAggregate.fromOrderEvents(events);
       
-      // Handle command
-      aggregate.handle(command);
+      // Update status
+      aggregate.changeStatus(
+        command.payload.status,
+        command.payload.reason,
+        command.metadata?.userId,
+        { correlationId: command.metadata?.correlationId }
+      );
       
       // Save new events
       await this.eventStore.save(
-        aggregate.getId(),
-        aggregate.getUncommittedEvents(),
-        aggregate.getVersion()
+        aggregate.id,
+        aggregate.uncommittedEvents,
+        aggregate.version
       );
       
       logInfo('Order status updated successfully', { 
@@ -120,7 +148,7 @@ export class UpdateOrderStatusCommandHandler implements ICommandHandler<UpdateOr
       });
       
       return { 
-        aggregateId: aggregate.getId(),
+        aggregateId: aggregate.id,
         newStatus: command.payload.status 
       };
     } catch (error) {
@@ -142,17 +170,26 @@ export class ShipOrderCommandHandler implements ICommandHandler<ShipOrderCommand
       
       // Load aggregate
       const events = await this.eventStore.getEvents(command.aggregateId);
-      const aggregate = new OrderAggregate(command.aggregateId);
-      aggregate.loadFromHistory(events);
+      const aggregate = OrderAggregate.fromOrderEvents(events);
       
-      // Handle command
-      aggregate.handle(command);
+      // Update shipping info with tracking number
+      const currentShippingInfo = aggregate.getShippingInfo();
+      const updatedShippingInfo = ShippingInfo.fromJSON({
+        ...currentShippingInfo.toJSON(),
+        trackingNumber: command.payload.trackingNumber,
+        carrier: command.payload.carrier
+      });
+      
+      aggregate.updateShippingInfo(updatedShippingInfo, {
+        correlationId: command.metadata?.correlationId,
+        userId: command.metadata?.userId
+      });
       
       // Save new events
       await this.eventStore.save(
-        aggregate.getId(),
-        aggregate.getUncommittedEvents(),
-        aggregate.getVersion()
+        aggregate.id,
+        aggregate.uncommittedEvents,
+        aggregate.version
       );
       
       logInfo('Order shipped successfully', { 
@@ -161,7 +198,7 @@ export class ShipOrderCommandHandler implements ICommandHandler<ShipOrderCommand
       });
       
       return { 
-        aggregateId: aggregate.getId(),
+        aggregateId: aggregate.id,
         trackingNumber: command.payload.trackingNumber 
       };
     } catch (error) {
@@ -186,17 +223,26 @@ export class AddOrderItemCommandHandler implements ICommandHandler<AddOrderItemC
       
       // Load aggregate
       const events = await this.eventStore.getEvents(command.aggregateId);
-      const aggregate = new OrderAggregate(command.aggregateId);
-      aggregate.loadFromHistory(events);
+      const aggregate = OrderAggregate.fromOrderEvents(events);
       
-      // Handle command
-      aggregate.handle(command);
+      // Add item
+      aggregate.addItem(
+        command.payload.productId,
+        command.payload.productName,
+        command.payload.productSku,
+        command.payload.quantity,
+        Money.fromJSON(command.payload.unitPrice),
+        {
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId
+        }
+      );
       
       // Save new events
       await this.eventStore.save(
-        aggregate.getId(),
-        aggregate.getUncommittedEvents(),
-        aggregate.getVersion()
+        aggregate.id,
+        aggregate.uncommittedEvents,
+        aggregate.version
       );
       
       logInfo('Item added to order successfully', { 
@@ -205,7 +251,7 @@ export class AddOrderItemCommandHandler implements ICommandHandler<AddOrderItemC
       });
       
       return { 
-        aggregateId: aggregate.getId(),
+        aggregateId: aggregate.id,
         productId: command.payload.productId 
       };
     } catch (error) {
@@ -230,17 +276,27 @@ export class RemoveOrderItemCommandHandler implements ICommandHandler<RemoveOrde
       
       // Load aggregate
       const events = await this.eventStore.getEvents(command.aggregateId);
-      const aggregate = new OrderAggregate(command.aggregateId);
-      aggregate.loadFromHistory(events);
+      const aggregate = OrderAggregate.fromOrderEvents(events);
       
-      // Handle command
-      aggregate.handle(command);
+      // Find item by product ID
+      const items = aggregate.getItems();
+      const itemToRemove = items.find(item => item.productId === command.payload.productId);
+      
+      if (!itemToRemove) {
+        throw new Error(`Item with product ID ${command.payload.productId} not found in order`);
+      }
+      
+      // Remove item
+      aggregate.removeItem(itemToRemove.id, {
+        correlationId: command.metadata?.correlationId,
+        userId: command.metadata?.userId
+      });
       
       // Save new events
       await this.eventStore.save(
-        aggregate.getId(),
-        aggregate.getUncommittedEvents(),
-        aggregate.getVersion()
+        aggregate.id,
+        aggregate.uncommittedEvents,
+        aggregate.version
       );
       
       logInfo('Item removed from order successfully', { 
@@ -249,7 +305,7 @@ export class RemoveOrderItemCommandHandler implements ICommandHandler<RemoveOrde
       });
       
       return { 
-        aggregateId: aggregate.getId(),
+        aggregateId: aggregate.id,
         productId: command.payload.productId 
       };
     } catch (error) {
@@ -271,22 +327,31 @@ export class UpdateShippingAddressCommandHandler implements ICommandHandler<Upda
       
       // Load aggregate
       const events = await this.eventStore.getEvents(command.aggregateId);
-      const aggregate = new OrderAggregate(command.aggregateId);
-      aggregate.loadFromHistory(events);
+      const aggregate = OrderAggregate.fromOrderEvents(events);
       
-      // Handle command
-      aggregate.handle(command);
+      // Update shipping info with new address
+      const currentShippingInfo = aggregate.getShippingInfo();
+      const newAddress = Address.fromJSON(command.payload.address);
+      const updatedShippingInfo = ShippingInfo.fromJSON({
+        ...currentShippingInfo.toJSON(),
+        shippingAddress: newAddress.toJSON()
+      });
+      
+      aggregate.updateShippingInfo(updatedShippingInfo, {
+        correlationId: command.metadata?.correlationId,
+        userId: command.metadata?.userId
+      });
       
       // Save new events
       await this.eventStore.save(
-        aggregate.getId(),
-        aggregate.getUncommittedEvents(),
-        aggregate.getVersion()
+        aggregate.id,
+        aggregate.uncommittedEvents,
+        aggregate.version
       );
       
       logInfo('Shipping address updated successfully', { orderId: command.aggregateId });
       
-      return { aggregateId: aggregate.getId() };
+      return { aggregateId: aggregate.id };
     } catch (error) {
       logError('Failed to update shipping address', error as Error, { command });
       throw error;
@@ -309,17 +374,26 @@ export class ProcessPaymentCommandHandler implements ICommandHandler<ProcessPaym
       
       // Load aggregate
       const events = await this.eventStore.getEvents(command.aggregateId);
-      const aggregate = new OrderAggregate(command.aggregateId);
-      aggregate.loadFromHistory(events);
+      const aggregate = OrderAggregate.fromOrderEvents(events);
       
-      // Handle command
-      aggregate.handle(command);
+      // Update payment info
+      const updatedPaymentInfo = PaymentInfo.fromJSON({
+        method: command.payload.method,
+        status: 'captured',
+        transactionId: command.payload.transactionId,
+        processedAt: new Date().toISOString()
+      });
+      
+      aggregate.updatePaymentInfo(updatedPaymentInfo, {
+        correlationId: command.metadata?.correlationId,
+        userId: command.metadata?.userId
+      });
       
       // Save new events
       await this.eventStore.save(
-        aggregate.getId(),
-        aggregate.getUncommittedEvents(),
-        aggregate.getVersion()
+        aggregate.id,
+        aggregate.uncommittedEvents,
+        aggregate.version
       );
       
       logInfo('Payment processed successfully', { 
@@ -328,7 +402,7 @@ export class ProcessPaymentCommandHandler implements ICommandHandler<ProcessPaym
       });
       
       return { 
-        aggregateId: aggregate.getId(),
+        aggregateId: aggregate.id,
         transactionId: command.payload.transactionId 
       };
     } catch (error) {
@@ -353,17 +427,22 @@ export class RefundOrderCommandHandler implements ICommandHandler<RefundOrderCom
       
       // Load aggregate
       const events = await this.eventStore.getEvents(command.aggregateId);
-      const aggregate = new OrderAggregate(command.aggregateId);
-      aggregate.loadFromHistory(events);
+      const aggregate = OrderAggregate.fromOrderEvents(events);
       
-      // Handle command
-      aggregate.handle(command);
+      // Process refund
+      aggregate.refund(
+        Money.fromJSON({ amount: command.payload.amount, currency: command.payload.currency || 'USD' }),
+        command.payload.reason,
+        command.metadata?.userId || 'system',
+        command.payload.transactionId,
+        { correlationId: command.metadata?.correlationId }
+      );
       
       // Save new events
       await this.eventStore.save(
-        aggregate.getId(),
-        aggregate.getUncommittedEvents(),
-        aggregate.getVersion()
+        aggregate.id,
+        aggregate.uncommittedEvents,
+        aggregate.version
       );
       
       logInfo('Refund processed successfully', { 
@@ -372,7 +451,7 @@ export class RefundOrderCommandHandler implements ICommandHandler<RefundOrderCom
       });
       
       return { 
-        aggregateId: aggregate.getId(),
+        aggregateId: aggregate.id,
         refundAmount: command.payload.amount 
       };
     } catch (error) {

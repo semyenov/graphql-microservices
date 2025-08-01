@@ -1,0 +1,16 @@
+# Auto-generated file - DO NOT EDIT
+# Generated on 2025-08-01T11:17:22Z
+# Version: 3257769-dirty
+version: '3.9'
+
+services:
+  builder:
+    image: graphql-microservices-builder:3257769-dirty
+  gateway:
+    image: graphql-microservices-gateway:3257769-dirty
+  orders:
+    image: graphql-microservices-orders:3257769-dirty
+  products:
+    image: graphql-microservices-products:3257769-dirty
+  users:
+    image: graphql-microservices-users:3257769-dirty

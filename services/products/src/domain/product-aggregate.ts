@@ -394,7 +394,6 @@ export class Product extends AggregateRoot {
     }
 
     const previousPrice = this.price;
-
     const event = EventFactory.create(
       'ProductPriceChanged',
       this.id,
@@ -480,11 +479,10 @@ export class Product extends AggregateRoot {
       throw new ProductDeactivatedError();
     }
 
-    if (newCategory.equals(this.category)) {
+    const previousCategory = this.category;
+    if (newCategory.getValue() === previousCategory.getValue()) {
       return; // No change needed
     }
-
-    const previousCategory = this.category;
 
     const event = EventFactory.create(
       'ProductCategoryChanged',
@@ -530,7 +528,6 @@ export class Product extends AggregateRoot {
     }
 
     const reservationId = generateId();
-
     const event = EventFactory.create(
       'ProductStockReserved',
       this.id,

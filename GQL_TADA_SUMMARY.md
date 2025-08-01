@@ -54,7 +54,7 @@ graphql-microservices/
 
 ## 🚀 Quick Start Commands
 
-```bash
+```sh
 # 1. Install dependencies
 bun install
 
@@ -74,7 +74,8 @@ bun run typecheck
 ## 💡 Key Features
 
 ### 1. Zero-Config Type Safety
-```typescript
+
+```ts
 // Write query, get types instantly
 const GET_USER = graphql(`
   query GetUser($id: ID!) {
@@ -93,7 +94,8 @@ const variables: VariablesOf<typeof GET_USER> = {
 ```
 
 ### 2. Federation Support
-```typescript
+
+```ts
 // Query across services seamlessly
 const FEDERATED_QUERY = graphql(`
   query UserWithOrders($id: ID!) {
@@ -115,7 +117,8 @@ const FEDERATED_QUERY = graphql(`
 ```
 
 ### 3. Fragment Composition
-```typescript
+
+```ts
 // Define reusable fragments
 const USER_FIELDS = graphql(`
   fragment UserFields on User {
@@ -160,26 +163,29 @@ const GET_USERS = graphql(`
 ### Adding New Features
 
 1. **Update Service Schema**
-   ```typescript
-   // In service
-   type Query {
-     newField: String!
-   }
-   ```
+
+```ts
+// In service
+type Query {
+  newField: String!
+}
+```
 
 2. **Regenerate Types**
-   ```bash
+
+```sh
    bun run schema:introspect
-   ```
+```
 
 3. **Use New Fields**
-   ```typescript
-   const NEW_QUERY = graphql(`
+
+```ts
+const NEW_QUERY = graphql(`
      query {
        newField  # Auto-completed!
      }
    `);
-   ```
+```
 
 ### Testing Queries
 
@@ -189,22 +195,24 @@ const GET_USERS = graphql(`
    - View schema docs
 
 2. **Type Checking**
-   ```bash
+
+```sh
    bun run typecheck
-   ```
+```
 
 3. **Integration Tests**
-   ```typescript
-   import { GET_USER } from '@graphql-microservices/client';
-   
-   test('fetches user', async () => {
-     const result = await client.query({
-       query: GET_USER,
-       variables: { id: '123' }
-     });
-     expect(result.data.user).toBeDefined();
-   });
-   ```
+
+```ts
+import { GET_USER } from '@graphql-microservices/client';
+
+test('fetches user', async () => {
+  const result = await client.query({
+    query: GET_USER,
+    variables: { id: '123' }
+  });
+  expect(result.data.user).toBeDefined();
+});
+```
 
 ## 🎓 Learning Resources
 
