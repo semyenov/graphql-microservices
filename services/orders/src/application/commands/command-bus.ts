@@ -1,5 +1,5 @@
 import { CommandBus as BaseCommandBus } from '@graphql-microservices/event-sourcing';
-import { EventStore } from '@graphql-microservices/event-sourcing';
+import type { EventStore } from '@graphql-microservices/event-sourcing';
 import { createOrderCommandHandlers } from './handlers';
 import type { OrderCommand } from '../../domain/commands';
 
@@ -41,7 +41,7 @@ export class OrderCommandBus {
   async execute(command: OrderCommand): Promise<CommandResult> {
     try {
       const result = await this.commandBus.execute(command);
-      
+
       // Map the result based on command type
       switch (command.type) {
         case 'CreateOrder':
@@ -50,61 +50,61 @@ export class OrderCommandBus {
             aggregateId: result.aggregateId,
             orderNumber: result.orderNumber,
           };
-          
+
         case 'CancelOrder':
           return {
             success: true,
             aggregateId: result.aggregateId,
           };
-          
+
         case 'UpdateOrderStatus':
           return {
             success: true,
             aggregateId: result.aggregateId,
             newStatus: result.newStatus,
           };
-          
+
         case 'ShipOrder':
           return {
             success: true,
             aggregateId: result.aggregateId,
             trackingNumber: result.trackingNumber,
           };
-          
+
         case 'AddOrderItem':
           return {
             success: true,
             aggregateId: result.aggregateId,
             productId: result.productId,
           };
-          
+
         case 'RemoveOrderItem':
           return {
             success: true,
             aggregateId: result.aggregateId,
             productId: result.productId,
           };
-          
+
         case 'UpdateShippingAddress':
           return {
             success: true,
             aggregateId: result.aggregateId,
           };
-          
+
         case 'ProcessPayment':
           return {
             success: true,
             aggregateId: result.aggregateId,
             transactionId: result.transactionId,
           };
-          
+
         case 'RefundOrder':
           return {
             success: true,
             aggregateId: result.aggregateId,
             refundAmount: result.refundAmount,
           };
-          
+
         default:
           return {
             success: false,
@@ -120,32 +120,32 @@ export class OrderCommandBus {
   }
 
   async executeWithRetry(
-    command: OrderCommand, 
+    command: OrderCommand,
     maxRetries: number = 3,
     retryDelay: number = 1000
   ): Promise<CommandResult> {
     let lastError: Error | undefined;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await this.execute(command);
       } catch (error) {
         lastError = error as Error;
-        
+
         // Don't retry on business rule violations
-        if (error instanceof Error && 
-            (error.message.includes('BusinessRuleError') || 
-             error.message.includes('ValidationError'))) {
+        if (error instanceof Error &&
+          (error.message.includes('BusinessRuleError') ||
+            error.message.includes('ValidationError'))) {
           throw error;
         }
-        
+
         // Wait before retrying (exponential backoff)
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
         }
       }
     }
-    
+
     return {
       success: false,
       error: lastError?.message || 'Command execution failed after retries',

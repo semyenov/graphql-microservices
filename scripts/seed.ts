@@ -206,63 +206,66 @@ async function seedOrders(
   // Create some sample orders
   const orderData = [
     {
-      userId: users[1]?.id, // John Doe
+      orderNumber: '1234567890',
+      customerId: users[1]?.id, // John Doe
+      customerName: users[1]?.username || 'John Doe',
+      customerEmail: users[1]?.email || 'john@example.com',
       items: [
-        { productId: products[0]?.id, quantity: 1, price: products[0]?.price.toNumber() },
-        { productId: products[2]?.id, quantity: 2, price: products[2]?.price.toNumber() },
+        { productId: products[0]?.id, productName: products[0]?.name || 'Product', quantity: 1, unitPrice: products[0]?.price.toNumber() },
+        { productId: products[2]?.id, productName: products[2]?.name || 'Product', quantity: 2, unitPrice: products[2]?.price.toNumber() },
       ],
       status: 'DELIVERED' as const,
-      shippingInfo: {
-        address: '123 Main St',
-        city: 'New York',
-        state: 'NY',
-        zipCode: '10001',
-        country: 'USA',
-        phone: '+1234567891',
-      },
+      shippingStreet: '123 Main St',
+      shippingCity: 'New York',
+      shippingState: 'NY',
+      shippingPostalCode: '10001',
+      shippingCountry: 'USA',
+      paymentMethod: 'credit_card',
     },
     {
-      userId: users[2]?.id, // Jane Doe
-      items: [{ productId: products[1]?.id, quantity: 1, price: products[1]?.price.toNumber() }],
+      orderNumber: '1234567891',
+      customerId: users[2]?.id, // Jane Doe
+      customerName: users[2]?.username || 'Jane Doe',
+      customerEmail: users[2]?.email || 'jane@example.com',
+      items: [{ productId: products[1]?.id, productName: products[1]?.name || 'Product', quantity: 1, unitPrice: products[1]?.price.toNumber() }],
       status: 'PROCESSING' as const,
-      shippingInfo: {
-        address: '456 Oak Ave',
-        city: 'Los Angeles',
-        state: 'CA',
-        zipCode: '90001',
-        country: 'USA',
-        phone: '+1234567892',
-      },
+      shippingStreet: '456 Oak Ave',
+      shippingCity: 'Los Angeles',
+      shippingState: 'CA',
+      shippingPostalCode: '90001',
+      shippingCountry: 'USA',
+      paymentMethod: 'paypal',
     },
     {
-      userId: users[1]?.id, // John Doe
+      orderNumber: '1234567892',
+      customerId: users[1]?.id, // John Doe
+      customerName: users[1]?.username || 'John Doe',
+      customerEmail: users[1]?.email || 'john@example.com',
       items: [
-        { productId: products[4]?.id, quantity: 1, price: products[4]?.price.toNumber() },
-        { productId: products[7]?.id, quantity: 1, price: products[7]?.price.toNumber() },
+        { productId: products[4]?.id, productName: products[4]?.name || 'Product', quantity: 1, unitPrice: products[4]?.price.toNumber() },
+        { productId: products[7]?.id, productName: products[7]?.name || 'Product', quantity: 1, unitPrice: products[7]?.price.toNumber() },
       ],
       status: 'PENDING' as const,
-      shippingInfo: {
-        address: '123 Main St',
-        city: 'New York',
-        state: 'NY',
-        zipCode: '10001',
-        country: 'USA',
-        phone: '+1234567891',
-      },
+      shippingStreet: '123 Main St',
+      shippingCity: 'New York',
+      shippingState: 'NY',
+      shippingPostalCode: '10001',
+      shippingCountry: 'USA',
+      paymentMethod: 'credit_card',
     },
   ];
 
   for (const order of orderData) {
-    // Filter out items with undefined productId or price
-    const validItems = order.items.filter((item) => item.productId && item.price !== undefined);
+    // Filter out items with undefined productId or unitPrice
+    const validItems = order.items.filter((item) => item.productId && item.unitPrice !== undefined);
 
-    if (validItems.length === 0 || !order.userId) {
+    if (validItems.length === 0 || !order.customerId) {
       console.warn('Skipping order with invalid data');
       continue;
     }
 
     const subtotal = validItems.reduce(
-      (sum, item) => sum + (item.price as number) * item.quantity,
+      (sum, item) => sum + (item.unitPrice as number) * item.quantity,
       0
     );
     const tax = subtotal * 0.1;
@@ -271,19 +274,31 @@ async function seedOrders(
 
     await ordersDb.order.create({
       data: {
-        userId: order.userId,
+        orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
         subtotal,
         tax,
         shipping,
         total,
+        currency: 'USD',
         status: order.status,
-        shippingInfo: order.shippingInfo,
+        // Shipping Address
+        shippingStreet: order.shippingStreet,
+        shippingCity: order.shippingCity,
+        shippingState: order.shippingState,
+        shippingPostalCode: order.shippingPostalCode,
+        shippingCountry: order.shippingCountry,
+        // Payment
+        paymentMethod: order.paymentMethod,
         items: {
           create: validItems.map((item) => ({
             productId: item.productId as string,
+            productName: item.productName,
             quantity: item.quantity,
-            price: item.price as number,
-            total: (item.price as number) * item.quantity,
+            unitPrice: item.unitPrice as number,
+            total: (item.unitPrice as number) * item.quantity,
           })),
         },
       },

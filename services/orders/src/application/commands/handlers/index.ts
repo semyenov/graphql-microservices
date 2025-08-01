@@ -1,5 +1,4 @@
-import { CommandHandler, type ICommandHandler } from '@graphql-microservices/event-sourcing';
-import { EventStore } from '@graphql-microservices/event-sourcing';
+import type { ICommandHandler, EventStore } from '@graphql-microservices/event-sourcing';
 import { OrderAggregate } from '../../../domain/order-aggregate';
 import type {
   CreateOrderCommand,
@@ -14,12 +13,11 @@ import type {
   OrderCommand,
 } from '../../../domain/commands';
 import { generateId } from '@graphql-microservices/shared-errors';
-import { logInfo, logError } from '@graphql-microservices/shared-logging';
+import { logInfo, logError } from '@shared/utils';
 
 /**
  * Create Order Command Handler
  */
-@CommandHandler(CreateOrderCommand)
 export class CreateOrderCommandHandler implements ICommandHandler<CreateOrderCommand> {
   constructor(private readonly eventStore: EventStore) {}
 
@@ -56,7 +54,6 @@ export class CreateOrderCommandHandler implements ICommandHandler<CreateOrderCom
 /**
  * Cancel Order Command Handler
  */
-@CommandHandler(CancelOrderCommand)
 export class CancelOrderCommandHandler implements ICommandHandler<CancelOrderCommand> {
   constructor(private readonly eventStore: EventStore) {}
 
@@ -92,7 +89,6 @@ export class CancelOrderCommandHandler implements ICommandHandler<CancelOrderCom
 /**
  * Update Order Status Command Handler
  */
-@CommandHandler(UpdateOrderStatusCommand)
 export class UpdateOrderStatusCommandHandler implements ICommandHandler<UpdateOrderStatusCommand> {
   constructor(private readonly eventStore: EventStore) {}
 
@@ -137,7 +133,6 @@ export class UpdateOrderStatusCommandHandler implements ICommandHandler<UpdateOr
 /**
  * Ship Order Command Handler
  */
-@CommandHandler(ShipOrderCommand)
 export class ShipOrderCommandHandler implements ICommandHandler<ShipOrderCommand> {
   constructor(private readonly eventStore: EventStore) {}
 
@@ -179,7 +174,6 @@ export class ShipOrderCommandHandler implements ICommandHandler<ShipOrderCommand
 /**
  * Add Order Item Command Handler
  */
-@CommandHandler(AddOrderItemCommand)
 export class AddOrderItemCommandHandler implements ICommandHandler<AddOrderItemCommand> {
   constructor(private readonly eventStore: EventStore) {}
 
@@ -224,7 +218,6 @@ export class AddOrderItemCommandHandler implements ICommandHandler<AddOrderItemC
 /**
  * Remove Order Item Command Handler
  */
-@CommandHandler(RemoveOrderItemCommand)
 export class RemoveOrderItemCommandHandler implements ICommandHandler<RemoveOrderItemCommand> {
   constructor(private readonly eventStore: EventStore) {}
 
@@ -269,7 +262,6 @@ export class RemoveOrderItemCommandHandler implements ICommandHandler<RemoveOrde
 /**
  * Update Shipping Address Command Handler
  */
-@CommandHandler(UpdateShippingAddressCommand)
 export class UpdateShippingAddressCommandHandler implements ICommandHandler<UpdateShippingAddressCommand> {
   constructor(private readonly eventStore: EventStore) {}
 
@@ -305,7 +297,6 @@ export class UpdateShippingAddressCommandHandler implements ICommandHandler<Upda
 /**
  * Process Payment Command Handler
  */
-@CommandHandler(ProcessPaymentCommand)
 export class ProcessPaymentCommandHandler implements ICommandHandler<ProcessPaymentCommand> {
   constructor(private readonly eventStore: EventStore) {}
 
@@ -350,7 +341,6 @@ export class ProcessPaymentCommandHandler implements ICommandHandler<ProcessPaym
 /**
  * Refund Order Command Handler
  */
-@CommandHandler(RefundOrderCommand)
 export class RefundOrderCommandHandler implements ICommandHandler<RefundOrderCommand> {
   constructor(private readonly eventStore: EventStore) {}
 

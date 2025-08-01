@@ -13,7 +13,7 @@
       "description": "Decimal number represented as float"
     },
     "JSON": {
-      "type": "any",
+      "type": "unknown",
       "description": "Arbitrary JSON value"
     },
     "OrderStatus": {

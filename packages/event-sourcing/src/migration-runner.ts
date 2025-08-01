@@ -143,7 +143,9 @@ export class MigrationRunner {
     applied: string[];
     pending: string[];
   }> {
-    const client = new Client({ connectionString: this.connectionString });
+    const client = new Client({
+      connectionString: this.connectionString,
+    });
 
     try {
       await client.connect();
@@ -175,7 +177,6 @@ export async function runMigrationsFromCLI(): Promise<void> {
   }
 
   const runner = new MigrationRunner(connectionString);
-
   const command = process.argv[2];
 
   switch (command) {
@@ -206,7 +207,8 @@ export async function runMigrationsFromCLI(): Promise<void> {
 }
 
 // If this file is run directly, execute CLI
-if (import.meta.main) {
+// Use process.argv check for compatibility
+if (process.argv[1] === new URL(import.meta.url).pathname) {
   runMigrationsFromCLI().catch((error) => {
     console.error('❌ Migration failed:', error);
     process.exit(1);

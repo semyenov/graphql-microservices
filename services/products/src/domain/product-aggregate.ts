@@ -432,7 +432,6 @@ export class Product extends AggregateRoot {
 
     const previousStock = this.stock;
     const changeAmount = newStock.getValue() - previousStock.getValue();
-
     if (changeAmount === 0) {
       return; // No change needed
     }

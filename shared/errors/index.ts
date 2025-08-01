@@ -1,4 +1,5 @@
 import { GraphQLError, type GraphQLErrorExtensions } from 'graphql';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Error codes for consistent error identification across services
@@ -540,7 +541,7 @@ export const validateRange = (
  * Standardized across all packages
  */
 export const generateId = (): string => {
-  return crypto.randomUUID();
+  return randomUUID();
 };
 
 /**
@@ -548,7 +549,7 @@ export const generateId = (): string => {
  * Uses the same format as regular IDs for consistency
  */
 export const generateCorrelationId = (): string => {
-  return crypto.randomUUID();
+  return randomUUID();
 };
 
 /**
@@ -556,7 +557,7 @@ export const generateCorrelationId = (): string => {
  * @param correlationId The correlation ID to base the causation ID on
  */
 export const generateCausationId = (correlationId?: string): string => {
-  return correlationId || crypto.randomUUID();
+  return correlationId || randomUUID();
 };
 
 /**

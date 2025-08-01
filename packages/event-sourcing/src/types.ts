@@ -4,7 +4,7 @@ import { z } from 'zod';
 /**
  * Base domain event interface
  */
-export interface DomainEvent {
+export interface IDomainEvent {
   /** Unique event identifier */
   readonly id: string;
 
@@ -21,7 +21,7 @@ export interface DomainEvent {
   readonly data: Record<string, unknown>;
 
   /** Event metadata */
-  readonly metadata: EventMetadata;
+  readonly metadata: IEventMetadata;
 
   /** Timestamp when the event occurred */
   readonly occurredAt: Date;
@@ -33,7 +33,7 @@ export interface DomainEvent {
 /**
  * Event metadata for tracing and auditing
  */
-export interface EventMetadata {
+export interface IEventMetadata {
   /** User ID who triggered the event */
   readonly userId?: string;
 
@@ -53,7 +53,7 @@ export interface EventMetadata {
 /**
  * Event stream position
  */
-export interface StreamPosition {
+export interface IStreamPosition {
   /** Global position in the event store */
   readonly globalPosition: bigint;
 
@@ -64,9 +64,9 @@ export interface StreamPosition {
 /**
  * Stored event with position information
  */
-export interface StoredEvent extends DomainEvent {
+export interface IStoredEvent extends IDomainEvent {
   /** Position in the event stream */
-  readonly position: StreamPosition;
+  readonly position: IStreamPosition;
 
   /** When the event was stored */
   readonly storedAt: Date;
@@ -75,7 +75,7 @@ export interface StoredEvent extends DomainEvent {
 /**
  * Event store query options
  */
-export interface EventStoreQuery {
+export interface IEventStoreQuery {
   /** Filter by aggregate ID */
   aggregateId?: string;
 
@@ -101,55 +101,53 @@ export interface EventStoreQuery {
 /**
  * Aggregate root base class
  */
-export abstract class AggregateRoot<T extends Record<string, unknown> = Record<string, unknown>> {
-  protected readonly _id: string;
-  protected readonly _aggregateType: string;
-  protected readonly _uncommittedEvents: DomainEvent[] = [];
-  protected _version: number = 0;
-  protected _data: T;
+export abstract class AggregateRoot {
+  #id: string;
+  #aggregateType: string;
+  #uncommittedEvents: IDomainEvent[] = [];
+  #version: number = 0;
 
-  constructor(id: string, data: T, version: number = 0) {
-    this._id = id;
-    this._data = data;
-    this._version = version;
-    this._aggregateType = this.constructor.name;
+  constructor(id: string, version: number = 0) {
+    this.#id = id;
+    this.#version = version;
+    this.#aggregateType = this.constructor.name;
   }
 
   get id(): string {
-    return this._id;
+    return this.#id;
   }
 
   get version(): number {
-    return this._version;
+    return this.#version;
   }
 
   get aggregateType(): string {
-    return this._aggregateType;
+    return this.#aggregateType;
   }
 
-  get uncommittedEvents(): readonly DomainEvent[] {
-    return this._uncommittedEvents.filter((event) => event.version > this._version);
+  get uncommittedEvents(): readonly IDomainEvent[] {
+    return this.#uncommittedEvents.filter((event) => event.version > this.#version);
   }
 
   /**
    * Apply an event to this aggregate
    */
-  protected applyEvent(event: DomainEvent): void {
-    this._uncommittedEvents.push(event);
-    this._version++;
+  protected applyEvent(event: IDomainEvent): void {
+    this.#uncommittedEvents.push(event);
+    this.#version++;
     this.applyEventData(event);
   }
 
   /**
    * Apply event data to aggregate state (to be implemented by subclasses)
    */
-  protected abstract applyEventData(event: DomainEvent): void;
+  protected abstract applyEventData(event: IDomainEvent): void;
 
   /**
    * Mark all uncommitted events as committed
    */
   public markEventsAsCommitted(): void {
-    this._uncommittedEvents.length = 0;
+    this.#uncommittedEvents.length = 0;
   }
 }
 
@@ -186,11 +184,11 @@ export const storedEventSchema = domainEventSchema.extend({
 /**
  * Type guards and utilities
  */
-export function isDomainEvent(obj: unknown): obj is DomainEvent {
+export function isDomainEvent(obj: unknown): obj is IDomainEvent {
   return domainEventSchema.safeParse(obj).success;
 }
 
-export function isStoredEvent(obj: unknown): obj is StoredEvent {
+export function isStoredEvent(obj: unknown): obj is IStoredEvent {
   return storedEventSchema.safeParse(obj).success;
 }
 
@@ -203,11 +201,11 @@ export const EventFactory = {
     aggregateId: string,
     aggregateType: string,
     data: Record<string, unknown>,
-    metadata: Partial<EventMetadata>,
+    metadata: Partial<IEventMetadata>,
     version: number,
     id?: string,
     occurredAt?: Date
-  ): DomainEvent {
+  ): IDomainEvent {
     return {
       id: id || generateId(),
       type,

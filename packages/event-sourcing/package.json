@@ -28,8 +28,9 @@
   "devDependencies": {
     "@types/node": "latest",
     "@types/pg": "^8.11.6",
-    "typescript": "^5.8.3",
-    "tsdown": "^0.13.0"
+    "@types/reflect-metadata": "^0.1.0",
+    "tsdown": "^0.13.0",
+    "typescript": "^5.8.3"
   },
   "keywords": [
     "event-sourcing",

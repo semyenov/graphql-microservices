@@ -1,9 +1,9 @@
-import type { DomainEvent, EventStoreQuery, StoredEvent, StreamPosition } from './types';
+import type { IDomainEvent, IEventStoreQuery, IStoredEvent, IStreamPosition } from './types';
 
 /**
  * Event store interface for persisting and retrieving domain events
  */
-export interface EventStore {
+export interface IEventStore {
   /**
    * Append events to an aggregate stream
    * @param aggregateId The aggregate identifier
@@ -13,9 +13,9 @@ export interface EventStore {
    */
   appendToStream(
     aggregateId: string,
-    events: DomainEvent[],
+    events: IDomainEvent[],
     expectedVersion?: number
-  ): Promise<StreamPosition[]>;
+  ): Promise<IStreamPosition[]>;
 
   /**
    * Read events from an aggregate stream
@@ -24,14 +24,14 @@ export interface EventStore {
    * @param toVersion Stop reading at this version (inclusive)
    * @returns Promise resolving to the stored events
    */
-  readStream(aggregateId: string, fromVersion?: number, toVersion?: number): Promise<StoredEvent[]>;
+  readStream(aggregateId: string, fromVersion?: number, toVersion?: number): Promise<IStoredEvent[]>;
 
   /**
    * Read all events matching the query
    * @param query Query parameters
    * @returns Promise resolving to the stored events
    */
-  readEvents(query: EventStoreQuery): Promise<StoredEvent[]>;
+  readEvents(query: IEventStoreQuery): Promise<IStoredEvent[]>;
 
   /**
    * Read events from the global stream
@@ -39,7 +39,7 @@ export interface EventStore {
    * @param limit Maximum number of events to return
    * @returns Promise resolving to the stored events
    */
-  readAllEvents(fromPosition?: bigint, limit?: number): Promise<StoredEvent[]>;
+  readAllEvents(fromPosition?: bigint, limit?: number): Promise<IStoredEvent[]>;
 
   /**
    * Get the current version of an aggregate
@@ -87,9 +87,33 @@ export interface EventStore {
    * @returns Promise resolving to a subscription that can be closed
    */
   subscribe(
-    callback: (events: StoredEvent[]) => Promise<void>,
-    query?: EventStoreQuery
+    callback: (events: IStoredEvent[]) => Promise<void>,
+    query?: IEventStoreQuery
   ): Promise<EventSubscription>;
+
+  /**
+   * Save events for an aggregate (alias for appendToStream)
+   * @param aggregateId The aggregate identifier
+   * @param events Events to save
+   * @param expectedVersion Expected current version of the aggregate
+   * @returns Promise resolving when events are saved
+   */
+  save(
+    aggregateId: string,
+    events: IDomainEvent[],
+    expectedVersion?: number
+  ): Promise<void>;
+
+  /**
+   * Get events for an aggregate (alias for readStream)
+   * @param aggregateId The aggregate identifier
+   * @param fromVersion Start reading from this version
+   * @returns Promise resolving to the events
+   */
+  getEvents(
+    aggregateId: string,
+    fromVersion?: number
+  ): Promise<IDomainEvent[]>;
 }
 
 /**
@@ -136,7 +160,7 @@ export interface EventStoreConfig {
 /**
  * Abstract base class for event store implementations
  */
-export abstract class BaseEventStore implements EventStore {
+export abstract class BaseEventStore implements IEventStore {
   protected readonly config: Required<EventStoreConfig>;
 
   constructor(config: EventStoreConfig) {
@@ -152,19 +176,19 @@ export abstract class BaseEventStore implements EventStore {
 
   abstract appendToStream(
     aggregateId: string,
-    events: DomainEvent[],
+    events: IDomainEvent[],
     expectedVersion?: number
-  ): Promise<StreamPosition[]>;
+  ): Promise<IStreamPosition[]>;
 
   abstract readStream(
     aggregateId: string,
     fromVersion?: number,
     toVersion?: number
-  ): Promise<StoredEvent[]>;
+  ): Promise<IStoredEvent[]>;
 
-  abstract readEvents(query: EventStoreQuery): Promise<StoredEvent[]>;
+  abstract readEvents(query: IEventStoreQuery): Promise<IStoredEvent[]>;
 
-  abstract readAllEvents(fromPosition?: bigint, limit?: number): Promise<StoredEvent[]>;
+  abstract readAllEvents(fromPosition?: bigint, limit?: number): Promise<IStoredEvent[]>;
 
   abstract getCurrentVersion(aggregateId: string): Promise<number>;
 
@@ -183,14 +207,37 @@ export abstract class BaseEventStore implements EventStore {
   } | null>;
 
   abstract subscribe(
-    callback: (events: StoredEvent[]) => Promise<void>,
-    query?: EventStoreQuery
+    callback: (events: IStoredEvent[]) => Promise<void>,
+    query?: IEventStoreQuery
   ): Promise<EventSubscription>;
+
+  /**
+   * Save events for an aggregate (alias for appendToStream)
+   */
+  async save(
+    aggregateId: string,
+    events: IDomainEvent[],
+    expectedVersion?: number
+  ): Promise<void> {
+    await this.appendToStream(aggregateId, events, expectedVersion);
+  }
+
+  /**
+   * Get events for an aggregate (alias for readStream)
+   */
+  async getEvents(
+    aggregateId: string,
+    fromVersion?: number
+  ): Promise<IDomainEvent[]> {
+    const storedEvents = await this.readStream(aggregateId, fromVersion);
+    // StoredEvent extends DomainEvent, so we can return them directly
+    return storedEvents;
+  }
 
   /**
    * Helper method to validate event consistency
    */
-  protected validateEvents(events: DomainEvent[]): void {
+  protected validateEvents(events: IDomainEvent[]): void {
     if (events.length === 0) {
       throw new Error('Cannot append empty event list');
     }

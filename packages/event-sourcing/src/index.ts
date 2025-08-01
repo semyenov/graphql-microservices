@@ -18,6 +18,9 @@ export { PostgreSQLEventStore } from './postgresql-event-store';
 export { PostgreSQLOutboxStore } from './postgresql-outbox-store';
 export * from './types';
 
+// CQRS exports
+export * from './cqrs';
+
 // Import utilities for internal use
 import {
   generateCausationId,
@@ -79,7 +82,7 @@ export const EventSourcingUtils = {
    * @param events Array of events to validate
    * @throws Error if events are not properly ordered
    */
-  validateEventOrdering(events: import('./types').DomainEvent[]): void {
+  validateEventOrdering(events: import('./types').IDomainEvent[]): void {
     if (events.length <= 1) {
       return;
     }

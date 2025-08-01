@@ -1,5 +1,5 @@
 import { createErrorLogger } from '@graphql-microservices/shared-errors';
-import type { DomainEvent } from './types';
+import type { IDomainEvent } from './types';
 
 const logError = createErrorLogger('event-sourcing-outbox');
 
@@ -16,12 +16,12 @@ export enum OutboxEventStatus {
 /**
  * Outbox event entry
  */
-export interface OutboxEvent {
+export interface IOutboxEvent {
   /** Unique identifier for the outbox entry */
   readonly id: string;
 
   /** The domain event to be published */
-  readonly event: DomainEvent;
+  readonly event: IDomainEvent;
 
   /** Current status of the event */
   readonly status: OutboxEventStatus;
@@ -77,7 +77,7 @@ export interface OutboxConfig {
 /**
  * Event publisher interface
  */
-export interface EventPublisher {
+export interface IEventPublisher {
   /**
    * Publish a domain event
    * @param event The domain event to publish
@@ -86,7 +86,7 @@ export interface EventPublisher {
    * @returns Promise resolving when the event is published
    */
   publish(
-    event: DomainEvent,
+    event: IDomainEvent,
     routingKey?: string,
     metadata?: Record<string, unknown>
   ): Promise<void>;
@@ -96,26 +96,26 @@ export interface EventPublisher {
    * @param events The events to publish
    * @returns Promise resolving when all events are published
    */
-  publishBatch(events: OutboxEvent[]): Promise<void>;
+  publishBatch(events: IOutboxEvent[]): Promise<void>;
 }
 
 /**
  * Outbox store interface for persisting outbox events
  */
-export interface OutboxStore {
+export interface IOutboxStore {
   /**
    * Add events to the outbox
    * @param events Events to add
    * @returns Promise resolving when events are stored
    */
-  addEvents(events: DomainEvent[], routingKey?: string): Promise<void>;
+  addEvents(events: IDomainEvent[], routingKey?: string): Promise<void>;
 
   /**
    * Get pending events for processing
    * @param limit Maximum number of events to retrieve
    * @returns Promise resolving to pending events
    */
-  getPendingEvents(limit?: number): Promise<OutboxEvent[]>;
+  getPendingEvents(limit?: number): Promise<IOutboxEvent[]>;
 
   /**
    * Mark events as processing
@@ -144,7 +144,7 @@ export interface OutboxStore {
    * @param limit Maximum number of events to retrieve
    * @returns Promise resolving to failed events ready for retry
    */
-  getFailedEventsForRetry(limit?: number): Promise<OutboxEvent[]>;
+  getFailedEventsForRetry(limit?: number): Promise<IOutboxEvent[]>;
 
   /**
    * Clean up old published events
@@ -159,12 +159,16 @@ export interface OutboxStore {
  */
 export class OutboxProcessor {
   private readonly config: Required<OutboxConfig>;
-  private readonly outboxStore: OutboxStore;
-  private readonly eventPublisher: EventPublisher;
+  private readonly outboxStore: IOutboxStore;
+  private readonly eventPublisher: IEventPublisher;
   private processingInterval?: NodeJS.Timeout;
   private isProcessing = false;
 
-  constructor(outboxStore: OutboxStore, eventPublisher: EventPublisher, config: OutboxConfig = {}) {
+  constructor(
+    outboxStore: IOutboxStore,
+    eventPublisher: IEventPublisher,
+    config: OutboxConfig = {}
+  ) {
     this.config = {
       maxRetries: 5,
       initialRetryDelay: 1000, // 1 second
@@ -217,7 +221,10 @@ export class OutboxProcessor {
     this.isProcessing = true;
 
     try {
-      await Promise.all([this.processPendingEvents(), this.processFailedEvents()]);
+      await Promise.all([
+        this.processPendingEvents(),
+        this.processFailedEvents(),
+      ]);
     } catch (error) {
       logError(error, { operation: 'processEvents' });
     } finally {
@@ -230,7 +237,6 @@ export class OutboxProcessor {
    */
   private async processPendingEvents(): Promise<void> {
     const pendingEvents = await this.outboxStore.getPendingEvents(this.config.batchSize);
-
     if (pendingEvents.length === 0) {
       return;
     }
@@ -273,7 +279,11 @@ export class OutboxProcessor {
         await this.outboxStore.markAsProcessing([event.id]);
 
         // Publish single event
-        await this.eventPublisher.publish(event.event, event.routingKey, event.publishMetadata);
+        await this.eventPublisher.publish(
+          event.event,
+          event.routingKey,
+          event.publishMetadata,
+        );
 
         // Mark as published
         await this.outboxStore.markAsPublished([event.id]);
@@ -308,11 +318,11 @@ export const OutboxUtils = {
    * Create an outbox event from a domain event
    */
   createOutboxEvent(
-    event: DomainEvent,
+    event: IDomainEvent,
     routingKey?: string,
     publishMetadata?: Record<string, unknown>,
     maxRetries: number = 5
-  ): Omit<OutboxEvent, 'id' | 'createdAt' | 'updatedAt'> {
+  ): Omit<IOutboxEvent, 'id' | 'createdAt' | 'updatedAt'> {
     return {
       event,
       status: OutboxEventStatus.PENDING,
@@ -326,14 +336,14 @@ export const OutboxUtils = {
   /**
    * Check if an event has exceeded maximum retries
    */
-  hasExceededMaxRetries(event: OutboxEvent): boolean {
+  hasExceededMaxRetries(event: IOutboxEvent): boolean {
     return event.retryCount >= event.maxRetries;
   },
 
   /**
    * Check if a failed event is ready for retry
    */
-  isReadyForRetry(event: OutboxEvent): boolean {
+  isReadyForRetry(event: IOutboxEvent): boolean {
     if (event.status !== OutboxEventStatus.FAILED) {
       return false;
     }

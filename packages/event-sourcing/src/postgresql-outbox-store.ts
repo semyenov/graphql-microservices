@@ -1,11 +1,11 @@
 import { Pool } from 'pg';
-import { type OutboxEvent, OutboxEventStatus, OutboxProcessor, type OutboxStore } from './outbox';
-import type { DomainEvent } from './types';
+import { OutboxEventStatus, OutboxProcessor, type IOutboxEvent, type IOutboxStore } from './outbox';
+import type { IDomainEvent } from './types';
 
 /**
  * PostgreSQL implementation of the outbox store
  */
-export class PostgreSQLOutboxStore implements OutboxStore {
+export class PostgreSQLOutboxStore implements IOutboxStore {
   private readonly pool: Pool;
   private readonly tableName: string;
 
@@ -101,7 +101,7 @@ export class PostgreSQLOutboxStore implements OutboxStore {
     }
   }
 
-  async addEvents(events: DomainEvent[], routingKey?: string): Promise<void> {
+  async addEvents(events: IDomainEvent[], routingKey?: string): Promise<void> {
     if (events.length === 0) {
       return;
     }
@@ -141,7 +141,7 @@ export class PostgreSQLOutboxStore implements OutboxStore {
     }
   }
 
-  async getPendingEvents(limit: number = 10): Promise<OutboxEvent[]> {
+  async getPendingEvents(limit: number = 10): Promise<IOutboxEvent[]> {
     const client = await this.pool.connect();
 
     try {
@@ -240,7 +240,7 @@ export class PostgreSQLOutboxStore implements OutboxStore {
     }
   }
 
-  async getFailedEventsForRetry(limit: number = 10): Promise<OutboxEvent[]> {
+  async getFailedEventsForRetry(limit: number = 10): Promise<IOutboxEvent[]> {
     const client = await this.pool.connect();
 
     try {
@@ -365,7 +365,7 @@ export class PostgreSQLOutboxStore implements OutboxStore {
     max_retries: number;
     processed_at: string | null;
     error_message: string | null;
-  }): OutboxEvent {
+  }): IOutboxEvent {
     return {
       id: row.id,
       event: {

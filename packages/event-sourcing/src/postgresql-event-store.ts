@@ -4,7 +4,7 @@ import {
 } from '@graphql-microservices/shared-errors';
 import { Pool, type PoolClient } from 'pg';
 import { BaseEventStore, type EventStoreConfig, type EventSubscription } from './event-store';
-import type { DomainEvent, EventStoreQuery, StoredEvent, StreamPosition } from './types';
+import type { IDomainEvent, IEventStoreQuery, IStoredEvent, IStreamPosition } from './types';
 
 const logError = createErrorLogger('event-sourcing-postgresql');
 
@@ -108,9 +108,9 @@ export class PostgreSQLEventStore extends BaseEventStore {
 
   async appendToStream(
     aggregateId: string,
-    events: DomainEvent[],
+    events: IDomainEvent[],
     expectedVersion?: number
-  ): Promise<StreamPosition[]> {
+  ): Promise<IStreamPosition[]> {
     if (events.length === 0) {
       return [];
     }
@@ -118,7 +118,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
     this.validateEvents(events);
 
     const client = await this.pool.connect();
-    const positions: StreamPosition[] = [];
+    const positions: IStreamPosition[] = [];
 
     try {
       await client.query('BEGIN');
@@ -175,7 +175,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
     aggregateId: string,
     fromVersion: number = 1,
     toVersion?: number
-  ): Promise<StoredEvent[]> {
+  ): Promise<IStoredEvent[]> {
     const client = await this.pool.connect();
 
     try {
@@ -199,7 +199,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
     }
   }
 
-  async readEvents(query: EventStoreQuery): Promise<StoredEvent[]> {
+  async readEvents(query: IEventStoreQuery): Promise<IStoredEvent[]> {
     const client = await this.pool.connect();
 
     try {
@@ -257,7 +257,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
     }
   }
 
-  async readAllEvents(fromPosition?: bigint, limit?: number): Promise<StoredEvent[]> {
+  async readAllEvents(fromPosition?: bigint, limit?: number): Promise<IStoredEvent[]> {
     const client = await this.pool.connect();
 
     try {
@@ -395,8 +395,8 @@ export class PostgreSQLEventStore extends BaseEventStore {
   }
 
   async subscribe(
-    callback: (events: StoredEvent[]) => Promise<void>,
-    query?: EventStoreQuery
+    callback: (events: IStoredEvent[]) => Promise<void>,
+    query?: IEventStoreQuery
   ): Promise<EventSubscription> {
     // This is a simple implementation using polling
     // In production, you might want to use PostgreSQL LISTEN/NOTIFY
@@ -455,7 +455,7 @@ export class PostgreSQLEventStore extends BaseEventStore {
     global_position: string;
     stream_position: number;
     stored_at: string;
-  }): StoredEvent {
+  }): IStoredEvent {
     return {
       id: row.id,
       type: row.type,
@@ -464,12 +464,12 @@ export class PostgreSQLEventStore extends BaseEventStore {
       data: JSON.parse(row.data),
       metadata: JSON.parse(row.metadata),
       occurredAt: new Date(row.occurred_at),
+      storedAt: new Date(row.stored_at),
       version: row.version,
       position: {
         globalPosition: BigInt(row.global_position),
         streamPosition: row.stream_position,
       },
-      storedAt: new Date(row.stored_at),
     };
   }
 }
