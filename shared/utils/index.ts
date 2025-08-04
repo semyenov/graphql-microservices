@@ -1,8 +1,12 @@
 // Re-export all utilities
+import { createLogger } from '@graphql-microservices/logger';
 
 export * from './docker';
 export * from './schema';
 export * from './service-discovery';
+
+// Create logger instance for shared utils
+const logger = createLogger({ service: 'shared-utils' });
 
 // Common utility functions
 export function formatServiceName(name: string): string {
@@ -10,21 +14,25 @@ export function formatServiceName(name: string): string {
 }
 
 export function logSuccess(message: string): void {
-  console.log(`✅ ${message}`);
+  logger.info(`✅ ${message}`);
 }
 
-export function logError(message: string): void {
-  console.error(`❌ ${message}`);
+export function logError(message: string, error?: Error): void {
+  if (error) {
+    logger.error(`❌ ${message}`, error);
+  } else {
+    logger.error(`❌ ${message}`);
+  }
 }
 
 export function logWarning(message: string): void {
-  console.warn(`⚠️  ${message}`);
+  logger.warn(`⚠️  ${message}`);
 }
 
 export function logInfo(message: string): void {
-  console.log(`ℹ️  ${message}`);
+  logger.info(`ℹ️  ${message}`);
 }
 
 export function logStep(message: string): void {
-  console.log(`📦 ${message}`);
+  logger.info(`📦 ${message}`);
 }

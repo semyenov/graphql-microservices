@@ -1,14 +1,14 @@
 import {
   AggregateRoot,
-  type DomainEvent,
   EventFactory,
+  type IDomainEvent,
 } from '@graphql-microservices/event-sourcing';
 import { hashPassword, verifyPassword } from './auth-helpers';
 
 /**
  * User domain events
  */
-export interface UserCreatedEvent extends DomainEvent {
+export interface UserCreatedEvent extends IDomainEvent {
   type: 'UserCreated';
   data: {
     username: string;
@@ -19,7 +19,7 @@ export interface UserCreatedEvent extends DomainEvent {
   };
 }
 
-export interface UserProfileUpdatedEvent extends DomainEvent {
+export interface UserProfileUpdatedEvent extends IDomainEvent {
   type: 'UserProfileUpdated';
   data: {
     name?: string;
@@ -29,7 +29,7 @@ export interface UserProfileUpdatedEvent extends DomainEvent {
   };
 }
 
-export interface UserCredentialsUpdatedEvent extends DomainEvent {
+export interface UserCredentialsUpdatedEvent extends IDomainEvent {
   type: 'UserCredentialsUpdated';
   data: {
     username?: string;
@@ -39,7 +39,7 @@ export interface UserCredentialsUpdatedEvent extends DomainEvent {
   };
 }
 
-export interface UserRoleChangedEvent extends DomainEvent {
+export interface UserRoleChangedEvent extends IDomainEvent {
   type: 'UserRoleChanged';
   data: {
     newRole: 'USER' | 'ADMIN' | 'MODERATOR';
@@ -48,14 +48,14 @@ export interface UserRoleChangedEvent extends DomainEvent {
   };
 }
 
-export interface UserPasswordChangedEvent extends DomainEvent {
+export interface UserPasswordChangedEvent extends IDomainEvent {
   type: 'UserPasswordChanged';
   data: {
     changedBy: string;
   };
 }
 
-export interface UserDeactivatedEvent extends DomainEvent {
+export interface UserDeactivatedEvent extends IDomainEvent {
   type: 'UserDeactivated';
   data: {
     reason: string;
@@ -63,7 +63,7 @@ export interface UserDeactivatedEvent extends DomainEvent {
   };
 }
 
-export interface UserReactivatedEvent extends DomainEvent {
+export interface UserReactivatedEvent extends IDomainEvent {
   type: 'UserReactivated';
   data: {
     reason: string;
@@ -71,7 +71,7 @@ export interface UserReactivatedEvent extends DomainEvent {
   };
 }
 
-export interface UserSignedInEvent extends DomainEvent {
+export interface UserSignedInEvent extends IDomainEvent {
   type: 'UserSignedIn';
   data: {
     timestamp: Date;
@@ -80,7 +80,7 @@ export interface UserSignedInEvent extends DomainEvent {
   };
 }
 
-export interface UserSignedOutEvent extends DomainEvent {
+export interface UserSignedOutEvent extends IDomainEvent {
   type: 'UserSignedOut';
   data: {
     timestamp: Date;
@@ -97,6 +97,9 @@ export type UserDomainEvent =
   | UserReactivatedEvent
   | UserSignedInEvent
   | UserSignedOutEvent;
+
+// Re-export event map for convenience
+export { UserEventMap } from './events/event-map';
 
 /**
  * User aggregate errors

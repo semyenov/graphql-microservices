@@ -1,9 +1,16 @@
-import { AggregateRoot, EventFactory } from '@graphql-microservices/event-sourcing';
+import {
+  AggregateRoot,
+  EventFactory,
+  type ICommand,
+  type IDomainEvent,
+  type IEventMetadata,
+} from '@graphql-microservices/event-sourcing';
 import {
   BusinessRuleError,
   generateId,
   ValidationError,
 } from '@graphql-microservices/shared-errors';
+import { type DomainError, domainError, Result } from '@graphql-microservices/shared-result';
 import type { DomainEvent } from './events';
 import {
   Address,
@@ -42,7 +49,7 @@ export interface OrderItem {
 /**
  * Order domain events
  */
-export interface OrderCreatedEvent extends DomainEvent {
+export interface OrderCreatedEvent extends IDomainEvent {
   type: 'OrderCreated';
   data: {
     orderNumber: string;
@@ -67,7 +74,7 @@ export interface OrderCreatedEvent extends DomainEvent {
   };
 }
 
-export interface OrderStatusChangedEvent extends DomainEvent {
+export interface OrderStatusChangedEvent extends IDomainEvent {
   type: 'OrderStatusChanged';
   data: {
     orderNumber: string;
@@ -78,7 +85,7 @@ export interface OrderStatusChangedEvent extends DomainEvent {
   };
 }
 
-export interface OrderItemAddedEvent extends DomainEvent {
+export interface OrderItemAddedEvent extends IDomainEvent {
   type: 'OrderItemAdded';
   data: {
     orderNumber: string;
@@ -96,7 +103,7 @@ export interface OrderItemAddedEvent extends DomainEvent {
   };
 }
 
-export interface OrderItemRemovedEvent extends DomainEvent {
+export interface OrderItemRemovedEvent extends IDomainEvent {
   type: 'OrderItemRemoved';
   data: {
     orderNumber: string;
@@ -112,7 +119,7 @@ export interface OrderItemRemovedEvent extends DomainEvent {
   };
 }
 
-export interface OrderItemQuantityChangedEvent extends DomainEvent {
+export interface OrderItemQuantityChangedEvent extends IDomainEvent {
   type: 'OrderItemQuantityChanged';
   data: {
     orderNumber: string;
@@ -126,7 +133,7 @@ export interface OrderItemQuantityChangedEvent extends DomainEvent {
   };
 }
 
-export interface OrderPaymentUpdatedEvent extends DomainEvent {
+export interface OrderPaymentUpdatedEvent extends IDomainEvent {
   type: 'OrderPaymentUpdated';
   data: {
     orderNumber: string;
@@ -135,7 +142,7 @@ export interface OrderPaymentUpdatedEvent extends DomainEvent {
   };
 }
 
-export interface OrderShippingUpdatedEvent extends DomainEvent {
+export interface OrderShippingUpdatedEvent extends IDomainEvent {
   type: 'OrderShippingUpdated';
   data: {
     orderNumber: string;
@@ -144,7 +151,7 @@ export interface OrderShippingUpdatedEvent extends DomainEvent {
   };
 }
 
-export interface OrderCancelledEvent extends DomainEvent {
+export interface OrderCancelledEvent extends IDomainEvent {
   type: 'OrderCancelled';
   data: {
     orderNumber: string;
@@ -154,7 +161,7 @@ export interface OrderCancelledEvent extends DomainEvent {
   };
 }
 
-export interface OrderRefundedEvent extends DomainEvent {
+export interface OrderRefundedEvent extends IDomainEvent {
   type: 'OrderRefunded';
   data: {
     orderNumber: string;
@@ -175,6 +182,9 @@ export type OrderDomainEvent =
   | OrderShippingUpdatedEvent
   | OrderCancelledEvent
   | OrderRefundedEvent;
+
+// Re-export event map for convenience
+export type { OrderEventMap } from './events/event-map';
 
 /**
  * Order aggregate errors
@@ -222,7 +232,7 @@ export class InvalidOrderTotalError extends OrderDomainError {
 /**
  * Order aggregate root
  */
-export class Order extends AggregateRoot {
+export class Order extends AggregateRoot<IDomainEvent> {
   private _orderNumber: OrderNumber = OrderNumber.fromString('ORD-20240101-00001');
   private _customerId: string = '';
   private _status: OrderStatus = 'pending';
@@ -333,20 +343,22 @@ export class Order extends AggregateRoot {
       billingAddress?: Address;
     },
     metadata?: { correlationId?: string; userId?: string }
-  ): Order {
+  ): Result<Order, DomainError> {
     const order = new Order(input.id, 0);
 
     // Validate required fields
     if (!input.customerId || input.customerId.trim().length === 0) {
-      throw new ValidationError('Customer ID is required');
+      return Result.err(domainError('VALIDATION_ERROR', 'Customer ID is required'));
     }
 
     if (input.items.length === 0) {
-      throw new ValidationError('Order must have at least one item');
+      return Result.err(domainError('VALIDATION_ERROR', 'Order must have at least one item'));
     }
 
     if (input.items.length > 50) {
-      throw new BusinessRuleError('Order cannot have more than 50 items');
+      return Result.err(
+        domainError('BUSINESS_RULE_VIOLATION', 'Order cannot have more than 50 items')
+      );
     }
 
     // Create order items and calculate totals
@@ -388,12 +400,16 @@ export class Order extends AggregateRoot {
 
     // Validate minimum order amount
     if (totalAmount.getAmount() < 1.0) {
-      throw new BusinessRuleError('Order total must be at least $1.00');
+      return Result.err(
+        domainError('BUSINESS_RULE_VIOLATION', 'Order total must be at least $1.00')
+      );
     }
 
     // Validate maximum order amount
     if (totalAmount.getAmount() > 50000.0) {
-      throw new BusinessRuleError('Order total cannot exceed $50,000.00');
+      return Result.err(
+        domainError('BUSINESS_RULE_VIOLATION', 'Order total cannot exceed $50,000.00')
+      );
     }
 
     const event = EventFactory.create(
@@ -422,7 +438,7 @@ export class Order extends AggregateRoot {
     );
 
     order.applyEvent(event);
-    return order;
+    return Result.ok(order);
   }
 
   /**
@@ -761,9 +777,15 @@ export class Order extends AggregateRoot {
   /**
    * Cancel order
    */
-  cancel(reason: string, cancelledBy: string, metadata?: { correlationId?: string }): void {
+  cancel(
+    reason: string,
+    cancelledBy: string,
+    metadata?: { correlationId?: string }
+  ): Result<void, DomainError> {
     if (!this.canCancel()) {
-      throw new BusinessRuleError(`Cannot cancel order in ${this.status} status`);
+      return Result.err(
+        domainError('BUSINESS_RULE_VIOLATION', `Cannot cancel order in ${this.status} status`)
+      );
     }
 
     // Calculate refund amount if payment was captured
@@ -791,6 +813,7 @@ export class Order extends AggregateRoot {
     );
 
     this.applyEvent(event);
+    return Result.ok(undefined);
   }
 
   /**
@@ -802,17 +825,21 @@ export class Order extends AggregateRoot {
     refundedBy: string,
     refundTransactionId?: string,
     metadata?: { correlationId?: string }
-  ): void {
+  ): Result<void, DomainError> {
     if (this.status !== 'delivered' && this.status !== 'cancelled') {
-      throw new BusinessRuleError(`Cannot refund order in ${this.status} status`);
+      return Result.err(
+        domainError('BUSINESS_RULE_VIOLATION', `Cannot refund order in ${this.status} status`)
+      );
     }
 
     if (refundAmount.isGreaterThan(this.totalAmount)) {
-      throw new ValidationError('Refund amount cannot exceed order total');
+      return Result.err(domainError('VALIDATION_ERROR', 'Refund amount cannot exceed order total'));
     }
 
     if (refundAmount.getCurrency() !== this.totalAmount.getCurrency()) {
-      throw new ValidationError('Refund currency must match order currency');
+      return Result.err(
+        domainError('VALIDATION_ERROR', 'Refund currency must match order currency')
+      );
     }
 
     const event = EventFactory.create(
@@ -835,12 +862,13 @@ export class Order extends AggregateRoot {
     );
 
     this.applyEvent(event);
+    return Result.ok(undefined);
   }
 
   /**
    * Apply event data to aggregate state
    */
-  protected override applyEventData(event: DomainEvent): void {
+  protected override applyEventData(event: IDomainEvent): Result<void, DomainError> {
     switch (event.type) {
       case 'OrderCreated': {
         const data = event.data as OrderCreatedEvent['data'];
@@ -951,8 +979,15 @@ export class Order extends AggregateRoot {
         break;
 
       default:
-        throw new Error(`Unknown event type: ${(event as { type: string }).type}`);
+        return Result.err(
+          domainError(
+            'UNKNOWN_EVENT_TYPE',
+            `Unknown event type: ${(event as { type: string }).type}`
+          )
+        );
     }
+
+    return Result.ok(undefined);
   }
 
   /**

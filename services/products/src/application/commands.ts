@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@graphql-microservices/event-sourcing';
+import type { IDomainEvent } from '@graphql-microservices/event-sourcing';
 import { generateId } from '@graphql-microservices/shared-errors';
 import { z } from 'zod';
 
@@ -29,7 +29,7 @@ export interface CommandResult {
   success: boolean;
   aggregateId: string;
   version: number;
-  events?: DomainEvent[];
+  events?: IDomainEvent[];
   error?: string;
 }
 

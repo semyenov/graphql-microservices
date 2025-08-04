@@ -1,13 +1,14 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
+import { createGraphQLLoggingPlugin, createLogger } from '@graphql-microservices/logger';
 import {
   type AuthContext,
   AuthService,
   extractAndVerifyUser,
 } from '@graphql-microservices/shared-auth';
 import { CacheService } from '@graphql-microservices/shared-cache';
-import { parseEnv, productServiceEnvSchema } from '@graphql-microservices/shared-config';
+import { ProductServiceConfig } from '@graphql-microservices/shared-config';
 import {
   AuthenticationError,
   BusinessRuleError,
@@ -19,6 +20,7 @@ import {
   ValidationError,
 } from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
+import { Result } from '@graphql-microservices/shared-result';
 import {
   bulkUpdateStockInputSchema,
   createProductInputSchema,
@@ -51,7 +53,7 @@ import {
   updateProductCommand,
   updateProductStockCommand,
 } from './application/commands';
-import { ProductEventDispatcher } from './application/event-handlers';
+import { createProductEventBus } from './application/event-handlers';
 import {
   getAllProductsQuery,
   getProductByIdQuery,
@@ -72,8 +74,16 @@ import { CQRSInfrastructure } from './infrastructure/cqrs-integration';
 import { RedisEventSubscriber } from './infrastructure/redis-event-subscriber';
 import { subscriptionResolvers } from './subscriptions';
 
-// Parse and validate environment variables
-const env = parseEnv(productServiceEnvSchema);
+// Initialize logger first
+const logger = createLogger({ service: 'products' });
+
+// Initialize configuration
+const configResult = await ProductServiceConfig.initialize();
+if (Result.isErr(configResult)) {
+  logger.error('Failed to initialize configuration:', configResult.error);
+  process.exit(1);
+}
+const env = configResult.value;
 
 // Initialize services
 const prisma = new PrismaClient();
@@ -94,10 +104,10 @@ const cqrsInfrastructure = new CQRSInfrastructure(
 );
 
 // Initialize event handling
-const eventDispatcher = new ProductEventDispatcher(prisma, cacheService, pubSubService);
+const eventBus = createProductEventBus(prisma, cacheService, pubSubService);
 const eventSubscriber = new RedisEventSubscriber(
   env.REDIS_URL || 'redis://localhost:6379',
-  eventDispatcher
+  eventBus
 );
 
 // Get command and query buses
@@ -271,6 +281,7 @@ export interface Context extends AuthContext {
   productLoader: DataLoader<string, GraphQLProduct | null>;
   commandBus: typeof commandBus;
   queryBus: typeof queryBus;
+  logger: ReturnType<typeof createLogger>;
 }
 
 // Resolvers
@@ -765,6 +776,7 @@ const server = new ApolloServer({
       'products-service'
     );
   },
+  plugins: [createGraphQLLoggingPlugin(logger)],
 });
 
 // Initialize CQRS infrastructure
@@ -791,13 +803,14 @@ const { url } = await startStandaloneServer(server, {
       isAuthenticated: !!user,
       commandBus,
       queryBus,
+      logger,
     };
   },
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('Shutting down Products service...');
+  logger.info('Shutting down Products service...');
 
   // Stop event subscriber
   await eventSubscriber.stop();
@@ -813,4 +826,4 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-console.log(`🚀 Products service ready at ${url}`);
+logger.info('Products service ready', { url });

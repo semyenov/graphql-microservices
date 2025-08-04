@@ -10,11 +10,21 @@ import {
 import { ApolloServer } from '@apollo/server';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import { startStandaloneServer } from '@apollo/server/standalone';
+import { createGraphQLLoggingPlugin, createLogger } from '@graphql-microservices/logger';
 import { CacheService } from '@graphql-microservices/shared-cache';
-import { gatewayEnvSchema, parseEnv } from '@graphql-microservices/shared-config';
+import { GatewayConfig } from '@graphql-microservices/shared-config';
+import { Result } from '@graphql-microservices/shared-result';
 
-// Parse environment variables
-const env = parseEnv(gatewayEnvSchema);
+// Initialize logger first (using defaults)
+const logger = createLogger({ service: 'gateway' });
+
+// Initialize configuration
+const configResult = await GatewayConfig.initialize();
+if (Result.isErr(configResult)) {
+  logger.error('Failed to initialize configuration:', configResult.error);
+  process.exit(1);
+}
+const env = configResult.value;
 
 // Initialize cache service
 const cacheService = new CacheService(env.REDIS_URL || 'redis://localhost:6379');
@@ -24,6 +34,7 @@ export interface GatewayContext {
   req: IncomingMessage;
   cacheService: CacheService;
   correlationId: string;
+  logger: ReturnType<typeof createLogger>;
 }
 
 // Custom data source to forward headers and handle retries
@@ -96,6 +107,7 @@ const server = new ApolloServer<GatewayContext>({
   includeStacktraceInErrorResponses: env.NODE_ENV !== 'production',
   plugins: [
     ApolloServerPluginDrainHttpServer({ httpServer }),
+    createGraphQLLoggingPlugin(logger),
     {
       async requestDidStart() {
         return {
@@ -116,8 +128,8 @@ const server = new ApolloServer<GatewayContext>({
     // Log errors with correlation ID
     const correlationId =
       (err.extensions?.context as { correlationId?: string })?.correlationId || 'unknown';
-    console.error(`GraphQL Error [${correlationId}]:`, {
-      message: err.message,
+    logger.error(`GraphQL Error`, err, {
+      correlationId,
       path: err.path,
       code: err.extensions?.code,
     });
@@ -145,28 +157,34 @@ const { url } = await startStandaloneServer(server, {
       req,
       cacheService,
       correlationId,
+      logger,
     };
   },
 });
 
 // Check subgraph health on startup
 async function checkSubgraphHealth() {
-  console.log('🏥 Checking subgraph health...');
+  logger.info('Checking subgraph health...');
   for (const endpoint of healthCheckEndpoints) {
     try {
       const response = await fetch(endpoint.url);
-      const status = response.ok ? '✅' : '❌';
-      console.log(`  ${status} ${endpoint.name}: ${response.status}`);
+      const status = response.ok ? 'healthy' : 'unhealthy';
+      logger.info(`Subgraph health check`, {
+        service: endpoint.name,
+        status,
+        httpStatus: response.status,
+      });
     } catch (error) {
-      console.error(`Error checking health of ${endpoint.name}:`, error);
-      console.log(`  ❌ ${endpoint.name}: Unreachable`);
+      logger.error(`Error checking health of subgraph`, error as Error, {
+        service: endpoint.name,
+      });
     }
   }
 }
 
 // Graceful shutdown
 const shutdown = async (signal: string) => {
-  console.log(`\n${signal} received. Starting graceful shutdown...`);
+  logger.info(`${signal} received. Starting graceful shutdown...`, { signal });
 
   try {
     // Stop accepting new requests
@@ -178,10 +196,10 @@ const shutdown = async (signal: string) => {
     // Disconnect from Redis
     await cacheService.disconnect();
 
-    console.log('✅ Graceful shutdown complete');
+    logger.info('Graceful shutdown complete');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error during shutdown:', error);
+    logger.error('Error during shutdown', error as Error);
     process.exit(1);
   }
 };
@@ -190,14 +208,15 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // Log startup information
-console.log('\n🌟 Apollo Gateway Starting...\n');
-console.log(`🚀 Gateway ready at ${url}`);
-console.log(`🏥 Health check at ${url.replace('/graphql', '/health')}`);
-console.log(`📊 GraphQL Playground: ${env.PLAYGROUND_ENABLED ? 'enabled' : 'disabled'}`);
-console.log(`🔍 Introspection: ${env.INTROSPECTION_ENABLED ? 'enabled' : 'disabled'}`);
-console.log(`🔄 Schema polling: ${env.NODE_ENV === 'production' ? '30s' : '10s'}`);
-console.log(`\n📡 Subgraphs:`);
-subgraphConfigs.forEach((sg) => console.log(`   - ${sg.name}: ${sg.url}`));
+logger.info('Apollo Gateway starting...');
+logger.info('Gateway ready', {
+  url,
+  healthCheck: `${url.replace('/graphql', '/health')}`,
+  playgroundEnabled: env.PLAYGROUND_ENABLED,
+  introspectionEnabled: env.INTROSPECTION_ENABLED,
+  schemaPollInterval: env.NODE_ENV === 'production' ? '30s' : '10s',
+  subgraphs: subgraphConfigs,
+});
 
 // Initial health check
 setTimeout(checkSubgraphHealth, 1000);

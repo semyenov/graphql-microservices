@@ -455,3 +455,28 @@ error: invalid input syntax for type uuid: "product-test-1"
 
       at <anonymous> (/Users/aleksandrsemenov/Projects/graphql-microservices/node_modules/pg/lib/client.js:545:17)
 
+Warning: JWT_ACCESS_PRIVATE_KEY or JWT_ACCESS_PUBLIC_KEY not found in environment. Using generated keys for development.
+Warning: JWT_REFRESH_PRIVATE_KEY or JWT_REFRESH_PUBLIC_KEY not found in environment. Using generated keys for development.
+🏗️  Initializing Products CQRS infrastructure...
+✅ Event store initialized
+✅ Outbox store initialized
+📡 Redis event publisher connected
+✅ Event publisher initialized
+🎉 Products CQRS infrastructure ready!
+📡 Redis event subscriber connected
+📥 Subscribed to channels: product.events, product.created, product.stock.changed, inventory.updates, product.price.changed, pricing.updates, product.status.changed, product.reservations, inventory.reservations, cross-service.user.events, cross-service.order.events, cross-service.inventory.requests, order.created, order.cancelled, order.status.changed
+Enabling inline tracing for this subgraph. To disable, use ApolloServerPluginInlineTraceDisabled.
+🚀 Products service ready at http://localhost:4002/
+Warning: JWT_ACCESS_PRIVATE_KEY or JWT_ACCESS_PUBLIC_KEY not found in environment. Using generated keys for development.
+Warning: JWT_REFRESH_PRIVATE_KEY or JWT_REFRESH_PUBLIC_KEY not found in environment. Using generated keys for development.
+🏗️  Initializing Products CQRS infrastructure...
+✅ Event store initialized
+✅ Outbox store initialized
+📡 Redis event publisher connected
+✅ Event publisher initialized
+🎉 Products CQRS infrastructure ready!
+📡 Redis event subscriber connected
+📥 Subscribed to channels: product.events, product.created, product.stock.changed, inventory.updates, product.price.changed, pricing.updates, product.status.changed, product.reservations, inventory.reservations, cross-service.user.events, cross-service.order.events, cross-service.inventory.requests, order.created, order.cancelled, order.status.changed
+Enabling inline tracing for this subgraph. To disable, use ApolloServerPluginInlineTraceDisabled.
+🚀 Products service ready at http://localhost:4002/
+error: script "dev" was terminated by signal SIGTERM (Polite quit request)

@@ -1,11 +1,14 @@
-import type { CommandMetadata, ICommand } from '@graphql-microservices/event-sourcing';
+import type { ICommandMetadata } from '@graphql-microservices/event-sourcing';
+import type { ICommand } from '@graphql-microservices/event-sourcing/cqrs';
 import { z } from 'zod';
 
 // Base command interface - extends CQRS ICommand
-export interface Command extends ICommand {
-  readonly aggregateId?: string;
+export interface Command<TPayload = unknown> extends ICommand<TPayload> {
+  readonly id: string;
   readonly type: string;
-  readonly metadata?: CommandMetadata;
+  readonly payload: TPayload;
+  readonly metadata: ICommandMetadata;
+  readonly createdAt: Date;
 }
 
 // Command payloads with validation schemas
@@ -65,26 +68,28 @@ export const createOrderPayloadSchema = z.object({
 
 export type CreateOrderPayload = z.infer<typeof createOrderPayloadSchema>;
 
-export interface CreateOrderCommand extends Command {
+export interface CreateOrderCommand extends Command<CreateOrderPayload> {
   readonly type: 'CreateOrder';
   readonly payload: CreateOrderPayload;
 }
 
 // Cancel Order
 export const cancelOrderPayloadSchema = z.object({
+  orderId: z.uuid('Invalid order ID format'),
   reason: z.string().min(1, 'Cancellation reason is required'),
   cancelledBy: z.uuid('Invalid user ID format'),
 });
 
 export type CancelOrderPayload = z.infer<typeof cancelOrderPayloadSchema>;
 
-export interface CancelOrderCommand extends Command {
+export interface CancelOrderCommand extends Command<CancelOrderPayload> {
   readonly type: 'CancelOrder';
   readonly payload: CancelOrderPayload;
 }
 
 // Update Order Status
 export const updateOrderStatusPayloadSchema = z.object({
+  orderId: z.uuid('Invalid order ID format'),
   status: z.enum([
     'PENDING',
     'CONFIRMED',
@@ -100,13 +105,14 @@ export const updateOrderStatusPayloadSchema = z.object({
 
 export type UpdateOrderStatusPayload = z.infer<typeof updateOrderStatusPayloadSchema>;
 
-export interface UpdateOrderStatusCommand extends Command {
+export interface UpdateOrderStatusCommand extends Command<UpdateOrderStatusPayload> {
   readonly type: 'UpdateOrderStatus';
   readonly payload: UpdateOrderStatusPayload;
 }
 
 // Ship Order
 export const shipOrderPayloadSchema = z.object({
+  orderId: z.uuid('Invalid order ID format'),
   trackingNumber: z.string().min(1, 'Tracking number is required'),
   carrier: z.string().min(1, 'Carrier is required'),
   estimatedDeliveryDate: z.string().datetime('Invalid date format'),
@@ -115,13 +121,14 @@ export const shipOrderPayloadSchema = z.object({
 
 export type ShipOrderPayload = z.infer<typeof shipOrderPayloadSchema>;
 
-export interface ShipOrderCommand extends Command {
+export interface ShipOrderCommand extends Command<ShipOrderPayload> {
   readonly type: 'ShipOrder';
   readonly payload: ShipOrderPayload;
 }
 
 // Add Order Item
 export const addOrderItemPayloadSchema = z.object({
+  orderId: z.uuid('Invalid order ID format'),
   productId: z.uuid('Invalid product ID format'),
   productName: z.string().min(1, 'Product name is required'),
   productSku: z.string().min(1, 'Product SKU is required'),
@@ -135,13 +142,14 @@ export const addOrderItemPayloadSchema = z.object({
 
 export type AddOrderItemPayload = z.infer<typeof addOrderItemPayloadSchema>;
 
-export interface AddOrderItemCommand extends Command {
+export interface AddOrderItemCommand extends Command<AddOrderItemPayload> {
   readonly type: 'AddOrderItem';
   readonly payload: AddOrderItemPayload;
 }
 
 // Remove Order Item
 export const removeOrderItemPayloadSchema = z.object({
+  orderId: z.uuid('Invalid order ID format'),
   productId: z.uuid('Invalid product ID format'),
   removedBy: z.uuid('Invalid user ID format'),
   reason: z.string().optional(),
@@ -149,13 +157,14 @@ export const removeOrderItemPayloadSchema = z.object({
 
 export type RemoveOrderItemPayload = z.infer<typeof removeOrderItemPayloadSchema>;
 
-export interface RemoveOrderItemCommand extends Command {
+export interface RemoveOrderItemCommand extends Command<RemoveOrderItemPayload> {
   readonly type: 'RemoveOrderItem';
   readonly payload: RemoveOrderItemPayload;
 }
 
 // Update Shipping Address
 export const updateShippingAddressPayloadSchema = z.object({
+  orderId: z.uuid('Invalid order ID format'),
   address: z.object({
     street: z.string().min(1, 'Street is required'),
     city: z.string().min(1, 'City is required'),
@@ -168,13 +177,14 @@ export const updateShippingAddressPayloadSchema = z.object({
 
 export type UpdateShippingAddressPayload = z.infer<typeof updateShippingAddressPayloadSchema>;
 
-export interface UpdateShippingAddressCommand extends Command {
+export interface UpdateShippingAddressCommand extends Command<UpdateShippingAddressPayload> {
   readonly type: 'UpdateShippingAddress';
   readonly payload: UpdateShippingAddressPayload;
 }
 
 // Process Payment
 export const processPaymentPayloadSchema = z.object({
+  orderId: z.uuid('Invalid order ID format'),
   amount: z.number().positive('Amount must be positive'),
   method: z.enum(['CREDIT_CARD', 'DEBIT_CARD', 'PAYPAL', 'BANK_TRANSFER']),
   transactionId: z.string().min(1, 'Transaction ID is required'),
@@ -183,13 +193,14 @@ export const processPaymentPayloadSchema = z.object({
 
 export type ProcessPaymentPayload = z.infer<typeof processPaymentPayloadSchema>;
 
-export interface ProcessPaymentCommand extends Command {
+export interface ProcessPaymentCommand extends Command<ProcessPaymentPayload> {
   readonly type: 'ProcessPayment';
   readonly payload: ProcessPaymentPayload;
 }
 
 // Refund Order
 export const refundOrderPayloadSchema = z.object({
+  orderId: z.uuid('Invalid order ID format'),
   amount: z.number().positive('Refund amount must be positive'),
   currency: z.string().default('USD'),
   reason: z.string().min(1, 'Refund reason is required'),
@@ -199,7 +210,7 @@ export const refundOrderPayloadSchema = z.object({
 
 export type RefundOrderPayload = z.infer<typeof refundOrderPayloadSchema>;
 
-export interface RefundOrderCommand extends Command {
+export interface RefundOrderCommand extends Command<RefundOrderPayload> {
   readonly type: 'RefundOrder';
   readonly payload: RefundOrderPayload;
 }
@@ -218,106 +229,118 @@ export type OrderCommand =
 
 // Command factory functions
 export function createOrderCommand(
-  aggregateId: string,
-  payload: CreateOrderPayload
+  payload: CreateOrderPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
 ): CreateOrderCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'CreateOrder',
     payload: createOrderPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }
 
 export function cancelOrderCommand(
-  aggregateId: string,
-  payload: CancelOrderPayload
+  payload: CancelOrderPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
 ): CancelOrderCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'CancelOrder',
     payload: cancelOrderPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }
 
 export function updateOrderStatusCommand(
-  aggregateId: string,
-  payload: UpdateOrderStatusPayload
+  payload: UpdateOrderStatusPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
 ): UpdateOrderStatusCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'UpdateOrderStatus',
     payload: updateOrderStatusPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }
 
-export function shipOrderCommand(aggregateId: string, payload: ShipOrderPayload): ShipOrderCommand {
+export function shipOrderCommand(
+  payload: ShipOrderPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
+): ShipOrderCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'ShipOrder',
     payload: shipOrderPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }
 
 export function addOrderItemCommand(
-  aggregateId: string,
-  payload: AddOrderItemPayload
+  payload: AddOrderItemPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
 ): AddOrderItemCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'AddOrderItem',
     payload: addOrderItemPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }
 
 export function removeOrderItemCommand(
-  aggregateId: string,
-  payload: RemoveOrderItemPayload
+  payload: RemoveOrderItemPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
 ): RemoveOrderItemCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'RemoveOrderItem',
     payload: removeOrderItemPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }
 
 export function updateShippingAddressCommand(
-  aggregateId: string,
-  payload: UpdateShippingAddressPayload
+  payload: UpdateShippingAddressPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
 ): UpdateShippingAddressCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'UpdateShippingAddress',
     payload: updateShippingAddressPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }
 
 export function processPaymentCommand(
-  aggregateId: string,
-  payload: ProcessPaymentPayload
+  payload: ProcessPaymentPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
 ): ProcessPaymentCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'ProcessPayment',
     payload: processPaymentPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }
 
 export function refundOrderCommand(
-  aggregateId: string,
-  payload: RefundOrderPayload
+  payload: RefundOrderPayload,
+  metadata: ICommandMetadata = { source: 'orders-service' }
 ): RefundOrderCommand {
   return {
-    aggregateId,
+    id: crypto.randomUUID(),
     type: 'RefundOrder',
     payload: refundOrderPayloadSchema.parse(payload),
-    timestamp: new Date(),
+    metadata,
+    createdAt: new Date(),
   };
 }

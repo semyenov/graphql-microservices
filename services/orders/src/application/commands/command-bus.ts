@@ -1,7 +1,38 @@
-import type { IEventStore } from '@graphql-microservices/event-sourcing';
-import { CommandBus as BaseCommandBus } from '@graphql-microservices/event-sourcing';
-import type { OrderCommand } from '../../domain/commands';
+import {
+  type AsyncResult,
+  type CommandBus,
+  createCommandBus,
+  type DomainError,
+  type TypedCommandMap,
+} from '@graphql-microservices/event-sourcing';
+import { Result } from '@graphql-microservices/shared-result';
+import type {
+  AddOrderItemCommand,
+  CancelOrderCommand,
+  CreateOrderCommand,
+  OrderCommand,
+  ProcessPaymentCommand,
+  RefundOrderCommand,
+  RemoveOrderItemCommand,
+  ShipOrderCommand,
+  UpdateOrderStatusCommand,
+  UpdateShippingAddressCommand,
+} from '../../domain/commands';
+import type { OrderRepository } from '../../infrastructure/order-repository';
 import { createOrderCommandHandlers } from './handlers';
+
+// Define the order command map for type safety
+export type OrderCommandMap = TypedCommandMap<{
+  CreateOrder: CreateOrderCommand;
+  CancelOrder: CancelOrderCommand;
+  UpdateOrderStatus: UpdateOrderStatusCommand;
+  ShipOrder: ShipOrderCommand;
+  AddOrderItem: AddOrderItemCommand;
+  RemoveOrderItem: RemoveOrderItemCommand;
+  UpdateShippingAddress: UpdateShippingAddressCommand;
+  ProcessPayment: ProcessPaymentCommand;
+  RefundOrder: RefundOrderCommand;
+}>;
 
 export interface CommandResult {
   success: boolean;
@@ -16,17 +47,22 @@ export interface CommandResult {
 }
 
 export class OrderCommandBus {
-  private commandBus: BaseCommandBus;
+  private commandBus: CommandBus<OrderCommandMap>;
   private handlers: ReturnType<typeof createOrderCommandHandlers>;
 
-  constructor(eventStore: IEventStore) {
-    this.commandBus = new BaseCommandBus();
-    this.handlers = createOrderCommandHandlers(eventStore);
+  constructor(repository: OrderRepository) {
+    this.commandBus = createCommandBus<OrderCommandMap>({
+      enableTracing: true,
+      enableMetrics: true,
+      validateCommands: true,
+    });
+
+    this.handlers = createOrderCommandHandlers(repository);
     this.registerHandlers();
   }
 
   private registerHandlers(): void {
-    // Register all command handlers
+    // Register all command handlers with the modern command bus
     this.commandBus.register('CreateOrder', this.handlers.createOrder);
     this.commandBus.register('CancelOrder', this.handlers.cancelOrder);
     this.commandBus.register('UpdateOrderStatus', this.handlers.updateOrderStatus);
@@ -38,118 +74,93 @@ export class OrderCommandBus {
     this.commandBus.register('RefundOrder', this.handlers.refundOrder);
   }
 
-  async execute(command: OrderCommand): Promise<CommandResult> {
-    try {
-      const result = await this.commandBus.execute<any>(command);
-
-      // Map the result based on command type
-      switch (command.type) {
-        case 'CreateOrder':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-            orderNumber: result.orderNumber,
-          };
-
-        case 'CancelOrder':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-          };
-
-        case 'UpdateOrderStatus':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-            newStatus: result.newStatus,
-          };
-
-        case 'ShipOrder':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-            trackingNumber: result.trackingNumber,
-          };
-
-        case 'AddOrderItem':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-            productId: result.productId,
-          };
-
-        case 'RemoveOrderItem':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-            productId: result.productId,
-          };
-
-        case 'UpdateShippingAddress':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-          };
-
-        case 'ProcessPayment':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-            transactionId: result.transactionId,
-          };
-
-        case 'RefundOrder':
-          return {
-            success: true,
-            aggregateId: result.aggregateId,
-            refundAmount: result.refundAmount,
-          };
-
-        default:
-          return {
-            success: false,
-            error: `Unknown command type: ${(command as any).type}`,
-          };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
+  async execute<K extends keyof OrderCommandMap>(
+    commandType: K,
+    command: OrderCommandMap[K]
+  ): AsyncResult<any, DomainError> {
+    return this.commandBus.execute(commandType, command);
   }
 
-  async executeWithRetry(
+  // Legacy execute method for backward compatibility
+  async executeLegacy(command: OrderCommand, aggregateId?: string): Promise<CommandResult> {
+    const result = await this.execute(command.type as keyof OrderCommandMap, command as any);
+
+    return Result.match(result, {
+      ok: (value) => ({
+        success: true,
+        aggregateId: value?.aggregateId,
+        orderNumber: value?.orderNumber,
+        trackingNumber: value?.trackingNumber,
+        productId: value?.productId,
+        transactionId: value?.transactionId,
+        refundAmount: value?.refundAmount,
+        newStatus: value?.newStatus,
+      }),
+      err: (error) => ({
+        success: false,
+        error: error.message,
+      }),
+    });
+  }
+
+  async executeWithRetry<K extends keyof OrderCommandMap>(
+    commandType: K,
+    command: OrderCommandMap[K],
+    maxRetries: number = 3,
+    retryDelay: number = 1000
+  ): AsyncResult<any, DomainError> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const result = await this.execute(commandType, command);
+
+      if (Result.isOk(result)) {
+        return result;
+      }
+
+      // Don't retry on business rule violations
+      const error = result.error;
+      if (error.code === 'BUSINESS_RULE_ERROR' || error.code === 'VALIDATION_ERROR') {
+        return result;
+      }
+
+      // Wait before retrying (exponential backoff)
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt));
+      }
+    }
+
+    // Return the last failed result
+    return this.execute(commandType, command);
+  }
+
+  // Legacy retry method for backward compatibility
+  async executeWithRetryLegacy(
     command: OrderCommand,
+    aggregateId?: string,
     maxRetries: number = 3,
     retryDelay: number = 1000
   ): Promise<CommandResult> {
-    let lastError: Error | undefined;
+    const result = await this.executeWithRetry(
+      command.type as keyof OrderCommandMap,
+      command as any,
+      maxRetries,
+      retryDelay
+    );
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await this.execute(command);
-      } catch (error) {
-        lastError = error as Error;
-
-        // Don't retry on business rule violations
-        if (
-          error instanceof Error &&
-          (error.message.includes('BusinessRuleError') || error.message.includes('ValidationError'))
-        ) {
-          throw error;
-        }
-
-        // Wait before retrying (exponential backoff)
-        if (attempt < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt));
-        }
-      }
-    }
-
-    return {
-      success: false,
-      error: lastError?.message || 'Command execution failed after retries',
-    };
+    return Result.match(result, {
+      ok: (value) => ({
+        success: true,
+        aggregateId: value?.aggregateId,
+        orderNumber: value?.orderNumber,
+        trackingNumber: value?.trackingNumber,
+        productId: value?.productId,
+        transactionId: value?.transactionId,
+        refundAmount: value?.refundAmount,
+        newStatus: value?.newStatus,
+      }),
+      err: (error) => ({
+        success: false,
+        error: error.message,
+      }),
+    });
   }
 }

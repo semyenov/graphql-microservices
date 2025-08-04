@@ -1,4 +1,4 @@
-import type { EventStore, EventStoreQuery } from '@graphql-microservices/event-sourcing';
+import type { IEventStore, IEventStoreQuery } from '@graphql-microservices/event-sourcing';
 import type { CacheService } from '@graphql-microservices/shared-cache';
 import type { PrismaClient } from '../../generated/prisma';
 import {
@@ -30,7 +30,7 @@ export interface QueryHandler<T extends UserQuery, R = unknown> {
 abstract class BaseQueryHandler<T extends UserQuery, R = unknown> implements QueryHandler<T, R> {
   constructor(
     protected readonly prisma: PrismaClient,
-    protected readonly eventStore: EventStore,
+    protected readonly eventStore: IEventStore,
     protected readonly cacheService?: CacheService
   ) {}
 
@@ -287,7 +287,7 @@ export class GetUserEventsQueryHandler extends BaseQueryHandler<
       const { userId, eventTypes, fromDate, toDate, pagination } = query.payload;
 
       // Build event store query
-      const eventQuery: EventStoreQuery = {
+      const eventQuery: IEventStoreQuery = {
         aggregateId: userId,
         aggregateType: 'User',
       };
@@ -403,7 +403,7 @@ export class SearchUsersQueryHandler extends BaseQueryHandler<
 export class UserQueryBus {
   private readonly handlers = new Map<string, QueryHandler<UserQuery, unknown>>();
 
-  constructor(prisma: PrismaClient, eventStore: EventStore, cacheService?: CacheService) {
+  constructor(prisma: PrismaClient, eventStore: IEventStore, cacheService?: CacheService) {
     // Register query handlers
     this.handlers.set('GetUserById', new GetUserByIdQueryHandler(prisma, eventStore, cacheService));
     this.handlers.set(

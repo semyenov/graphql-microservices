@@ -1,4 +1,9 @@
-import type { DomainEvent } from '@graphql-microservices/event-sourcing';
+import {
+  createEventBus,
+  type EventBus,
+  EventHandler,
+  type IEventHandler,
+} from '@graphql-microservices/event-sourcing/cqrs';
 import type { CacheService } from '@graphql-microservices/shared-cache';
 import type { PubSubService } from '@graphql-microservices/shared-pubsub';
 import type { PrismaClient } from '../../generated/prisma';
@@ -7,6 +12,7 @@ import type {
   UserCredentialsUpdatedEvent,
   UserDeactivatedEvent,
   UserDomainEvent,
+  UserEventMap,
   UserPasswordChangedEvent,
   UserProfileUpdatedEvent,
   UserReactivatedEvent,
@@ -16,17 +22,9 @@ import type {
 } from '../domain/user-aggregate';
 
 /**
- * Event handler interface
- */
-export interface EventHandler<T extends DomainEvent = DomainEvent> {
-  handle(event: T): Promise<void>;
-  canHandle(event: DomainEvent): boolean;
-}
-
-/**
  * Base event handler with common functionality
  */
-abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandler<T> {
+abstract class BaseEventHandler<T extends UserDomainEvent> implements IEventHandler<T> {
   constructor(
     protected readonly prisma: PrismaClient,
     protected readonly cacheService?: CacheService,
@@ -34,7 +32,6 @@ abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandl
   ) {}
 
   abstract handle(event: T): Promise<void>;
-  abstract canHandle(event: DomainEvent): boolean;
 
   /**
    * Invalidate user cache
@@ -100,11 +97,8 @@ abstract class BaseEventHandler<T extends UserDomainEvent> implements EventHandl
  * User Created Event Handler
  * Updates read model and publishes subscription events
  */
+@EventHandler('UserCreated')
 export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserCreated';
-  }
-
   async handle(event: UserCreatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -161,11 +155,8 @@ export class UserCreatedEventHandler extends BaseEventHandler<UserCreatedEvent> 
 /**
  * User Profile Updated Event Handler
  */
+@EventHandler('UserProfileUpdated')
 export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfileUpdatedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserProfileUpdated';
-  }
-
   async handle(event: UserProfileUpdatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -214,11 +205,8 @@ export class UserProfileUpdatedEventHandler extends BaseEventHandler<UserProfile
 /**
  * User Credentials Updated Event Handler
  */
+@EventHandler('UserCredentialsUpdated')
 export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCredentialsUpdatedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserCredentialsUpdated';
-  }
-
   async handle(event: UserCredentialsUpdatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -275,11 +263,8 @@ export class UserCredentialsUpdatedEventHandler extends BaseEventHandler<UserCre
 /**
  * User Role Changed Event Handler
  */
+@EventHandler('UserRoleChanged')
 export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChangedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserRoleChanged';
-  }
-
   async handle(event: UserRoleChangedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -322,11 +307,8 @@ export class UserRoleChangedEventHandler extends BaseEventHandler<UserRoleChange
 /**
  * User Password Changed Event Handler
  */
+@EventHandler('UserPasswordChanged')
 export class UserPasswordChangedEventHandler extends BaseEventHandler<UserPasswordChangedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserPasswordChanged';
-  }
-
   async handle(event: UserPasswordChangedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -357,11 +339,8 @@ export class UserPasswordChangedEventHandler extends BaseEventHandler<UserPasswo
 /**
  * User Deactivated Event Handler
  */
+@EventHandler('UserDeactivated')
 export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivatedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserDeactivated';
-  }
-
   async handle(event: UserDeactivatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -405,11 +384,8 @@ export class UserDeactivatedEventHandler extends BaseEventHandler<UserDeactivate
 /**
  * User Reactivated Event Handler
  */
+@EventHandler('UserReactivated')
 export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivatedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserReactivated';
-  }
-
   async handle(event: UserReactivatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -453,11 +429,8 @@ export class UserReactivatedEventHandler extends BaseEventHandler<UserReactivate
  * User Sign In Event Handler
  * Tracks user activity and updates last sign in timestamp
  */
+@EventHandler('UserSignedIn')
 export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserSignedIn';
-  }
-
   async handle(event: UserSignedInEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -496,11 +469,8 @@ export class UserSignedInEventHandler extends BaseEventHandler<UserSignedInEvent
 /**
  * User Sign Out Event Handler
  */
+@EventHandler('UserSignedOut')
 export class UserSignedOutEventHandler extends BaseEventHandler<UserSignedOutEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'UserSignedOut';
-  }
-
   async handle(event: UserSignedOutEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -526,69 +496,63 @@ export class UserSignedOutEventHandler extends BaseEventHandler<UserSignedOutEve
 }
 
 /**
- * Event Dispatcher - Routes events to appropriate handlers
+ * Create and configure event bus for user events
  */
-export class UserEventDispatcher {
-  private readonly handlers: EventHandler[] = [];
+export function createUserEventBus(
+  prisma: PrismaClient,
+  cacheService?: CacheService,
+  pubSubService?: PubSubService
+): EventBus<UserEventMap> {
+  const eventBus = createEventBus<UserEventMap>({
+    async: true,
+    onError: (error, event, handler) => {
+      console.error(`Error in ${handler.constructor.name}:`, error, {
+        eventType: event.type,
+        eventId: event.id,
+        aggregateId: event.aggregateId,
+      });
+    },
+  });
 
-  constructor(prisma: PrismaClient, cacheService?: CacheService, pubSubService?: PubSubService) {
-    // Register all event handlers
-    this.handlers = [
-      new UserCreatedEventHandler(prisma, cacheService, pubSubService),
-      new UserProfileUpdatedEventHandler(prisma, cacheService, pubSubService),
-      new UserCredentialsUpdatedEventHandler(prisma, cacheService, pubSubService),
-      new UserRoleChangedEventHandler(prisma, cacheService, pubSubService),
-      new UserPasswordChangedEventHandler(prisma, cacheService, pubSubService),
-      new UserDeactivatedEventHandler(prisma, cacheService, pubSubService),
-      new UserReactivatedEventHandler(prisma, cacheService, pubSubService),
-      new UserSignedInEventHandler(prisma, cacheService, pubSubService),
-      new UserSignedOutEventHandler(prisma, cacheService, pubSubService),
-    ];
-  }
+  // Register all event handlers
+  eventBus.registerHandlers(
+    new UserCreatedEventHandler(prisma, cacheService, pubSubService),
+    new UserProfileUpdatedEventHandler(prisma, cacheService, pubSubService),
+    new UserCredentialsUpdatedEventHandler(prisma, cacheService, pubSubService),
+    new UserRoleChangedEventHandler(prisma, cacheService, pubSubService),
+    new UserPasswordChangedEventHandler(prisma, cacheService, pubSubService),
+    new UserDeactivatedEventHandler(prisma, cacheService, pubSubService),
+    new UserReactivatedEventHandler(prisma, cacheService, pubSubService),
+    new UserSignedInEventHandler(prisma, cacheService, pubSubService),
+    new UserSignedOutEventHandler(prisma, cacheService, pubSubService)
+  );
 
-  /**
-   * Dispatch an event to appropriate handlers
-   */
-  async dispatch(event: DomainEvent): Promise<void> {
-    const applicableHandlers = this.handlers.filter((handler) => handler.canHandle(event));
+  return eventBus;
+}
 
-    if (applicableHandlers.length === 0) {
-      console.warn(`No handlers found for event type: ${event.type}`);
-      return;
-    }
-
-    // Process all handlers in parallel
-    const promises = applicableHandlers.map((handler) => handler.handle(event));
-
-    try {
-      await Promise.all(promises);
-    } catch (error) {
-      console.error(`Failed to process event ${event.id} (${event.type}):`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Dispatch multiple events
-   */
-  async dispatchBatch(events: DomainEvent[]): Promise<void> {
-    const promises = events.map((event) => this.dispatch(event));
-    await Promise.all(promises);
-  }
-
-  /**
-   * Register a custom event handler
-   */
-  registerHandler(handler: EventHandler): void {
-    this.handlers.push(handler);
-  }
-
-  /**
-   * Get registered handlers
-   */
-  getHandlers(): EventHandler[] {
-    return [...this.handlers];
-  }
+/**
+ * Event handler factory for easy instantiation
+ */
+export function createUserEventHandlers(
+  prisma: PrismaClient,
+  cacheService?: CacheService,
+  pubSubService?: PubSubService
+) {
+  return {
+    userCreated: new UserCreatedEventHandler(prisma, cacheService, pubSubService),
+    userProfileUpdated: new UserProfileUpdatedEventHandler(prisma, cacheService, pubSubService),
+    userCredentialsUpdated: new UserCredentialsUpdatedEventHandler(
+      prisma,
+      cacheService,
+      pubSubService
+    ),
+    userRoleChanged: new UserRoleChangedEventHandler(prisma, cacheService, pubSubService),
+    userPasswordChanged: new UserPasswordChangedEventHandler(prisma, cacheService, pubSubService),
+    userDeactivated: new UserDeactivatedEventHandler(prisma, cacheService, pubSubService),
+    userReactivated: new UserReactivatedEventHandler(prisma, cacheService, pubSubService),
+    userSignedIn: new UserSignedInEventHandler(prisma, cacheService, pubSubService),
+    userSignedOut: new UserSignedOutEventHandler(prisma, cacheService, pubSubService),
+  };
 }
 
 function isError(error: unknown): error is Error {

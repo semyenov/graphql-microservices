@@ -3,20 +3,36 @@ import {
   PostgreSQLEventStore,
   PostgreSQLOutboxStore,
 } from '@graphql-microservices/event-sourcing';
+import { createLogger } from '@graphql-microservices/logger';
 import { RedisEventPublisher } from '@graphql-microservices/users/src/infrastructure/redis-event-publisher';
-import { logError, logInfo } from '@shared/utils';
 import type { Pool } from 'pg';
 import { PrismaClient } from '../../generated/prisma';
 import { OrderCommandBus } from '../application/commands/command-bus';
+import {
+  defaultOrderProjectionConfigs,
+  ModernOrderProjectionService,
+} from '../application/projections/modern-order-projection';
 import { OrderProjectionService } from '../application/projections/order-projection';
 import { OrderQueryBus } from '../application/queries/query-bus';
+import {
+  defaultSagaConfig,
+  type ExternalServices,
+  SagaManager,
+} from '../application/sagas/saga-manager';
+import { OrderRepository } from './order-repository';
+
+// Create logger instance
+const logger = createLogger({ service: 'orders-cqrs' });
 
 export interface CQRSConfig {
   databaseUrl: string;
   redisUrl?: string;
   enableProjections?: boolean;
+  enableModernProjections?: boolean;
+  enableSagas?: boolean;
   enableOutboxProcessor?: boolean;
   outboxPollInterval?: number;
+  externalServices?: ExternalServices;
 }
 
 export class OrdersCQRSIntegration {
@@ -24,9 +40,12 @@ export class OrdersCQRSIntegration {
   private outboxStore!: PostgreSQLOutboxStore;
   private outboxProcessor!: OutboxProcessor;
   private eventPublisher!: RedisEventPublisher;
+  private repository!: OrderRepository;
   private commandBus!: OrderCommandBus;
   private queryBus!: OrderQueryBus;
   private projectionService!: OrderProjectionService;
+  private modernProjectionService!: ModernOrderProjectionService;
+  private sagaManager!: SagaManager;
   private prisma!: PrismaClient;
   private pool!: Pool;
 
@@ -34,7 +53,7 @@ export class OrdersCQRSIntegration {
 
   async initialize(): Promise<void> {
     try {
-      logInfo('🏗️  Initializing Orders CQRS infrastructure...');
+      logger.info('🏗️  Initializing Orders CQRS infrastructure...');
 
       // Initialize Prisma
       this.prisma = new PrismaClient({
@@ -59,18 +78,18 @@ export class OrdersCQRSIntegration {
         connectionString: this.config.databaseUrl,
       });
       await this.eventStore.initialize();
-      logInfo('✅ Event store initialized');
+      logger.info('✅ Event store initialized');
 
       // Initialize outbox store
       this.outboxStore = new PostgreSQLOutboxStore(this.config.databaseUrl);
       await this.outboxStore.initialize();
-      logInfo('✅ Outbox store initialized');
+      logger.info('✅ Outbox store initialized');
 
       // Initialize Redis event publisher if Redis URL is provided
       if (this.config.redisUrl) {
         this.eventPublisher = new RedisEventPublisher(this.config.redisUrl);
         await this.eventPublisher.initialize();
-        logInfo('📡 Redis event publisher connected');
+        logger.info('📡 Redis event publisher connected');
       }
 
       // Initialize outbox processor
@@ -81,22 +100,49 @@ export class OrdersCQRSIntegration {
         });
       }
 
+      // Initialize repository
+      this.repository = new OrderRepository(this.eventStore, {
+        snapshotFrequency: 10, // Create snapshot every 10 events
+      });
+      logger.info('✅ Order repository initialized');
+
       // Initialize command bus
-      this.commandBus = new OrderCommandBus(this.eventStore);
-      logInfo('✅ Command bus initialized');
+      this.commandBus = new OrderCommandBus(this.repository);
+      logger.info('✅ Command bus initialized');
 
       // Initialize query bus
       this.queryBus = new OrderQueryBus(this.prisma);
-      logInfo('✅ Query bus initialized');
+      logger.info('✅ Query bus initialized');
 
       // Initialize projection service
       if (this.config.enableProjections !== false) {
         this.projectionService = new OrderProjectionService(this.prisma, this.config.databaseUrl);
       }
 
-      logInfo('🎉 Orders CQRS infrastructure ready!');
+      // Initialize modern projection service
+      if (this.config.enableModernProjections !== false) {
+        this.modernProjectionService = new ModernOrderProjectionService(
+          this.eventStore,
+          this.prisma,
+          defaultOrderProjectionConfigs
+        );
+        logger.info('✅ Modern projection service initialized');
+      }
+
+      // Initialize saga manager
+      if (this.config.enableSagas !== false && this.config.externalServices) {
+        this.sagaManager = new SagaManager(
+          this.prisma,
+          this.commandBus,
+          this.config.externalServices,
+          defaultSagaConfig
+        );
+        logger.info('✅ Saga manager initialized');
+      }
+
+      logger.info('🎉 Orders CQRS infrastructure ready!');
     } catch (error) {
-      logError(`Failed to initialize Orders CQRS infrastructure: ${error}`);
+      logger.error('Failed to initialize Orders CQRS infrastructure', error as Error);
       throw error;
     }
   }
@@ -106,23 +152,43 @@ export class OrdersCQRSIntegration {
       // Start outbox processor
       if (this.config.enableOutboxProcessor !== false && this.outboxProcessor?.start) {
         await this.outboxProcessor.start();
-        logInfo('✅ Outbox processor started');
+        logger.info('✅ Outbox processor started');
       }
 
       // Start projection service
       if (this.config.enableProjections !== false && this.projectionService) {
         await this.projectionService.start();
-        logInfo('✅ Projection service started');
+        logger.info('✅ Projection service started');
+      }
+
+      // Start modern projection service
+      if (this.config.enableModernProjections !== false && this.modernProjectionService) {
+        const startResult = await this.modernProjectionService.start();
+        if (startResult.isOk) {
+          logger.info('✅ Modern projection service started');
+        } else {
+          logger.error('Failed to start modern projection service', startResult.error);
+        }
+      }
+
+      // Start saga manager
+      if (this.config.enableSagas !== false && this.sagaManager) {
+        const startResult = await this.sagaManager.start();
+        if (startResult.isOk) {
+          logger.info('✅ Saga manager started');
+        } else {
+          logger.error('Failed to start saga manager', startResult.error);
+        }
       }
     } catch (error) {
-      logError(`Failed to start Orders CQRS services: ${error}`);
+      logger.error('Failed to start Orders CQRS services', error as Error);
       throw error;
     }
   }
 
   async stop(): Promise<void> {
     try {
-      logInfo('Stopping Orders CQRS infrastructure...');
+      logger.info('Stopping Orders CQRS infrastructure...');
 
       // Stop outbox processor
       if (this.outboxProcessor?.stop) {
@@ -134,6 +200,16 @@ export class OrdersCQRSIntegration {
         await this.projectionService.stop();
       }
 
+      // Stop modern projection service
+      if (this.modernProjectionService) {
+        await this.modernProjectionService.stop();
+      }
+
+      // Stop saga manager
+      if (this.sagaManager) {
+        await this.sagaManager.stop();
+      }
+
       // Disconnect event publisher
       if (this.eventPublisher) {
         await this.eventPublisher.close();
@@ -143,9 +219,9 @@ export class OrdersCQRSIntegration {
       await this.prisma.$disconnect();
       await this.pool.end();
 
-      logInfo('Orders CQRS infrastructure stopped');
+      logger.info('Orders CQRS infrastructure stopped');
     } catch (error) {
-      logError(`Error stopping Orders CQRS infrastructure: ${error}`);
+      logger.error('Error stopping Orders CQRS infrastructure', error as Error);
       throw error;
     }
   }
@@ -172,6 +248,14 @@ export class OrdersCQRSIntegration {
 
   getProjectionService(): OrderProjectionService | undefined {
     return this.projectionService;
+  }
+
+  getModernProjectionService(): ModernOrderProjectionService | undefined {
+    return this.modernProjectionService;
+  }
+
+  getSagaManager(): SagaManager | undefined {
+    return this.sagaManager;
   }
 }
 

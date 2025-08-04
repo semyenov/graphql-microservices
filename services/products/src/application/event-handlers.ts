@@ -1,4 +1,9 @@
-import type { DomainEvent } from '@graphql-microservices/event-sourcing';
+import {
+  createEventBus,
+  type EventBus,
+  EventHandler,
+  type IEventHandler,
+} from '@graphql-microservices/event-sourcing/cqrs';
 import type { CacheService } from '@graphql-microservices/shared-cache';
 import type { PubSubService } from '@graphql-microservices/shared-pubsub';
 import type { PrismaClient } from '../../generated/prisma';
@@ -7,6 +12,7 @@ import type {
   ProductCreatedEvent,
   ProductDeactivatedEvent,
   ProductDomainEvent,
+  ProductEventMap,
   ProductPriceChangedEvent,
   ProductReactivatedEvent,
   ProductStockChangedEvent,
@@ -16,17 +22,9 @@ import type {
 } from '../domain/product-aggregate';
 
 /**
- * Event handler interface
- */
-export interface EventHandler<T extends DomainEvent = DomainEvent> {
-  handle(event: T): Promise<void>;
-  canHandle(event: DomainEvent): boolean;
-}
-
-/**
  * Base event handler with common functionality
  */
-abstract class BaseEventHandler<T extends ProductDomainEvent> implements EventHandler<T> {
+abstract class BaseEventHandler<T extends ProductDomainEvent> implements IEventHandler<T> {
   constructor(
     protected readonly prisma: PrismaClient,
     protected readonly cacheService?: CacheService,
@@ -34,7 +32,6 @@ abstract class BaseEventHandler<T extends ProductDomainEvent> implements EventHa
   ) {}
 
   abstract handle(event: T): Promise<void>;
-  abstract canHandle(event: DomainEvent): boolean;
 
   /**
    * Invalidate product cache
@@ -98,11 +95,8 @@ abstract class BaseEventHandler<T extends ProductDomainEvent> implements EventHa
  * Product Created Event Handler
  * Creates the product in the read model
  */
+@EventHandler('ProductCreated')
 export class ProductCreatedEventHandler extends BaseEventHandler<ProductCreatedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'ProductCreated';
-  }
-
   async handle(event: ProductCreatedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -472,11 +466,8 @@ export class ProductReactivatedEventHandler extends BaseEventHandler<ProductReac
  * Note: This doesn't update the read model stock directly,
  * as reservations are tracked in the aggregate
  */
+@EventHandler('ProductStockReserved')
 export class ProductStockReservedEventHandler extends BaseEventHandler<ProductStockReservedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'ProductStockReserved';
-  }
-
   async handle(event: ProductStockReservedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -507,11 +498,8 @@ export class ProductStockReservedEventHandler extends BaseEventHandler<ProductSt
 /**
  * Product Stock Reservation Released Event Handler
  */
+@EventHandler('ProductStockReservationReleased')
 export class ProductStockReservationReleasedEventHandler extends BaseEventHandler<ProductStockReservationReleasedEvent> {
-  canHandle(event: DomainEvent): boolean {
-    return event.type === 'ProductStockReservationReleased';
-  }
-
   async handle(event: ProductStockReservationReleasedEvent): Promise<void> {
     this.logEventProcessing(event, 'started');
 
@@ -539,67 +527,65 @@ export class ProductStockReservationReleasedEventHandler extends BaseEventHandle
 }
 
 /**
- * Event Dispatcher - Routes events to appropriate handlers
+ * Create and configure event bus for product events
  */
-export class ProductEventDispatcher {
-  private readonly handlers: EventHandler[] = [];
+export function createProductEventBus(
+  prisma: PrismaClient,
+  cacheService?: CacheService,
+  pubSubService?: PubSubService
+): EventBus<ProductEventMap> {
+  const eventBus = createEventBus<ProductEventMap>({
+    async: true,
+    onError: (error, event, handler) => {
+      console.error(`Error in ${handler.constructor.name}:`, error, {
+        eventType: event.type,
+        eventId: event.id,
+        aggregateId: event.aggregateId,
+      });
+    },
+  });
 
-  constructor(prisma: PrismaClient, cacheService?: CacheService, pubSubService?: PubSubService) {
-    // Register all event handlers
-    this.handlers = [
-      new ProductCreatedEventHandler(prisma, cacheService, pubSubService),
-      new ProductUpdatedEventHandler(prisma, cacheService, pubSubService),
-      new ProductPriceChangedEventHandler(prisma, cacheService, pubSubService),
-      new ProductStockChangedEventHandler(prisma, cacheService, pubSubService),
-      new ProductCategoryChangedEventHandler(prisma, cacheService, pubSubService),
-      new ProductDeactivatedEventHandler(prisma, cacheService, pubSubService),
-      new ProductReactivatedEventHandler(prisma, cacheService, pubSubService),
-      new ProductStockReservedEventHandler(prisma, cacheService, pubSubService),
-      new ProductStockReservationReleasedEventHandler(prisma, cacheService, pubSubService),
-    ];
-  }
+  // Register all event handlers
+  eventBus.registerHandlers(
+    new ProductCreatedEventHandler(prisma, cacheService, pubSubService),
+    new ProductUpdatedEventHandler(prisma, cacheService, pubSubService),
+    new ProductPriceChangedEventHandler(prisma, cacheService, pubSubService),
+    new ProductStockChangedEventHandler(prisma, cacheService, pubSubService),
+    new ProductCategoryChangedEventHandler(prisma, cacheService, pubSubService),
+    new ProductDeactivatedEventHandler(prisma, cacheService, pubSubService),
+    new ProductReactivatedEventHandler(prisma, cacheService, pubSubService),
+    new ProductStockReservedEventHandler(prisma, cacheService, pubSubService),
+    new ProductStockReservationReleasedEventHandler(prisma, cacheService, pubSubService)
+  );
 
-  /**
-   * Dispatch an event to appropriate handlers
-   */
-  async dispatch(event: DomainEvent): Promise<void> {
-    const applicableHandlers = this.handlers.filter((handler) => handler.canHandle(event));
+  return eventBus;
+}
 
-    if (applicableHandlers.length === 0) {
-      console.warn(`No handlers found for event type: ${event.type}`);
-      return;
-    }
-
-    // Process all handlers in parallel
-    const promises = applicableHandlers.map((handler) => handler.handle(event));
-
-    try {
-      await Promise.all(promises);
-    } catch (error) {
-      console.error(`Failed to process event ${event.id} (${event.type}):`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Dispatch multiple events
-   */
-  async dispatchBatch(events: DomainEvent[]): Promise<void> {
-    const promises = events.map((event) => this.dispatch(event));
-    await Promise.all(promises);
-  }
-
-  /**
-   * Register a custom event handler
-   */
-  registerHandler(handler: EventHandler): void {
-    this.handlers.push(handler);
-  }
-
-  /**
-   * Get registered handlers
-   */
-  getHandlers(): EventHandler[] {
-    return [...this.handlers];
-  }
+/**
+ * Event handler factory for easy instantiation
+ */
+export function createProductEventHandlers(
+  prisma: PrismaClient,
+  cacheService?: CacheService,
+  pubSubService?: PubSubService
+) {
+  return {
+    productCreated: new ProductCreatedEventHandler(prisma, cacheService, pubSubService),
+    productUpdated: new ProductUpdatedEventHandler(prisma, cacheService, pubSubService),
+    productPriceChanged: new ProductPriceChangedEventHandler(prisma, cacheService, pubSubService),
+    productStockChanged: new ProductStockChangedEventHandler(prisma, cacheService, pubSubService),
+    productCategoryChanged: new ProductCategoryChangedEventHandler(
+      prisma,
+      cacheService,
+      pubSubService
+    ),
+    productDeactivated: new ProductDeactivatedEventHandler(prisma, cacheService, pubSubService),
+    productReactivated: new ProductReactivatedEventHandler(prisma, cacheService, pubSubService),
+    productStockReserved: new ProductStockReservedEventHandler(prisma, cacheService, pubSubService),
+    productStockReservationReleased: new ProductStockReservationReleasedEventHandler(
+      prisma,
+      cacheService,
+      pubSubService
+    ),
+  };
 }

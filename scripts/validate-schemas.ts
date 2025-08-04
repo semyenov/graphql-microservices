@@ -7,9 +7,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { ApolloGateway, IntrospectAndCompose } from '@apollo/gateway';
 import { buildSubgraphSchema } from '@apollo/subgraph';
+import { createLogger } from '@graphql-microservices/logger';
 import chalk from 'chalk';
 import { type ObjectTypeDefinitionNode, parse, printSchema, validateSchema } from 'graphql';
 import { gql } from 'graphql-tag';
+
+const logger = createLogger({ service: 'validate-schemas' });
 
 // Service configurations
 const services = [
@@ -127,7 +130,7 @@ async function validateFederationComposition(): Promise<ValidationResult> {
 
     // Note: In a real scenario, you'd need running services
     // This is a simplified check for schema composition
-    console.log(chalk.yellow('Note: Full federation validation requires running services'));
+    logger.info(chalk.yellow('Note: Full federation validation requires running services'));
     result.warnings.push('Skipping runtime federation validation - services not running');
   } catch (error) {
     result.valid = false;
@@ -185,40 +188,40 @@ function _checkBreakingChanges(oldSchema: string, newSchema: string): string[] {
  * Main validation function
  */
 async function validateSchemas() {
-  console.log(chalk.blue('🔍 Validating GraphQL Schemas...\n'));
+  logger.info(chalk.blue('🔍 Validating GraphQL Schemas...\n'));
 
   // Validate individual services
   for (const service of services) {
-    console.log(chalk.gray(`Validating ${service.name} service...`));
+    logger.info(chalk.gray(`Validating ${service.name} service...`));
     const result = await validateServiceSchema(service);
     results.push(result);
   }
 
   // Validate federation composition
-  console.log(chalk.gray('Validating federation composition...'));
+  logger.info(chalk.gray('Validating federation composition...'));
   const federationResult = await validateFederationComposition();
   results.push(federationResult);
 
   // Display results
-  console.log(`\n${chalk.blue('📋 Validation Results:\n')}`);
+  logger.info(`\n${chalk.blue('📋 Validation Results:\n')}`);
 
   let hasErrors = false;
   for (const result of results) {
     const icon = result.valid ? '✅' : '❌';
     const color = result.valid ? chalk.green : chalk.red;
 
-    console.log(color(`${icon} ${result.service}`));
+    logger.info(color(`${icon} ${result.service}`));
 
     if (result.errors.length > 0) {
       hasErrors = true;
       result.errors.forEach((error) => {
-        console.log(chalk.red(`   ❌ ${error}`));
+        logger.info(chalk.red(`   ❌ ${error}`));
       });
     }
 
     if (result.warnings.length > 0) {
       result.warnings.forEach((warning) => {
-        console.log(chalk.yellow(`   ⚠️  ${warning}`));
+        logger.info(chalk.yellow(`   ⚠️  ${warning}`));
       });
     }
   }
@@ -227,22 +230,22 @@ async function validateSchemas() {
   const validCount = results.filter((r) => r.valid).length;
   const totalCount = results.length;
 
-  console.log(`\n${chalk.blue('📊 Summary:')}`);
-  console.log(`   Valid schemas: ${validCount}/${totalCount}`);
-  console.log(`   Total errors: ${results.reduce((sum, r) => sum + r.errors.length, 0)}`);
-  console.log(`   Total warnings: ${results.reduce((sum, r) => sum + r.warnings.length, 0)}`);
+  logger.info(`\n${chalk.blue('📊 Summary:')}`);
+  logger.info(`   Valid schemas: ${validCount}/${totalCount}`);
+  logger.info(`   Total errors: ${results.reduce((sum, r) => sum + r.errors.length, 0)}`);
+  logger.info(`   Total warnings: ${results.reduce((sum, r) => sum + r.warnings.length, 0)}`);
 
   // Exit with error if validation failed
   if (hasErrors) {
-    console.log(`\n${chalk.red('❌ Schema validation failed!')}`);
+    logger.info(`\n${chalk.red('❌ Schema validation failed!')}`);
     process.exit(1);
   } else {
-    console.log(`\n${chalk.green('✅ All schemas are valid!')}`);
+    logger.info(`\n${chalk.green('✅ All schemas are valid!')}`);
   }
 }
 
 // Run validation
 validateSchemas().catch((error) => {
-  console.error(chalk.red('Fatal error during validation:'), error);
+  logger.error(chalk.red('Fatal error during validation'), error as Error);
   process.exit(1);
 });

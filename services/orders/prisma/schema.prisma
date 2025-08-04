@@ -95,3 +95,31 @@ enum OrderStatus {
   CANCELLED
   REFUNDED
 }
+
+model ProjectionCheckpoint {
+  projectionName String   @id @map("projection_name")
+  position       String   @default("0")
+  processedAt    DateTime @default(now()) @map("processed_at")
+  eventCount     Int      @default(0) @map("event_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([position])
+  @@index([processedAt])
+  @@map("projection_checkpoint")
+}
+
+model OrderSaga {
+  id          String    @id @default(uuid())
+  orderId     String    @map("order_id")
+  state       String
+  sagaData    String    @map("saga_data") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([orderId])
+  @@index([state])
+  @@index([createdAt])
+  @@map("order_saga")
+}

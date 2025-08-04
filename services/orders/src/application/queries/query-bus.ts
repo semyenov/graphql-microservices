@@ -57,14 +57,14 @@ export class OrderQueryBus {
   async getOrderById(orderId: string): Promise<QueryResult<OrderViewModel | null>> {
     return this.execute({
       type: 'GetOrderById',
-      payload: { orderId },
+      parameters: { orderId },
     });
   }
 
   async getOrderByNumber(orderNumber: string): Promise<QueryResult<OrderViewModel | null>> {
     return this.execute({
       type: 'GetOrderByNumber',
-      payload: { orderNumber },
+      parameters: { orderNumber },
     });
   }
 
@@ -82,7 +82,7 @@ export class OrderQueryBus {
   ): Promise<QueryResult<PaginatedResult<OrderViewModel>>> {
     return this.execute({
       type: 'GetOrdersByCustomer',
-      payload: {
+      parameters: {
         customerId,
         ...options,
       },
@@ -103,7 +103,7 @@ export class OrderQueryBus {
   }): Promise<QueryResult<PaginatedResult<OrderViewModel>>> {
     return this.execute({
       type: 'GetAllOrders',
-      payload: options || {},
+      parameters: options || {},
     });
   }
 
@@ -117,7 +117,7 @@ export class OrderQueryBus {
   ): Promise<QueryResult<OrderStatisticsViewModel>> {
     return this.execute({
       type: 'GetOrderStatistics',
-      payload: {
+      parameters: {
         fromDate,
         toDate,
         ...options,
@@ -137,7 +137,7 @@ export class OrderQueryBus {
   ): Promise<QueryResult<PaginatedResult<OrderViewModel>>> {
     return this.execute({
       type: 'SearchOrders',
-      payload: {
+      parameters: {
         searchTerm,
         ...options,
       },
@@ -152,7 +152,7 @@ export class OrderQueryBus {
   }): Promise<QueryResult<number>> {
     return this.execute({
       type: 'GetOrderCount',
-      payload: options || {},
+      parameters: options || {},
     });
   }
 
@@ -166,7 +166,7 @@ export class OrderQueryBus {
   ): Promise<QueryResult<RevenueReportViewModel>> {
     return this.execute({
       type: 'GetRevenueReport',
-      payload: {
+      parameters: {
         fromDate,
         toDate,
         ...options,

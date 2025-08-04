@@ -9,9 +9,9 @@
 // Re-export from event-sourcing package for convenience
 export type {
   AggregateRoot,
-  DomainEvent,
-  EventStore,
-  StoredEvent,
+  IDomainEvent,
+  IEventStore,
+  IStoredEvent,
 } from '@graphql-microservices/event-sourcing';
 // Domain Events
 export {
@@ -111,9 +111,54 @@ export class NotSpecification<T> extends AbstractSpecification<T> {
 }
 
 /**
- * Repository interface pattern
+ * Modern Repository interface pattern with Result types
  */
 export interface Repository<T, ID> {
+  findById(
+    id: ID
+  ): Promise<
+    import('@graphql-microservices/shared-result').Result<
+      T | null,
+      import('@graphql-microservices/shared-result').DomainError
+    >
+  >;
+  save(
+    entity: T
+  ): Promise<
+    import('@graphql-microservices/shared-result').Result<
+      void,
+      import('@graphql-microservices/shared-result').DomainError
+    >
+  >;
+  delete(
+    id: ID
+  ): Promise<
+    import('@graphql-microservices/shared-result').Result<
+      void,
+      import('@graphql-microservices/shared-result').DomainError
+    >
+  >;
+  findAll(): Promise<
+    import('@graphql-microservices/shared-result').Result<
+      T[],
+      import('@graphql-microservices/shared-result').DomainError
+    >
+  >;
+  exists(
+    id: ID
+  ): Promise<
+    import('@graphql-microservices/shared-result').Result<
+      boolean,
+      import('@graphql-microservices/shared-result').DomainError
+    >
+  >;
+}
+
+/**
+ * Legacy Repository interface for backward compatibility
+ * @deprecated Use Repository<T, ID> instead
+ */
+export interface LegacyRepository<T, ID> {
   findById(id: ID): Promise<T | null>;
   save(entity: T): Promise<void>;
   delete(id: ID): Promise<void>;
@@ -121,9 +166,36 @@ export interface Repository<T, ID> {
 }
 
 /**
- * Unit of Work pattern interface
+ * Modern Unit of Work pattern interface with Result types
  */
 export interface UnitOfWork {
+  begin(): Promise<
+    import('@graphql-microservices/shared-result').Result<
+      void,
+      import('@graphql-microservices/shared-result').DomainError
+    >
+  >;
+  commit(): Promise<
+    import('@graphql-microservices/shared-result').Result<
+      void,
+      import('@graphql-microservices/shared-result').DomainError
+    >
+  >;
+  rollback(): Promise<
+    import('@graphql-microservices/shared-result').Result<
+      void,
+      import('@graphql-microservices/shared-result').DomainError
+    >
+  >;
+  isActive(): boolean;
+  getTransactionId(): string;
+}
+
+/**
+ * Legacy Unit of Work interface for backward compatibility
+ * @deprecated Use UnitOfWork instead
+ */
+export interface LegacyUnitOfWork {
   begin(): Promise<void>;
   commit(): Promise<void>;
   rollback(): Promise<void>;

@@ -1,9 +1,5 @@
+import type { IQuery } from '@graphql-microservices/event-sourcing';
 import { z } from 'zod';
-
-// Base query interface
-export interface Query {
-  readonly type: string;
-}
 
 // Query payloads with validation schemas
 
@@ -14,9 +10,9 @@ export const getOrderByIdPayloadSchema = z.object({
 
 export type GetOrderByIdPayload = z.infer<typeof getOrderByIdPayloadSchema>;
 
-export interface GetOrderByIdQuery extends Query {
+export interface GetOrderByIdQuery extends IQuery<GetOrderByIdPayload> {
   readonly type: 'GetOrderById';
-  readonly payload: GetOrderByIdPayload;
+  readonly parameters: GetOrderByIdPayload;
 }
 
 // Get Order By Order Number
@@ -26,9 +22,9 @@ export const getOrderByNumberPayloadSchema = z.object({
 
 export type GetOrderByNumberPayload = z.infer<typeof getOrderByNumberPayloadSchema>;
 
-export interface GetOrderByNumberQuery extends Query {
+export interface GetOrderByNumberQuery extends IQuery<GetOrderByNumberPayload> {
   readonly type: 'GetOrderByNumber';
-  readonly payload: GetOrderByNumberPayload;
+  readonly parameters: GetOrderByNumberPayload;
 }
 
 // Get Orders By Customer
@@ -47,9 +43,9 @@ export const getOrdersByCustomerPayloadSchema = z.object({
 
 export type GetOrdersByCustomerPayload = z.infer<typeof getOrdersByCustomerPayloadSchema>;
 
-export interface GetOrdersByCustomerQuery extends Query {
+export interface GetOrdersByCustomerQuery extends IQuery<GetOrdersByCustomerPayload> {
   readonly type: 'GetOrdersByCustomer';
-  readonly payload: GetOrdersByCustomerPayload;
+  readonly parameters: GetOrdersByCustomerPayload;
 }
 
 // Get All Orders (Admin)
@@ -72,9 +68,9 @@ export const getAllOrdersPayloadSchema = z.object({
 
 export type GetAllOrdersPayload = z.infer<typeof getAllOrdersPayloadSchema>;
 
-export interface GetAllOrdersQuery extends Query {
+export interface GetAllOrdersQuery extends IQuery<GetAllOrdersPayload> {
   readonly type: 'GetAllOrders';
-  readonly payload: GetAllOrdersPayload;
+  readonly parameters: GetAllOrdersPayload;
 }
 
 // Get Order Statistics
@@ -87,9 +83,9 @@ export const getOrderStatisticsPayloadSchema = z.object({
 
 export type GetOrderStatisticsPayload = z.infer<typeof getOrderStatisticsPayloadSchema>;
 
-export interface GetOrderStatisticsQuery extends Query {
+export interface GetOrderStatisticsQuery extends IQuery<GetOrderStatisticsPayload> {
   readonly type: 'GetOrderStatistics';
-  readonly payload: GetOrderStatisticsPayload;
+  readonly parameters: GetOrderStatisticsPayload;
 }
 
 // Search Orders
@@ -106,9 +102,9 @@ export const searchOrdersPayloadSchema = z.object({
 
 export type SearchOrdersPayload = z.infer<typeof searchOrdersPayloadSchema>;
 
-export interface SearchOrdersQuery extends Query {
+export interface SearchOrdersQuery extends IQuery<SearchOrdersPayload> {
   readonly type: 'SearchOrders';
-  readonly payload: SearchOrdersPayload;
+  readonly parameters: SearchOrdersPayload;
 }
 
 // Get Order Count
@@ -123,9 +119,9 @@ export const getOrderCountPayloadSchema = z.object({
 
 export type GetOrderCountPayload = z.infer<typeof getOrderCountPayloadSchema>;
 
-export interface GetOrderCountQuery extends Query {
+export interface GetOrderCountQuery extends IQuery<GetOrderCountPayload> {
   readonly type: 'GetOrderCount';
-  readonly payload: GetOrderCountPayload;
+  readonly parameters: GetOrderCountPayload;
 }
 
 // Get Revenue Report
@@ -138,9 +134,9 @@ export const getRevenueReportPayloadSchema = z.object({
 
 export type GetRevenueReportPayload = z.infer<typeof getRevenueReportPayloadSchema>;
 
-export interface GetRevenueReportQuery extends Query {
+export interface GetRevenueReportQuery extends IQuery<GetRevenueReportPayload> {
   readonly type: 'GetRevenueReport';
-  readonly payload: GetRevenueReportPayload;
+  readonly parameters: GetRevenueReportPayload;
 }
 
 // Union type for all queries
@@ -155,63 +151,63 @@ export type OrderQuery =
   | GetRevenueReportQuery;
 
 // Query factory functions
-export function getOrderByIdQuery(payload: GetOrderByIdPayload): GetOrderByIdQuery {
+export function getOrderByIdQuery(parameters: GetOrderByIdPayload): GetOrderByIdQuery {
   return {
     type: 'GetOrderById',
-    payload: getOrderByIdPayloadSchema.parse(payload),
+    parameters: getOrderByIdPayloadSchema.parse(parameters),
   };
 }
 
-export function getOrderByNumberQuery(payload: GetOrderByNumberPayload): GetOrderByNumberQuery {
+export function getOrderByNumberQuery(parameters: GetOrderByNumberPayload): GetOrderByNumberQuery {
   return {
     type: 'GetOrderByNumber',
-    payload: getOrderByNumberPayloadSchema.parse(payload),
+    parameters: getOrderByNumberPayloadSchema.parse(parameters),
   };
 }
 
 export function getOrdersByCustomerQuery(
-  payload: GetOrdersByCustomerPayload
+  parameters: GetOrdersByCustomerPayload
 ): GetOrdersByCustomerQuery {
   return {
     type: 'GetOrdersByCustomer',
-    payload: getOrdersByCustomerPayloadSchema.parse(payload),
+    parameters: getOrdersByCustomerPayloadSchema.parse(parameters),
   };
 }
 
-export function getAllOrdersQuery(payload: GetAllOrdersPayload): GetAllOrdersQuery {
+export function getAllOrdersQuery(parameters: GetAllOrdersPayload): GetAllOrdersQuery {
   return {
     type: 'GetAllOrders',
-    payload: getAllOrdersPayloadSchema.parse(payload),
+    parameters: getAllOrdersPayloadSchema.parse(parameters),
   };
 }
 
 export function getOrderStatisticsQuery(
-  payload: GetOrderStatisticsPayload
+  parameters: GetOrderStatisticsPayload
 ): GetOrderStatisticsQuery {
   return {
     type: 'GetOrderStatistics',
-    payload: getOrderStatisticsPayloadSchema.parse(payload),
+    parameters: getOrderStatisticsPayloadSchema.parse(parameters),
   };
 }
 
-export function searchOrdersQuery(payload: SearchOrdersPayload): SearchOrdersQuery {
+export function searchOrdersQuery(parameters: SearchOrdersPayload): SearchOrdersQuery {
   return {
     type: 'SearchOrders',
-    payload: searchOrdersPayloadSchema.parse(payload),
+    parameters: searchOrdersPayloadSchema.parse(parameters),
   };
 }
 
-export function getOrderCountQuery(payload: GetOrderCountPayload): GetOrderCountQuery {
+export function getOrderCountQuery(parameters: GetOrderCountPayload): GetOrderCountQuery {
   return {
     type: 'GetOrderCount',
-    payload: getOrderCountPayloadSchema.parse(payload),
+    parameters: getOrderCountPayloadSchema.parse(parameters),
   };
 }
 
-export function getRevenueReportQuery(payload: GetRevenueReportPayload): GetRevenueReportQuery {
+export function getRevenueReportQuery(parameters: GetRevenueReportPayload): GetRevenueReportQuery {
   return {
     type: 'GetRevenueReport',
-    payload: getRevenueReportPayloadSchema.parse(payload),
+    parameters: getRevenueReportPayloadSchema.parse(parameters),
   };
 }
 

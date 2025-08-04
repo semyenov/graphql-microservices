@@ -8,9 +8,12 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Change, CriticalityLevel, diff as schemaDiff } from '@graphql-inspector/core';
+import { createLogger } from '@graphql-microservices/logger';
 import { GraphQLFileLoader } from '@graphql-tools/graphql-file-loader';
 import { loadSchema } from '@graphql-tools/load';
 import chalk from 'chalk';
+
+const logger = createLogger({ service: 'check-schema-compatibility' });
 
 interface SchemaVersion {
   version: string;
@@ -53,7 +56,7 @@ function loadSchemaHistory(service: string): SchemaVersion | null {
     const content = readFileSync(historyFile, 'utf-8');
     return JSON.parse(content);
   } catch (error) {
-    console.error(chalk.red(`Error loading schema history for ${service}:`, error));
+    logger.error(chalk.red(`Error loading schema history for ${service}`), error as Error);
     return null;
   }
 }
@@ -75,7 +78,7 @@ function saveSchemaHistory(service: string, schema: string) {
     }
     writeFileSync(historyFile, JSON.stringify(version, null, 2));
   } catch (error) {
-    console.error(chalk.red(`Error saving schema history for ${service}:`, error));
+    logger.error(chalk.red(`Error saving schema history for ${service}`), error as Error);
   }
 }
 
@@ -95,7 +98,7 @@ async function checkServiceCompatibility(service: string): Promise<Compatibility
     const schemaPath = join('services', service, 'schema.graphql');
 
     if (!existsSync(schemaPath)) {
-      console.log(chalk.yellow(`No schema file found for ${service}`));
+      logger.info(chalk.yellow(`No schema file found for ${service}`));
       return report;
     }
 
@@ -107,7 +110,7 @@ async function checkServiceCompatibility(service: string): Promise<Compatibility
     const previousVersion = loadSchemaHistory(service);
 
     if (!previousVersion) {
-      console.log(chalk.blue(`No previous schema found for ${service} - saving current version`));
+      logger.info(chalk.blue(`No previous schema found for ${service} - saving current version`));
       saveSchemaHistory(service, readFileSync(schemaPath, 'utf-8'));
       return report;
     }
@@ -136,7 +139,7 @@ async function checkServiceCompatibility(service: string): Promise<Compatibility
       }
     }
   } catch (error) {
-    console.error(chalk.red(`Error checking compatibility for ${service}:`, error));
+    logger.error(chalk.red(`Error checking compatibility for ${service}`), error as Error);
   }
 
   return report;
@@ -160,14 +163,14 @@ function formatChange(change: Change): string {
  * Main compatibility check
  */
 async function checkCompatibility() {
-  console.log(chalk.blue('🔍 Checking Schema Compatibility...\n'));
+  logger.info(chalk.blue('🔍 Checking Schema Compatibility...\n'));
 
   const reports: CompatibilityReport[] = [];
   let hasBreakingChanges = false;
 
   // Check each service
   for (const service of services) {
-    console.log(chalk.gray(`Checking ${service}...`));
+    logger.info(chalk.gray(`Checking ${service}...`));
     const report = await checkServiceCompatibility(service);
     reports.push(report);
 
@@ -177,40 +180,40 @@ async function checkCompatibility() {
   }
 
   // Display results
-  console.log(`\n${chalk.blue('📋 Compatibility Report:\n')}`);
+  logger.info(`\n${chalk.blue('📋 Compatibility Report:\n')}`);
 
   for (const report of reports) {
     const hasChanges =
       report.breaking.length > 0 || report.dangerous.length > 0 || report.safe.length > 0;
 
     if (!hasChanges) {
-      console.log(chalk.green(`✅ ${report.service}: No changes detected`));
+      logger.info(chalk.green(`✅ ${report.service}: No changes detected`));
       continue;
     }
 
-    console.log(chalk.bold(`\n${report.service}:`));
+    logger.info(chalk.bold(`\n${report.service}:`));
 
     // Breaking changes
     if (report.breaking.length > 0) {
-      console.log(chalk.red('\n  Breaking Changes:'));
+      logger.info(chalk.red('\n  Breaking Changes:'));
       report.breaking.forEach((change) => {
-        console.log(`    ${formatChange(change)}`);
+        logger.info(`    ${formatChange(change)}`);
       });
     }
 
     // Dangerous changes
     if (report.dangerous.length > 0) {
-      console.log(chalk.yellow('\n  Dangerous Changes:'));
+      logger.info(chalk.yellow('\n  Dangerous Changes:'));
       report.dangerous.forEach((change) => {
-        console.log(`    ${formatChange(change)}`);
+        logger.info(`    ${formatChange(change)}`);
       });
     }
 
     // Safe changes
     if (report.safe.length > 0) {
-      console.log(chalk.green('\n  Safe Changes:'));
+      logger.info(chalk.green('\n  Safe Changes:'));
       report.safe.forEach((change) => {
-        console.log(`    ${formatChange(change)}`);
+        logger.info(`    ${formatChange(change)}`);
       });
     }
   }
@@ -220,14 +223,14 @@ async function checkCompatibility() {
   const totalDangerous = reports.reduce((sum, r) => sum + r.dangerous.length, 0);
   const totalSafe = reports.reduce((sum, r) => sum + r.safe.length, 0);
 
-  console.log(`\n${chalk.blue('📊 Summary:')}`);
-  console.log(`   Breaking changes: ${totalBreaking}`);
-  console.log(`   Dangerous changes: ${totalDangerous}`);
-  console.log(`   Safe changes: ${totalSafe}`);
+  logger.info(`\n${chalk.blue('📊 Summary:')}`);
+  logger.info(`   Breaking changes: ${totalBreaking}`);
+  logger.info(`   Dangerous changes: ${totalDangerous}`);
+  logger.info(`   Safe changes: ${totalSafe}`);
 
   // Update schema history if no breaking changes
   if (!hasBreakingChanges) {
-    console.log(`\n${chalk.green('✅ No breaking changes detected!')}`);
+    logger.info(`\n${chalk.green('✅ No breaking changes detected!')}`);
 
     // Update history
     for (const service of services) {
@@ -237,10 +240,10 @@ async function checkCompatibility() {
       }
     }
 
-    console.log(chalk.gray('Schema history updated.'));
+    logger.info(chalk.gray('Schema history updated.'));
   } else {
-    console.log(`\n${chalk.red('❌ Breaking changes detected!')}`);
-    console.log(chalk.yellow('Please ensure clients are updated before deploying these changes.'));
+    logger.info(`\n${chalk.red('❌ Breaking changes detected!')}`);
+    logger.info(chalk.yellow('Please ensure clients are updated before deploying these changes.'));
     process.exit(1);
   }
 }
@@ -261,11 +264,11 @@ try {
 
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 } catch (error) {
-  console.error(chalk.yellow('Could not update package.json scripts:', error));
+  logger.error(chalk.yellow('Could not update package.json scripts'), error as Error);
 }
 
 // Run compatibility check
 checkCompatibility().catch((error) => {
-  console.error(chalk.red('Fatal error during compatibility check:'), error);
+  logger.error(chalk.red('Fatal error during compatibility check'), error as Error);
   process.exit(1);
 });

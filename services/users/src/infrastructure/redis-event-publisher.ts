@@ -1,16 +1,20 @@
-import type { DomainEvent, OutboxEvent } from '@graphql-microservices/event-sourcing';
+import type { IDomainEvent, IOutboxEvent } from '@graphql-microservices/event-sourcing';
+import { createLogger } from '@graphql-microservices/logger';
 import { Redis } from 'ioredis';
+
+// Create logger instance
+const logger = createLogger({ service: 'redis-event-publisher' });
 
 /**
  * Event publisher interface
  */
 export interface EventPublisher {
   publish(
-    event: DomainEvent,
+    event: IDomainEvent,
     routingKey?: string,
     metadata?: Record<string, unknown>
   ): Promise<void>;
-  publishBatch(events: OutboxEvent[]): Promise<void>;
+  publishBatch(events: IOutboxEvent[]): Promise<void>;
   isHealthy(): Promise<boolean>;
   close(): Promise<void>;
   initialize(): Promise<void>;
@@ -32,7 +36,7 @@ export class RedisEventPublisher implements EventPublisher {
    */
   async initialize(): Promise<void> {
     if (!this.connectionString) {
-      console.warn('⚠️  No Redis connection string provided. Events will not be published.');
+      logger.warn('⚠️  No Redis connection string provided. Events will not be published.');
       return;
     }
 
@@ -47,21 +51,21 @@ export class RedisEventPublisher implements EventPublisher {
 
       // Set up error handling
       this.redis.on('error', (error) => {
-        console.error('Redis connection error:', error);
+        logger.error('Redis connection error', error);
       });
 
       this.redis.on('connect', () => {
-        console.log('✅ Redis event publisher connected');
+        logger.info('✅ Redis event publisher connected');
       });
 
       this.redis.on('disconnect', () => {
-        console.warn('⚠️  Redis event publisher disconnected');
+        logger.warn('⚠️  Redis event publisher disconnected');
       });
 
       // Connect to Redis
       await this.redis.connect();
     } catch (error) {
-      console.error('❌ Failed to initialize Redis event publisher:', error);
+      logger.error('❌ Failed to initialize Redis event publisher', error);
       throw error;
     }
   }
@@ -69,9 +73,9 @@ export class RedisEventPublisher implements EventPublisher {
   /**
    * Publish domain events to Redis
    */
-  async publish(event: DomainEvent, routingKey: string = 'domain.events'): Promise<void> {
+  async publish(event: IDomainEvent, routingKey: string = 'domain.events'): Promise<void> {
     if (!this.redis) {
-      console.warn('⚠️  Redis not initialized. Skipping event publishing.');
+      logger.warn('⚠️  Redis not initialized. Skipping event publishing.');
       return;
     }
 
@@ -114,9 +118,12 @@ export class RedisEventPublisher implements EventPublisher {
       // Execute all commands
       await pipeline.exec();
 
-      console.log(`📡 Published event to Redis channels`);
+      logger.info('📡 Published event to Redis channels', {
+        eventType: event.type,
+        aggregateId: event.aggregateId,
+      });
     } catch (error) {
-      console.error('❌ Failed to publish events to Redis:', error);
+      logger.error('❌ Failed to publish events to Redis', error);
       throw error;
     }
   }
@@ -124,7 +131,7 @@ export class RedisEventPublisher implements EventPublisher {
   /**
    * Publish events in batch (alias for publish method)
    */
-  async publishBatch(events: OutboxEvent[]): Promise<void> {
+  async publishBatch(events: IOutboxEvent[]): Promise<void> {
     await Promise.all(events.map((event) => this.publish(event.event)));
   }
 
@@ -140,7 +147,7 @@ export class RedisEventPublisher implements EventPublisher {
       const result = await this.redis.ping();
       return result === 'PONG';
     } catch (error) {
-      console.error('Redis health check failed:', error);
+      logger.error('Redis health check failed', error);
       return false;
     }
   }
@@ -152,9 +159,9 @@ export class RedisEventPublisher implements EventPublisher {
     if (this.redis) {
       try {
         await this.redis.quit();
-        console.log('✅ Redis event publisher connection closed');
+        logger.info('✅ Redis event publisher connection closed');
       } catch (error) {
-        console.error('❌ Error closing Redis connection:', error);
+        logger.error('❌ Error closing Redis connection', error);
         // Force disconnect if graceful quit fails
         this.redis.disconnect();
       } finally {
@@ -191,7 +198,7 @@ export class RedisEventPublisher implements EventPublisher {
   /**
    * Publish a single event (convenience method)
    */
-  async publishSingle(event: DomainEvent, routingKey?: string): Promise<void> {
+  async publishSingle(event: IDomainEvent, routingKey?: string): Promise<void> {
     await this.publish(event, routingKey);
   }
 
@@ -224,7 +231,7 @@ export class RedisEventPublisher implements EventPublisher {
         recentEvents,
       };
     } catch (error) {
-      console.error('Failed to get event statistics:', error);
+      logger.error('Failed to get event statistics', error);
       throw error;
     }
   }
@@ -241,19 +248,19 @@ export function createRedisEventPublisher(connectionString?: string): RedisEvent
  * Mock event publisher for testing
  */
 export class MockEventPublisher implements EventPublisher {
-  private publishedEvents: DomainEvent[] = [];
+  private publishedEvents: IDomainEvent[] = [];
   private healthy = true;
 
   async initialize(): Promise<void> {
-    console.log('Mock event publisher initialized');
+    logger.info('Mock event publisher initialized');
   }
 
   async publish(event: DomainEvent, routingKey?: string): Promise<void> {
     this.publishedEvents.push(event);
-    console.log(`Mock published event with routing key: ${routingKey}`);
+    logger.info('Mock published event', { routingKey });
   }
 
-  async publishBatch(events: OutboxEvent[]): Promise<void> {
+  async publishBatch(events: IOutboxEvent[]): Promise<void> {
     await Promise.all(events.map((event) => this.publish(event.event)));
   }
 
@@ -262,11 +269,11 @@ export class MockEventPublisher implements EventPublisher {
   }
 
   async close(): Promise<void> {
-    console.log('Mock event publisher closed');
+    logger.info('Mock event publisher closed');
   }
 
   // Test helpers
-  getPublishedEvents(): DomainEvent[] {
+  getPublishedEvents(): IDomainEvent[] {
     return [...this.publishedEvents];
   }
 

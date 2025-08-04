@@ -9,6 +9,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./cqrs": {
+      "import": "./dist/cqrs/index.js",
+      "types": "./dist/cqrs/index.d.ts"
     }
   },
   "scripts": {
@@ -21,6 +25,7 @@
   },
   "dependencies": {
     "@graphql-microservices/shared-errors": "workspace:*",
+    "@graphql-microservices/shared-result": "workspace:*",
     "zod": "^4.0.14",
     "@prisma/client": "^6.13.0",
     "pg": "^8.12.0"

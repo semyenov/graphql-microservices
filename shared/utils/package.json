@@ -10,6 +10,8 @@
     "./schema": "./schema.ts"
   },
   "dependencies": {
+    "@graphql-microservices/logger": "workspace:*",
+    "execa": "^9.6.0",
     "graphql": "^16.11.0"
   }
 }

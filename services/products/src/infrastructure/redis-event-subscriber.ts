@@ -1,13 +1,14 @@
-import type { DomainEvent } from '@graphql-microservices/event-sourcing';
+import type { IDomainEvent } from '@graphql-microservices/event-sourcing';
+import type { EventBus } from '@graphql-microservices/event-sourcing/cqrs';
 import Redis from 'ioredis';
-import type { ProductEventDispatcher } from '../application/event-handlers';
+import type { ProductEventMap } from '../domain/product-aggregate';
 
 /**
  * Event subscription configuration
  */
 export interface EventSubscriptionConfig {
   channels: string[];
-  handler?: (event: DomainEvent) => Promise<void>;
+  handler?: (event: IDomainEvent) => Promise<void>;
 }
 
 /**
@@ -21,7 +22,7 @@ export class RedisEventSubscriber {
 
   constructor(
     private readonly redisUrl: string | undefined,
-    private readonly eventDispatcher: ProductEventDispatcher
+    private readonly eventBus: EventBus<ProductEventMap>
   ) {}
 
   /**
@@ -171,7 +172,7 @@ export class RedisEventSubscriber {
    */
   private async handleMessage(channel: string, message: string): Promise<void> {
     try {
-      const event = JSON.parse(message) as DomainEvent;
+      const event = JSON.parse(message) as IDomainEvent;
 
       console.log(`📨 Received event ${event.type} (${event.id}) from channel ${channel}`);
 
@@ -185,9 +186,9 @@ export class RedisEventSubscriber {
         if (subscription.handler) {
           await subscription.handler(event);
         } else {
-          // Default handling: dispatch to event handlers if it's a product event
+          // Default handling: publish to event bus if it's a product event
           if (event.aggregateType === 'Product') {
-            await this.eventDispatcher.dispatch(event);
+            await this.eventBus.publish(event.type as keyof ProductEventMap, event as any);
           }
         }
       }
@@ -199,7 +200,7 @@ export class RedisEventSubscriber {
   /**
    * Handle cross-service events
    */
-  private async handleCrossServiceEvent(event: DomainEvent): Promise<void> {
+  private async handleCrossServiceEvent(event: IDomainEvent): Promise<void> {
     console.log(`🔄 Handling cross-service event: ${event.type}`);
 
     switch (event.type) {
@@ -221,7 +222,7 @@ export class RedisEventSubscriber {
   /**
    * Handle order events that affect inventory
    */
-  private async handleOrderEvent(event: DomainEvent): Promise<void> {
+  private async handleOrderEvent(event: IDomainEvent): Promise<void> {
     console.log(`📦 Handling order event: ${event.type}`);
 
     switch (event.type) {

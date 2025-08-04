@@ -1,9 +1,10 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
+import { createGraphQLLoggingPlugin, createLogger } from '@graphql-microservices/logger';
 import { AuthService, authDirective, type JWTPayload } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheKeys, cacheTTL } from '@graphql-microservices/shared-cache';
-import { parseEnv, userServiceEnvSchema } from '@graphql-microservices/shared-config';
+import { UserServiceConfig } from '@graphql-microservices/shared-config';
 import {
   AlreadyExistsError,
   AuthenticationError,
@@ -19,6 +20,7 @@ import {
   ValidationError,
 } from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
+import { Result } from '@graphql-microservices/shared-result';
 import {
   changePasswordInputSchema,
   signUpInputSchema,
@@ -48,8 +50,16 @@ import type {
   PrismaUser,
 } from './types';
 
-// Parse and validate environment variables
-const env = parseEnv(userServiceEnvSchema);
+// Initialize logger first
+const logger = createLogger({ service: 'users' });
+
+// Initialize configuration
+const configResult = await UserServiceConfig.initialize();
+if (Result.isErr(configResult)) {
+  logger.error('Failed to initialize configuration:', configResult.error);
+  process.exit(1);
+}
+const env = configResult.value;
 
 // Initialize services
 const prisma = new PrismaClient();
@@ -199,6 +209,7 @@ export interface Context {
   userLoader: DataLoader<string, GraphQLUser | null>;
   user?: JWTPayload;
   authError?: GraphQLError;
+  logger: ReturnType<typeof createLogger>;
 }
 
 // Helper function to check authentication and throw appropriate errors
@@ -669,6 +680,7 @@ const server = new ApolloServer({
       env.NODE_ENV === 'development',
       'users-service'
     ),
+  plugins: [createGraphQLLoggingPlugin(logger)],
 });
 
 // Start server
@@ -688,7 +700,7 @@ const { url } = await startStandaloneServer(server, {
       } catch (error) {
         // Don't log auth failures as errors, they're expected
         if (env.NODE_ENV === 'development') {
-          console.debug('Token verification failed:', error);
+          logger.debug('Token verification failed', { error: (error as Error).message });
         }
         // Store the authentication error for resolvers to handle appropriately
         authError = toGraphQLError(error);
@@ -703,16 +715,17 @@ const { url } = await startStandaloneServer(server, {
       user,
       pubsub,
       authError,
+      logger,
     };
   },
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('Shutting down Users service...');
+  logger.info('Shutting down Users service...');
   await prisma.$disconnect();
   await cacheService.disconnect();
   process.exit(0);
 });
 
-console.log(`🚀 Users service ready at ${url}`);
+logger.info('Users service ready', { url });

@@ -6,6 +6,7 @@ import {
   exportSchema,
   getAllServiceInfo,
   logError,
+  logInfo,
   logStep,
   logSuccess,
   logWarning,
@@ -48,7 +49,7 @@ async function exportGatewaySchema(format: string, outputDir: string) {
     throw new Error('Gateway service not found. Make sure the gateway service is configured.');
   }
 
-  console.log(`🌐 Exporting federated gateway schema...`);
+  logInfo(`🌐 Exporting federated gateway schema...`);
 
   try {
     const outputPath = join(outputDir, 'schema');
@@ -90,7 +91,7 @@ async function main() {
         break;
       case '--help':
       case '-h':
-        console.log(`
+        logInfo(`
 GraphQL Schema Export Script
 
 Usage: bun run scripts/export-schema.ts [options]
@@ -129,9 +130,9 @@ Examples:
   // Create output directory
   await Bun.write(join(outputDir, '.gitkeep'), '');
 
-  console.log(`🚀 GraphQL Schema Export\n`);
-  console.log(`📁 Output directory: ${outputDir}`);
-  console.log(`📄 Format: ${format}\n`);
+  logInfo(`🚀 GraphQL Schema Export\n`);
+  logInfo(`📁 Output directory: ${outputDir}`);
+  logInfo(`📄 Format: ${format}\n`);
 
   const allServices = getAllServiceInfo();
 
@@ -155,7 +156,7 @@ Examples:
     // Export all running services
     for (const svc of runningServices) {
       await exportServiceSchema(svc, format, outputDir);
-      console.log('');
+      logInfo('');
     }
   } else if (service === 'gateway') {
     // Check if gateway is running
@@ -178,15 +179,15 @@ Examples:
     await exportServiceSchema(serviceInfo, format, outputDir);
   } else {
     logError(`Unknown service: ${service}`);
-    console.log('Available services: gateway, users, products, orders, all');
+    logInfo('Available services: gateway, users, products, orders, all');
     process.exit(1);
   }
 
-  console.log('\n✅ Schema export completed!');
+  logInfo('\n✅ Schema export completed!');
 }
 
 // Run the script
 main().catch((error) => {
-  console.error('❌ Script failed:', error);
+  logError(`❌ Script failed: ${error}`);
   process.exit(1);
 });

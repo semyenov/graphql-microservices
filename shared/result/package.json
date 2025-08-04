@@ -1,0 +1,36 @@
+{
+  "name": "@graphql-microservices/shared-result",
+  "version": "1.0.0",
+  "description": "Result type for functional error handling in GraphQL microservices",
+  "main": "./index.ts",
+  "module": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": {
+      "import": "./index.ts",
+      "require": "./index.ts",
+      "types": "./index.ts"
+    },
+    "./examples": {
+      "import": "./examples.ts",
+      "require": "./examples.ts",
+      "types": "./examples.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --declaration --emitDeclarationOnly"
+  },
+  "keywords": [
+    "result",
+    "error-handling",
+    "functional",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "typescript": "^5.6.3"
+  }
+}

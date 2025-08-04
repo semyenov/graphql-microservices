@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
 
 import { buildAllServices } from '@graphql-microservices/builder';
+import { createLogger } from '@graphql-microservices/logger';
 
-console.log('🏗️  Building GraphQL Microservices with tsdown...\n');
+const logger = createLogger({ service: 'build-script' });
+
+logger.info('🏗️  Building GraphQL Microservices with tsdown...\n');
 
 async function main() {
   await buildAllServices({
@@ -10,10 +13,10 @@ async function main() {
     sourcemap: true,
   });
 
-  console.log('\n✅ Build complete!');
+  logger.info('\n✅ Build complete!');
 }
 
 main().catch((error) => {
-  console.error('❌ Build failed:', error);
+  logger.error('❌ Build failed', error);
   process.exit(1);
 });

@@ -18,6 +18,8 @@ export * from './outbox';
 // PostgreSQL implementations
 export { PostgreSQLEventStore } from './postgresql-event-store';
 export { PostgreSQLOutboxStore } from './postgresql-outbox-store';
+// Repository abstractions
+export * from './repository';
 export * from './types';
 
 // Import utilities for internal use

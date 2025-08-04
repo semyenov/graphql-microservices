@@ -1,17 +1,10 @@
+import type { IDomainEvent } from '@graphql-microservices/event-sourcing';
 import type {
   AddressProps,
   OrderItemProps,
   PaymentMethodType,
   TrackingInfoProps,
-} from '../value-objects';
-
-// Base event interface
-export interface DomainEvent {
-  readonly aggregateId: string;
-  readonly type: string;
-  readonly timestamp: Date;
-  readonly version: number;
-}
+} from '../value-objects/index';
 
 // Order Created Event
 export interface OrderCreatedPayload {
@@ -30,7 +23,7 @@ export interface OrderCreatedPayload {
   createdAt: Date;
 }
 
-export interface OrderCreatedEvent extends DomainEvent {
+export interface OrderCreatedEvent extends IDomainEvent {
   readonly type: 'OrderCreated';
   readonly payload: OrderCreatedPayload;
 }
@@ -43,7 +36,7 @@ export interface OrderCancelledPayload {
   refundAmount?: number;
 }
 
-export interface OrderCancelledEvent extends DomainEvent {
+export interface OrderCancelledEvent extends IDomainEvent {
   readonly type: 'OrderCancelled';
   readonly payload: OrderCancelledPayload;
 }
@@ -57,7 +50,7 @@ export interface OrderStatusUpdatedPayload {
   notes?: string;
 }
 
-export interface OrderStatusUpdatedEvent extends DomainEvent {
+export interface OrderStatusUpdatedEvent extends IDomainEvent {
   readonly type: 'OrderStatusUpdated';
   readonly payload: OrderStatusUpdatedPayload;
 }
@@ -67,7 +60,7 @@ export interface OrderShippedPayload extends TrackingInfoProps {
   shippedBy: string;
 }
 
-export interface OrderShippedEvent extends DomainEvent {
+export interface OrderShippedEvent extends IDomainEvent {
   readonly type: 'OrderShipped';
   readonly payload: OrderShippedPayload;
 }
@@ -81,7 +74,7 @@ export interface OrderItemAddedPayload extends OrderItemProps {
   newTotal: number;
 }
 
-export interface OrderItemAddedEvent extends DomainEvent {
+export interface OrderItemAddedEvent extends IDomainEvent {
   readonly type: 'OrderItemAdded';
   readonly payload: OrderItemAddedPayload;
 }
@@ -97,7 +90,7 @@ export interface OrderItemRemovedPayload {
   newTotal: number;
 }
 
-export interface OrderItemRemovedEvent extends DomainEvent {
+export interface OrderItemRemovedEvent extends IDomainEvent {
   readonly type: 'OrderItemRemoved';
   readonly payload: OrderItemRemovedPayload;
 }
@@ -110,7 +103,7 @@ export interface ShippingAddressUpdatedPayload {
   updatedAt: Date;
 }
 
-export interface ShippingAddressUpdatedEvent extends DomainEvent {
+export interface ShippingAddressUpdatedEvent extends IDomainEvent {
   readonly type: 'ShippingAddressUpdated';
   readonly payload: ShippingAddressUpdatedPayload;
 }
@@ -125,7 +118,7 @@ export interface PaymentProcessedPayload {
   processedAt: Date;
 }
 
-export interface PaymentProcessedEvent extends DomainEvent {
+export interface PaymentProcessedEvent extends IDomainEvent {
   readonly type: 'PaymentProcessed';
   readonly payload: PaymentProcessedPayload;
 }
@@ -140,7 +133,7 @@ export interface OrderRefundedPayload {
   transactionId?: string;
 }
 
-export interface OrderRefundedEvent extends DomainEvent {
+export interface OrderRefundedEvent extends IDomainEvent {
   readonly type: 'OrderRefunded';
   readonly payload: OrderRefundedPayload;
 }
@@ -152,7 +145,7 @@ export interface OrderDeliveredPayload {
   deliveryNotes?: string;
 }
 
-export interface OrderDeliveredEvent extends DomainEvent {
+export interface OrderDeliveredEvent extends IDomainEvent {
   readonly type: 'OrderDelivered';
   readonly payload: OrderDeliveredPayload;
 }
@@ -169,6 +162,9 @@ export type OrderEvent =
   | PaymentProcessedEvent
   | OrderRefundedEvent
   | OrderDeliveredEvent;
+
+// Alias for backward compatibility
+export type DomainEvent = OrderEvent;
 
 // Event factory functions
 export function createOrderCreatedEvent(

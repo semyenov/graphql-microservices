@@ -4,6 +4,7 @@ import {
   getServiceDatabaseUrl,
   getServiceNames,
   logError,
+  logInfo,
   logStep,
   logSuccess,
   startDocker,
@@ -11,7 +12,7 @@ import {
 } from '@shared/utils';
 import { $ } from 'bun';
 
-console.log('🔧 Setting up databases...\n');
+logInfo('🔧 Setting up databases...\n');
 
 async function main() {
   // Start PostgreSQL and Redis using Docker Compose
@@ -42,14 +43,14 @@ async function main() {
   }
 
   // Generate Prisma clients
-  console.log('\nGenerating Prisma clients...');
+  logInfo('\nGenerating Prisma clients...');
   for (const service of servicesWithPrisma) {
     logStep(`Generating client for ${service} service...`);
     await $`cd services/${service} && bunx prisma generate`;
   }
 
   // Run migrations
-  console.log('\nRunning database migrations...');
+  logInfo('\nRunning database migrations...');
   for (const service of servicesWithPrisma) {
     logStep(`Running migrations for ${service} service...`);
     const databaseUrl = getServiceDatabaseUrl(service);
@@ -63,7 +64,7 @@ async function main() {
   }
 
   logSuccess('\nDatabase setup complete!');
-  console.log("\nYou can now run 'bun run dev' to start the services.");
+  logInfo("\nYou can now run 'bun run dev' to start the services.");
 }
 
 main().catch((error) => {

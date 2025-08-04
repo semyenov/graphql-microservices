@@ -1,6 +1,11 @@
-import type { ICommandHandler, IEventStore } from '@graphql-microservices/event-sourcing';
-import { generateId, ValidationError } from '@graphql-microservices/shared-errors';
-import { logError, logInfo } from '@shared/utils';
+import type {
+  AsyncResult,
+  DomainError,
+  ICommandHandler,
+} from '@graphql-microservices/event-sourcing';
+import { createLogger } from '@graphql-microservices/logger';
+import { generateId } from '@graphql-microservices/shared-errors';
+import { domainError, Result, validationError } from '@graphql-microservices/shared-result';
 import type {
   AddOrderItemCommand,
   CancelOrderCommand,
@@ -21,22 +26,27 @@ import {
   PaymentInfo,
   ShippingInfo,
 } from '../../../domain/value-objects';
+import type { OrderRepository } from '../../../infrastructure/order-repository';
+
+// Create logger instance
+const logger = createLogger({ service: 'orders-command-handlers' });
 
 /**
  * Create Order Command Handler
  */
 export class CreateOrderCommandHandler implements ICommandHandler<CreateOrderCommand> {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
   async execute(
     command: CreateOrderCommand
-  ): Promise<{ aggregateId: string; orderNumber: string }> {
-    try {
-      logInfo(`Creating new order for customer: ${command.payload.customerId}`);
+  ): AsyncResult<{ aggregateId: string; orderNumber: string }, DomainError> {
+    logger.info('Creating new order', { customerId: command.payload.customerId });
 
-      // Create new order aggregate
-      const aggregate = Order.createOrder({
-        id: command.aggregateId || generateId(),
+    try {
+      // Create new order aggregate with new ID
+      const aggregateId = generateId();
+      const aggregateResult = Order.createOrder({
+        id: aggregateId,
         orderNumber: OrderNumber.fromString(command.payload.orderNumber),
         customerId: command.payload.customerId,
         items: command.payload.items.map((item) => ({
@@ -70,23 +80,43 @@ export class CreateOrderCommandHandler implements ICommandHandler<CreateOrderCom
           : undefined,
       });
 
-      // Metadata is handled by the createOrder method
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to create order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
 
-      // Save events to event store
-      await this.eventStore.appendToStream(aggregate.id, [...aggregate.uncommittedEvents], 0);
+      const aggregate = aggregateResult.value;
+
+      // Save aggregate using repository
+      const saveResult = await this.repository.save(aggregate, {
+        expectedVersion: 0,
+        metadata: {
+          commandId: command.id,
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId,
+        },
+      });
+
+      if (Result.isErr(saveResult)) {
+        logger.error('Failed to save order aggregate', saveResult.error);
+        return saveResult;
+      }
 
       // Get order number from aggregate
       const orderNumber = aggregate.orderNumber.getValue();
 
-      logInfo(`Order created successfully: ${orderNumber} for customer: ${command.payload.customerId}`);
+      logger.info('Order created successfully', {
+        orderNumber,
+        customerId: command.payload.customerId,
+      });
 
-      return {
+      return Result.ok({
         aggregateId: aggregate.id,
         orderNumber,
-      };
+      });
     } catch (error) {
-      logError(`Failed to create order: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to create order', error as Error);
+      return Result.err(domainError('ORDER_CREATION_FAILED', 'Failed to create order', error));
     }
   }
 }
@@ -95,44 +125,55 @@ export class CreateOrderCommandHandler implements ICommandHandler<CreateOrderCom
  * Cancel Order Command Handler
  */
 export class CancelOrderCommandHandler implements ICommandHandler<CancelOrderCommand> {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
-  async execute(command: CancelOrderCommand): Promise<{ aggregateId: string }> {
+  async execute(command: CancelOrderCommand): AsyncResult<{ aggregateId: string }, DomainError> {
+    logger.info('Cancelling order', { orderId: command.payload.orderId });
+
     try {
-      logInfo(`Cancelling order: ${command.aggregateId}`);
-
-      if (!command.aggregateId) {
-        throw new ValidationError('Aggregate ID is required');
+      if (!command.payload.orderId) {
+        return Result.err(validationError('MISSING_ORDER_ID', 'Order ID is required'));
       }
 
-      // Load aggregate from event store
-      const storedEvents = await this.eventStore.readStream(command.aggregateId);
-      const domainEvents = storedEvents.map((event) => ({
-        ...event,
-        timestamp: event.occurredAt, // Map occurredAt to timestamp for DomainEvent compatibility
-      }));
-      const aggregate = Order.fromOrderEvents(domainEvents);
+      // Load aggregate from repository
+      const aggregateResult = await this.repository.getById(command.payload.orderId);
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to load order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
+
+      const aggregate = aggregateResult.value;
 
       // Cancel the order
-      aggregate.cancel(
-        command.payload.reason,
-        command.payload.cancelledBy,
-        { correlationId: command.metadata?.correlationId }
-      );
+      const cancelResult = aggregate.cancel(command.payload.reason, command.payload.cancelledBy, {
+        correlationId: command.metadata?.correlationId,
+      });
 
-      // Save new events
-      await this.eventStore.appendToStream(
-        aggregate.id,
-        [...aggregate.uncommittedEvents],
-        aggregate.version
-      );
+      if (Result.isErr(cancelResult)) {
+        logger.error('Failed to cancel order', cancelResult.error);
+        return cancelResult;
+      }
 
-      logInfo(`Order cancelled successfully: ${command.aggregateId}`);
+      // Save aggregate using repository
+      const saveResult = await this.repository.save(aggregate, {
+        metadata: {
+          commandId: command.id,
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId,
+        },
+      });
 
-      return { aggregateId: aggregate.id };
+      if (Result.isErr(saveResult)) {
+        logger.error('Failed to save order aggregate after cancellation', saveResult.error);
+        return saveResult;
+      }
+
+      logger.info('Order cancelled successfully', { orderId: command.payload.orderId });
+
+      return Result.ok({ aggregateId: aggregate.id });
     } catch (error) {
-      logError(`Failed to cancel order: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to cancel order', error as Error);
+      return Result.err(domainError('ORDER_CANCELLATION_FAILED', 'Failed to cancel order', error));
     }
   }
 }
@@ -141,50 +182,71 @@ export class CancelOrderCommandHandler implements ICommandHandler<CancelOrderCom
  * Update Order Status Command Handler
  */
 export class UpdateOrderStatusCommandHandler implements ICommandHandler<UpdateOrderStatusCommand> {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
   async execute(
     command: UpdateOrderStatusCommand
-  ): Promise<{ aggregateId: string; newStatus: string }> {
-    try {
-      logInfo(`Updating order status: ${command.aggregateId} -> ${command.payload.status}`);
+  ): AsyncResult<{ aggregateId: string; newStatus: string }, DomainError> {
+    logger.info('Updating order status', {
+      orderId: command.payload.orderId,
+      newStatus: command.payload.status,
+    });
 
-      if (!command.aggregateId) {
-        throw new ValidationError('Aggregate ID is required');
+    try {
+      if (!command.payload.orderId) {
+        return Result.err(validationError('MISSING_ORDER_ID', 'Order ID is required'));
       }
 
-      // Load aggregate
-      const storedEvents = await this.eventStore.readStream(command.aggregateId);
-      const domainEvents = storedEvents.map((event) => ({
-        ...event,
-        timestamp: event.occurredAt, // Map occurredAt to timestamp for DomainEvent compatibility
-      }));
-      const aggregate = Order.fromOrderEvents(domainEvents);
+      // Load aggregate from repository
+      const aggregateResult = await this.repository.getById(command.payload.orderId);
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to load order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
+
+      const aggregate = aggregateResult.value;
 
       // Update status
-      aggregate.changeStatus(
+      const statusResult = aggregate.changeStatus(
         command.payload.status.toLowerCase() as any,
         command.payload.notes,
         command.payload.updatedBy,
         { correlationId: command.metadata?.correlationId }
       );
 
-      // Save new events
-      await this.eventStore.appendToStream(
-        aggregate.id,
-        [...aggregate.uncommittedEvents],
-        aggregate.version
-      );
+      if (Result.isErr(statusResult)) {
+        logger.error('Failed to change order status', statusResult.error);
+        return statusResult;
+      }
 
-      logInfo(`Order status updated successfully: ${command.aggregateId} -> ${command.payload.status}`);
+      // Save aggregate using repository
+      const saveResult = await this.repository.save(aggregate, {
+        metadata: {
+          commandId: command.id,
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId,
+        },
+      });
 
-      return {
+      if (Result.isErr(saveResult)) {
+        logger.error('Failed to save order aggregate after status update', saveResult.error);
+        return saveResult;
+      }
+
+      logger.info('Order status updated successfully', {
+        orderId: command.payload.orderId,
+        newStatus: command.payload.status,
+      });
+
+      return Result.ok({
         aggregateId: aggregate.id,
         newStatus: command.payload.status,
-      };
+      });
     } catch (error) {
-      logError(`Failed to update order status: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to update order status', error as Error);
+      return Result.err(
+        domainError('ORDER_STATUS_UPDATE_FAILED', 'Failed to update order status', error)
+      );
     }
   }
 }
@@ -193,25 +255,26 @@ export class UpdateOrderStatusCommandHandler implements ICommandHandler<UpdateOr
  * Ship Order Command Handler
  */
 export class ShipOrderCommandHandler implements ICommandHandler<ShipOrderCommand> {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
   async execute(
     command: ShipOrderCommand
-  ): Promise<{ aggregateId: string; trackingNumber: string }> {
-    try {
-      logInfo(`Shipping order: ${command.aggregateId}`);
+  ): AsyncResult<{ aggregateId: string; trackingNumber: string }, DomainError> {
+    logger.info('Shipping order', { orderId: command.payload.orderId });
 
-      if (!command.aggregateId) {
-        throw new ValidationError('Aggregate ID is required');
+    try {
+      if (!command.payload.orderId) {
+        return Result.err(validationError('MISSING_ORDER_ID', 'Order ID is required'));
       }
 
-      // Load aggregate
-      const storedEvents = await this.eventStore.readStream(command.aggregateId);
-      const domainEvents = storedEvents.map((event) => ({
-        ...event,
-        timestamp: event.occurredAt, // Map occurredAt to timestamp for DomainEvent compatibility
-      }));
-      const aggregate = Order.fromOrderEvents(domainEvents);
+      // Load aggregate from repository
+      const aggregateResult = await this.repository.getById(command.payload.orderId);
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to load order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
+
+      const aggregate = aggregateResult.value;
 
       // Update shipping info with tracking number
       const currentShippingInfo = aggregate.getShippingInfo();
@@ -223,27 +286,42 @@ export class ShipOrderCommandHandler implements ICommandHandler<ShipOrderCommand
         estimatedDelivery: command.payload.estimatedDeliveryDate,
       });
 
-      aggregate.updateShippingInfo(updatedShippingInfo, {
+      const updateResult = aggregate.updateShippingInfo(updatedShippingInfo, {
         correlationId: command.metadata?.correlationId,
         userId: command.metadata?.userId || command.payload.shippedBy,
       });
 
-      // Save new events
-      await this.eventStore.appendToStream(
-        aggregate.id,
-        [...aggregate.uncommittedEvents],
-        aggregate.version
-      );
+      if (Result.isErr(updateResult)) {
+        logger.error('Failed to update shipping info', updateResult.error);
+        return updateResult;
+      }
 
-      logInfo(`Order shipped successfully: ${command.aggregateId} with tracking ${command.payload.trackingNumber}`);
+      // Save aggregate using repository
+      const saveResult = await this.repository.save(aggregate, {
+        metadata: {
+          commandId: command.id,
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId,
+        },
+      });
 
-      return {
+      if (Result.isErr(saveResult)) {
+        logger.error('Failed to save order aggregate after shipping update', saveResult.error);
+        return saveResult;
+      }
+
+      logger.info('Order shipped successfully', {
+        orderId: command.payload.orderId,
+        trackingNumber: command.payload.trackingNumber,
+      });
+
+      return Result.ok({
         aggregateId: aggregate.id,
         trackingNumber: command.payload.trackingNumber,
-      };
+      });
     } catch (error) {
-      logError(`Failed to ship order: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to ship order', error as Error);
+      return Result.err(domainError('ORDER_SHIPPING_FAILED', 'Failed to ship order', error));
     }
   }
 }
@@ -252,23 +330,29 @@ export class ShipOrderCommandHandler implements ICommandHandler<ShipOrderCommand
  * Add Order Item Command Handler
  */
 export class AddOrderItemCommandHandler implements ICommandHandler<AddOrderItemCommand> {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
-  async execute(command: AddOrderItemCommand): Promise<{ aggregateId: string; productId: string }> {
+  async execute(
+    command: AddOrderItemCommand
+  ): AsyncResult<{ aggregateId: string; productId: string }, DomainError> {
+    logger.info('Adding item to order', {
+      orderId: command.payload.orderId,
+      productId: command.payload.productId,
+    });
+
     try {
-      logInfo(`Adding item to order: ${command.aggregateId} - product ${command.payload.productId}`);
-
-      if (!command.aggregateId) {
-        throw new ValidationError('Aggregate ID is required');
+      if (!command.payload.orderId) {
+        return Result.err(validationError('MISSING_ORDER_ID', 'Order ID is required'));
       }
 
-      // Load aggregate
-      const storedEvents = await this.eventStore.readStream(command.aggregateId);
-      const domainEvents = storedEvents.map((event) => ({
-        ...event,
-        timestamp: event.occurredAt, // Map occurredAt to timestamp for DomainEvent compatibility
-      }));
-      const aggregate = Order.fromOrderEvents(domainEvents);
+      // Load aggregate from repository
+      const aggregateResult = await this.repository.getById(command.payload.orderId);
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to load order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
+
+      const aggregate = aggregateResult.value;
 
       // Add item
       aggregate.addItem(
@@ -284,21 +368,29 @@ export class AddOrderItemCommandHandler implements ICommandHandler<AddOrderItemC
       );
 
       // Save new events
-      await this.eventStore.appendToStream(
+      const saveResult = await this.eventStore.appendToStream(
         aggregate.id,
         [...aggregate.uncommittedEvents],
         aggregate.version
       );
 
-      logInfo(`Item added to order successfully: ${command.aggregateId} - product ${command.payload.productId}`);
+      if (Result.isErr(saveResult)) {
+        logger.error('Failed to save add item events to event store', saveResult.error);
+        return saveResult;
+      }
 
-      return {
+      logger.info('Item added to order successfully', {
+        orderId: command.payload.orderId,
+        productId: command.payload.productId,
+      });
+
+      return Result.ok({
         aggregateId: aggregate.id,
         productId: command.payload.productId,
-      };
+      });
     } catch (error) {
-      logError(`Failed to add item to order: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to add item to order', error as Error);
+      return Result.err(domainError('ADD_ORDER_ITEM_FAILED', 'Failed to add item to order', error));
     }
   }
 }
@@ -307,56 +399,82 @@ export class AddOrderItemCommandHandler implements ICommandHandler<AddOrderItemC
  * Remove Order Item Command Handler
  */
 export class RemoveOrderItemCommandHandler implements ICommandHandler<RemoveOrderItemCommand> {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
   async execute(
     command: RemoveOrderItemCommand
-  ): Promise<{ aggregateId: string; productId: string }> {
-    try {
-      logInfo(`Removing item from order: ${command.aggregateId} - product ${command.payload.productId}`);
+  ): AsyncResult<{ aggregateId: string; productId: string }, DomainError> {
+    logger.info('Removing item from order', {
+      orderId: command.payload.orderId,
+      productId: command.payload.productId,
+    });
 
-      if (!command.aggregateId) {
-        throw new ValidationError('Aggregate ID is required');
+    try {
+      if (!command.payload.orderId) {
+        return Result.err(validationError('MISSING_ORDER_ID', 'Order ID is required'));
       }
 
-      // Load aggregate
-      const storedEvents = await this.eventStore.readStream(command.aggregateId);
-      const domainEvents = storedEvents.map((event) => ({
-        ...event,
-        timestamp: event.occurredAt, // Map occurredAt to timestamp for DomainEvent compatibility
-      }));
-      const aggregate = Order.fromOrderEvents(domainEvents);
+      // Load aggregate from repository
+      const aggregateResult = await this.repository.getById(command.payload.orderId);
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to load order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
+
+      const aggregate = aggregateResult.value;
 
       // Find item by product ID
       const items = aggregate.getItems();
       const itemToRemove = items.find((item) => item.productId === command.payload.productId);
 
       if (!itemToRemove) {
-        throw new Error(`Item with product ID ${command.payload.productId} not found in order`);
+        return Result.err(
+          domainError(
+            'ITEM_NOT_FOUND',
+            `Item with product ID ${command.payload.productId} not found in order`
+          )
+        );
       }
 
       // Remove item
-      aggregate.removeItem(itemToRemove.id, {
+      const removeResult = aggregate.removeItem(itemToRemove.id, {
         correlationId: command.metadata?.correlationId,
         userId: command.metadata?.userId,
       });
 
-      // Save new events
-      await this.eventStore.appendToStream(
-        aggregate.id,
-        [...aggregate.uncommittedEvents],
-        aggregate.version
-      );
+      if (Result.isErr(removeResult)) {
+        logger.error('Failed to remove item from order', removeResult.error);
+        return removeResult;
+      }
 
-      logInfo(`Item removed from order successfully: ${command.aggregateId} - product ${command.payload.productId}`);
+      // Save aggregate using repository
+      const saveResult = await this.repository.save(aggregate, {
+        metadata: {
+          commandId: command.id,
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId,
+        },
+      });
 
-      return {
+      if (Result.isErr(saveResult)) {
+        logger.error('Failed to save order aggregate after removing item', saveResult.error);
+        return saveResult;
+      }
+
+      logger.info('Item removed from order successfully', {
+        orderId: command.payload.orderId,
+        productId: command.payload.productId,
+      });
+
+      return Result.ok({
         aggregateId: aggregate.id,
         productId: command.payload.productId,
-      };
+      });
     } catch (error) {
-      logError(`Failed to remove item from order: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to remove item from order', error as Error);
+      return Result.err(
+        domainError('REMOVE_ORDER_ITEM_FAILED', 'Failed to remove item from order', error)
+      );
     }
   }
 }
@@ -367,23 +485,26 @@ export class RemoveOrderItemCommandHandler implements ICommandHandler<RemoveOrde
 export class UpdateShippingAddressCommandHandler
   implements ICommandHandler<UpdateShippingAddressCommand>
 {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
-  async execute(command: UpdateShippingAddressCommand): Promise<{ aggregateId: string }> {
+  async execute(
+    command: UpdateShippingAddressCommand
+  ): AsyncResult<{ aggregateId: string }, DomainError> {
+    logger.info('Updating shipping address', { orderId: command.payload.orderId });
+
     try {
-      logInfo(`Updating shipping address for order: ${command.aggregateId}`);
-
-      if (!command.aggregateId) {
-        throw new ValidationError('Aggregate ID is required');
+      if (!command.payload.orderId) {
+        return Result.err(validationError('MISSING_ORDER_ID', 'Order ID is required'));
       }
 
-      // Load aggregate
-      const storedEvents = await this.eventStore.readStream(command.aggregateId);
-      const domainEvents = storedEvents.map((event) => ({
-        ...event,
-        timestamp: event.occurredAt, // Map occurredAt to timestamp for DomainEvent compatibility
-      }));
-      const aggregate = Order.fromOrderEvents(domainEvents);
+      // Load aggregate from repository
+      const aggregateResult = await this.repository.getById(command.payload.orderId);
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to load order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
+
+      const aggregate = aggregateResult.value;
 
       // Update shipping info with new address
       const currentShippingInfo = aggregate.getShippingInfo();
@@ -394,24 +515,41 @@ export class UpdateShippingAddressCommandHandler
         shippingAddress: newAddress.toJSON(),
       });
 
-      aggregate.updateShippingInfo(updatedShippingInfo, {
+      const updateResult = aggregate.updateShippingInfo(updatedShippingInfo, {
         correlationId: command.metadata?.correlationId,
         userId: command.metadata?.userId || command.payload.updatedBy,
       });
 
-      // Save new events
-      await this.eventStore.appendToStream(
-        aggregate.id,
-        [...aggregate.uncommittedEvents],
-        aggregate.version
-      );
+      if (Result.isErr(updateResult)) {
+        logger.error('Failed to update shipping address', updateResult.error);
+        return updateResult;
+      }
 
-      logInfo(`Shipping address updated successfully for order: ${command.aggregateId}`);
+      // Save aggregate using repository
+      const saveResult = await this.repository.save(aggregate, {
+        metadata: {
+          commandId: command.id,
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId,
+        },
+      });
 
-      return { aggregateId: aggregate.id };
+      if (Result.isErr(saveResult)) {
+        logger.error(
+          'Failed to save order aggregate after shipping address update',
+          saveResult.error
+        );
+        return saveResult;
+      }
+
+      logger.info('Shipping address updated successfully', { orderId: command.payload.orderId });
+
+      return Result.ok({ aggregateId: aggregate.id });
     } catch (error) {
-      logError(`Failed to update shipping address: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to update shipping address', error as Error);
+      return Result.err(
+        domainError('UPDATE_SHIPPING_ADDRESS_FAILED', 'Failed to update shipping address', error)
+      );
     }
   }
 }
@@ -420,55 +558,81 @@ export class UpdateShippingAddressCommandHandler
  * Process Payment Command Handler
  */
 export class ProcessPaymentCommandHandler implements ICommandHandler<ProcessPaymentCommand> {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
   async execute(
     command: ProcessPaymentCommand
-  ): Promise<{ aggregateId: string; transactionId: string }> {
-    try {
-      logInfo(`Processing payment for order: ${command.aggregateId} - amount ${command.payload.amount}`);
+  ): AsyncResult<{ aggregateId: string; transactionId: string }, DomainError> {
+    logger.info('Processing payment', {
+      orderId: command.payload.orderId,
+      amount: command.payload.amount,
+    });
 
-      if (!command.aggregateId) {
-        throw new ValidationError('Aggregate ID is required');
+    try {
+      if (!command.payload.orderId) {
+        return Result.err(validationError('MISSING_ORDER_ID', 'Order ID is required'));
       }
 
-      // Load aggregate
-      const storedEvents = await this.eventStore.readStream(command.aggregateId);
-      const domainEvents = storedEvents.map((event) => ({
-        ...event,
-        timestamp: event.occurredAt, // Map occurredAt to timestamp for DomainEvent compatibility
-      }));
-      const aggregate = Order.fromOrderEvents(domainEvents);
+      // Load aggregate from repository
+      const aggregateResult = await this.repository.getById(command.payload.orderId);
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to load order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
+
+      const aggregate = aggregateResult.value;
 
       // Update payment info
       const updatedPaymentInfo = PaymentInfo.fromJSON({
-        method: command.payload.method.toLowerCase() as "credit_card" | "paypal" | "debit_card" | "bank_transfer" | "cash_on_delivery",
+        method: command.payload.method.toLowerCase() as
+          | 'credit_card'
+          | 'paypal'
+          | 'debit_card'
+          | 'bank_transfer'
+          | 'cash_on_delivery',
         status: 'captured',
         transactionId: command.payload.transactionId,
         processedAt: new Date().toISOString(),
       });
 
-      aggregate.updatePaymentInfo(updatedPaymentInfo, {
+      const updateResult = aggregate.updatePaymentInfo(updatedPaymentInfo, {
         correlationId: command.metadata?.correlationId,
         userId: command.metadata?.userId,
       });
 
-      // Save new events
-      await this.eventStore.appendToStream(
-        aggregate.id,
-        [...aggregate.uncommittedEvents],
-        aggregate.version
-      );
+      if (Result.isErr(updateResult)) {
+        logger.error('Failed to update payment info', updateResult.error);
+        return updateResult;
+      }
 
-      logInfo(`Payment processed successfully for order: ${command.aggregateId} - transaction ${command.payload.transactionId}`);
+      // Save aggregate using repository
+      const saveResult = await this.repository.save(aggregate, {
+        metadata: {
+          commandId: command.id,
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId,
+        },
+      });
 
-      return {
+      if (Result.isErr(saveResult)) {
+        logger.error('Failed to save order aggregate after payment processing', saveResult.error);
+        return saveResult;
+      }
+
+      logger.info('Payment processed successfully', {
+        orderId: command.payload.orderId,
+        transactionId: command.payload.transactionId,
+      });
+
+      return Result.ok({
         aggregateId: aggregate.id,
         transactionId: command.payload.transactionId,
-      };
+      });
     } catch (error) {
-      logError(`Failed to process payment: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to process payment', error as Error);
+      return Result.err(
+        domainError('PAYMENT_PROCESSING_FAILED', 'Failed to process payment', error)
+      );
     }
   }
 }
@@ -477,28 +641,32 @@ export class ProcessPaymentCommandHandler implements ICommandHandler<ProcessPaym
  * Refund Order Command Handler
  */
 export class RefundOrderCommandHandler implements ICommandHandler<RefundOrderCommand> {
-  constructor(private readonly eventStore: IEventStore) {}
+  constructor(private readonly repository: OrderRepository) {}
 
   async execute(
     command: RefundOrderCommand
-  ): Promise<{ aggregateId: string; refundAmount: number }> {
-    try {
-      logInfo(`Processing refund for order: ${command.aggregateId} - amount ${command.payload.amount}`);
+  ): AsyncResult<{ aggregateId: string; refundAmount: number }, DomainError> {
+    logger.info('Processing refund', {
+      orderId: command.payload.orderId,
+      amount: command.payload.amount,
+    });
 
-      if (!command.aggregateId) {
-        throw new ValidationError('Aggregate ID is required');
+    try {
+      if (!command.payload.orderId) {
+        return Result.err(validationError('MISSING_ORDER_ID', 'Order ID is required'));
       }
 
-      // Load aggregate
-      const storedEvents = await this.eventStore.readStream(command.aggregateId);
-      const domainEvents = storedEvents.map((event) => ({
-        ...event,
-        timestamp: event.occurredAt, // Map occurredAt to timestamp for DomainEvent compatibility
-      }));
-      const aggregate = Order.fromOrderEvents(domainEvents);
+      // Load aggregate from repository
+      const aggregateResult = await this.repository.getById(command.payload.orderId);
+      if (Result.isErr(aggregateResult)) {
+        logger.error('Failed to load order aggregate', aggregateResult.error);
+        return aggregateResult;
+      }
+
+      const aggregate = aggregateResult.value;
 
       // Process refund
-      aggregate.refund(
+      const refundResult = aggregate.refund(
         Money.fromJSON({
           amount: command.payload.amount,
           currency: command.payload.currency || 'USD',
@@ -509,22 +677,37 @@ export class RefundOrderCommandHandler implements ICommandHandler<RefundOrderCom
         { correlationId: command.metadata?.correlationId }
       );
 
-      // Save new events
-      await this.eventStore.appendToStream(
-        aggregate.id,
-        [...aggregate.uncommittedEvents],
-        aggregate.version
-      );
+      if (Result.isErr(refundResult)) {
+        logger.error('Failed to process refund', refundResult.error);
+        return refundResult;
+      }
 
-      logInfo(`Refund processed successfully for order: ${command.aggregateId} - amount ${command.payload.amount}`);
+      // Save aggregate using repository
+      const saveResult = await this.repository.save(aggregate, {
+        metadata: {
+          commandId: command.id,
+          correlationId: command.metadata?.correlationId,
+          userId: command.metadata?.userId,
+        },
+      });
 
-      return {
+      if (Result.isErr(saveResult)) {
+        logger.error('Failed to save order aggregate after refund processing', saveResult.error);
+        return saveResult;
+      }
+
+      logger.info('Refund processed successfully', {
+        orderId: command.payload.orderId,
+        amount: command.payload.amount,
+      });
+
+      return Result.ok({
         aggregateId: aggregate.id,
         refundAmount: command.payload.amount,
-      };
+      });
     } catch (error) {
-      logError(`Failed to process refund: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      logger.error('Failed to process refund', error as Error);
+      return Result.err(domainError('REFUND_PROCESSING_FAILED', 'Failed to process refund', error));
     }
   }
 }
@@ -532,17 +715,17 @@ export class RefundOrderCommandHandler implements ICommandHandler<RefundOrderCom
 /**
  * Command handler factory
  */
-export function createOrderCommandHandlers(eventStore: IEventStore) {
+export function createOrderCommandHandlers(repository: OrderRepository) {
   return {
-    createOrder: new CreateOrderCommandHandler(eventStore),
-    cancelOrder: new CancelOrderCommandHandler(eventStore),
-    updateOrderStatus: new UpdateOrderStatusCommandHandler(eventStore),
-    shipOrder: new ShipOrderCommandHandler(eventStore),
-    addOrderItem: new AddOrderItemCommandHandler(eventStore),
-    removeOrderItem: new RemoveOrderItemCommandHandler(eventStore),
-    updateShippingAddress: new UpdateShippingAddressCommandHandler(eventStore),
-    processPayment: new ProcessPaymentCommandHandler(eventStore),
-    refundOrder: new RefundOrderCommandHandler(eventStore),
+    createOrder: new CreateOrderCommandHandler(repository),
+    cancelOrder: new CancelOrderCommandHandler(repository),
+    updateOrderStatus: new UpdateOrderStatusCommandHandler(repository),
+    shipOrder: new ShipOrderCommandHandler(repository),
+    addOrderItem: new AddOrderItemCommandHandler(repository),
+    removeOrderItem: new RemoveOrderItemCommandHandler(repository),
+    updateShippingAddress: new UpdateShippingAddressCommandHandler(repository),
+    processPayment: new ProcessPaymentCommandHandler(repository),
+    refundOrder: new RefundOrderCommandHandler(repository),
   };
 }
 

@@ -1,7 +1,7 @@
 import {
   AggregateRoot,
-  type DomainEvent,
   EventFactory,
+  type IDomainEvent,
 } from '@graphql-microservices/event-sourcing';
 import {
   BusinessRuleError,
@@ -13,7 +13,7 @@ import { Money, ProductCategory, ProductSKU, ProductTags, StockQuantity } from '
 /**
  * Product domain events
  */
-export interface ProductCreatedEvent extends DomainEvent {
+export interface ProductCreatedEvent extends IDomainEvent {
   type: 'ProductCreated';
   data: {
     name: string;
@@ -27,7 +27,7 @@ export interface ProductCreatedEvent extends DomainEvent {
   };
 }
 
-export interface ProductUpdatedEvent extends DomainEvent {
+export interface ProductUpdatedEvent extends IDomainEvent {
   type: 'ProductUpdated';
   data: {
     name?: string;
@@ -41,7 +41,7 @@ export interface ProductUpdatedEvent extends DomainEvent {
   };
 }
 
-export interface ProductPriceChangedEvent extends DomainEvent {
+export interface ProductPriceChangedEvent extends IDomainEvent {
   type: 'ProductPriceChanged';
   data: {
     newPrice: { amount: number; currency: string };
@@ -51,7 +51,7 @@ export interface ProductPriceChangedEvent extends DomainEvent {
   };
 }
 
-export interface ProductStockChangedEvent extends DomainEvent {
+export interface ProductStockChangedEvent extends IDomainEvent {
   type: 'ProductStockChanged';
   data: {
     newStock: number;
@@ -63,7 +63,7 @@ export interface ProductStockChangedEvent extends DomainEvent {
   };
 }
 
-export interface ProductCategoryChangedEvent extends DomainEvent {
+export interface ProductCategoryChangedEvent extends IDomainEvent {
   type: 'ProductCategoryChanged';
   data: {
     newCategory: string;
@@ -73,7 +73,7 @@ export interface ProductCategoryChangedEvent extends DomainEvent {
   };
 }
 
-export interface ProductDeactivatedEvent extends DomainEvent {
+export interface ProductDeactivatedEvent extends IDomainEvent {
   type: 'ProductDeactivated';
   data: {
     reason: string;
@@ -81,7 +81,7 @@ export interface ProductDeactivatedEvent extends DomainEvent {
   };
 }
 
-export interface ProductReactivatedEvent extends DomainEvent {
+export interface ProductReactivatedEvent extends IDomainEvent {
   type: 'ProductReactivated';
   data: {
     reason: string;
@@ -89,7 +89,7 @@ export interface ProductReactivatedEvent extends DomainEvent {
   };
 }
 
-export interface ProductStockReservedEvent extends DomainEvent {
+export interface ProductStockReservedEvent extends IDomainEvent {
   type: 'ProductStockReserved';
   data: {
     quantity: number;
@@ -99,7 +99,7 @@ export interface ProductStockReservedEvent extends DomainEvent {
   };
 }
 
-export interface ProductStockReservationReleasedEvent extends DomainEvent {
+export interface ProductStockReservationReleasedEvent extends IDomainEvent {
   type: 'ProductStockReservationReleased';
   data: {
     quantity: number;
@@ -108,7 +108,7 @@ export interface ProductStockReservationReleasedEvent extends DomainEvent {
   };
 }
 
-export type ProductDomainEvent =
+export type ProductIDomainEvent =
   | ProductCreatedEvent
   | ProductUpdatedEvent
   | ProductPriceChangedEvent
@@ -118,6 +118,9 @@ export type ProductDomainEvent =
   | ProductReactivatedEvent
   | ProductStockReservedEvent
   | ProductStockReservationReleasedEvent;
+
+// Re-export event map for convenience
+export type { ProductEventMap } from './events/event-map';
 
 /**
  * Product aggregate errors
@@ -208,7 +211,7 @@ export class Product extends AggregateRoot {
     imageUrl?: string,
     metadata?: { correlationId?: string; userId?: string }
   ): Product {
-    const product = new Product(id, {});
+    const product = new Product(id, 0);
 
     // Validate required fields
     if (!name || name.trim().length === 0) {
@@ -265,13 +268,13 @@ export class Product extends AggregateRoot {
   /**
    * Create product from events (for event sourcing reconstruction)
    */
-  static fromEvents(events: DomainEvent[]): Product {
+  static fromEvents(events: IDomainEvent[]): Product {
     if (events.length === 0) {
       throw new Error('Cannot create product from empty event stream');
     }
 
     const firstEvent = events[0];
-    const product = new Product(firstEvent?.aggregateId ?? '', {});
+    const product = new Product(firstEvent?.aggregateId ?? '', 0);
 
     // Apply all events to reconstruct state
     for (const event of events) {
@@ -638,7 +641,7 @@ export class Product extends AggregateRoot {
   /**
    * Apply event data to aggregate state
    */
-  protected override applyEventData(event: DomainEvent): void {
+  protected override applyEventData(event: IDomainEvent): void {
     switch (event.type) {
       case 'ProductCreated': {
         const data = event.data as ProductCreatedEvent['data'];

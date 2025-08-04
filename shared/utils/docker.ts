@@ -1,4 +1,4 @@
-import { $ } from 'bun';
+import { execa } from 'execa';
 
 export interface DockerOptions {
   compose?: string;
@@ -15,10 +15,12 @@ export async function waitForPostgres(
 
   for (let attempts = 0; attempts < maxAttempts; attempts++) {
     try {
-      await $`docker exec ${containerName} pg_isready -U postgres`.quiet();
+      await execa('docker', ['exec', containerName, 'pg_isready', '-U', 'postgres'], {
+        stdio: 'ignore',
+      });
       return true;
     } catch {
-      await Bun.sleep(1000);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 
@@ -33,7 +35,7 @@ export async function startDocker(options: DockerOptions = {}): Promise<void> {
     console.log('Starting Docker services...');
   }
 
-  await $`docker compose -f ${compose} up -d`;
+  await execa('docker', ['compose', '-f', compose, 'up', '-d']);
 }
 
 // Stop docker compose services
@@ -44,14 +46,20 @@ export async function stopDocker(options: DockerOptions = {}): Promise<void> {
     console.log('Stopping Docker services...');
   }
 
-  await $`docker compose -f ${compose} down`;
+  await execa('docker', ['compose', '-f', compose, 'down']);
 }
 
 // Check if a docker container is running
 export async function isContainerRunning(containerName: string): Promise<boolean> {
   try {
-    const result = await $`docker ps --filter name=${containerName} --format "{{.Names}}"`.quiet();
-    return result.stdout.toString().trim() === containerName;
+    const result = await execa(
+      'docker',
+      ['ps', '--filter', `name=${containerName}`, '--format', '{{.Names}}'],
+      {
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }
+    );
+    return result.stdout.trim() === containerName;
   } catch {
     return false;
   }

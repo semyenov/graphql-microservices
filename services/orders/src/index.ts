@@ -1,35 +1,39 @@
 import { ApolloServer } from '@apollo/server';
-import { startStandaloneServer } from '@apollo/server/standalone';
+import { expressMiddleware } from '@apollo/server/express4';
 import { buildSubgraphSchema } from '@apollo/subgraph';
+import { createGraphQLLoggingPlugin, createLogger } from '@graphql-microservices/logger';
 import {
   type AuthContext,
   AuthService,
   extractAndVerifyUser,
 } from '@graphql-microservices/shared-auth';
 import { CacheService, cacheTTL } from '@graphql-microservices/shared-cache';
-import { orderServiceEnvSchema, parseEnv } from '@graphql-microservices/shared-config';
+import { OrderServiceConfig } from '@graphql-microservices/shared-config';
 import {
   AuthenticationError,
   AuthorizationError,
   BusinessRuleError,
   createErrorLogger,
   formatError,
+  generateId,
   InternalServerError,
   NotFoundError,
   toGraphQLError,
   ValidationError,
 } from '@graphql-microservices/shared-errors';
 import { PubSubService } from '@graphql-microservices/shared-pubsub';
+import { Result } from '@graphql-microservices/shared-result';
 import {
   createOrderInputSchema,
   orderStatusSchema,
   validateInput,
   validateOrderStatusTransition,
 } from '@graphql-microservices/validation';
+import cors from 'cors';
 import DataLoader from 'dataloader';
+import express from 'express';
 import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
-import { generateId } from '@graphql-microservices/shared-errors';
 import type {
   Order as GraphQLOrder,
   OrderStatus as GraphQLOrderStatus,
@@ -42,13 +46,24 @@ import type {
   User,
   UserResolvers,
 } from '../generated/graphql';
-import {
-  type OrderStatus,
-  type Prisma,
+import type {
+  OrderStatus,
+  Prisma,
   PrismaClient,
-  type Order as PrismaOrder,
-  type OrderItem as PrismaOrderItem,
+  Order as PrismaOrder,
+  OrderItem as PrismaOrderItem,
 } from '../generated/prisma';
+import { createOrderCommand } from './domain/commands/index';
+import {
+  initializeOrdersCQRS,
+  type OrdersCQRSIntegration,
+} from './infrastructure/cqrs-integration';
+import { createMockExternalServices } from './infrastructure/mock-external-services';
+import { OrdersMonitoringService } from './infrastructure/monitoring-endpoints';
+import {
+  defaultPerformanceConfig,
+  OrdersPerformanceService,
+} from './infrastructure/performance-optimizations';
 import {
   publishOrderCancelled,
   publishOrderCreated,
@@ -56,11 +71,17 @@ import {
   publishOrderStatusChanged,
   subscriptionResolvers,
 } from './subscriptions';
-import { initializeOrdersCQRS, type OrdersCQRSIntegration } from './infrastructure/cqrs-integration';
-import { createOrderCommand } from './domain/commands';
 
-// Parse and validate environment variables
-const env = parseEnv(orderServiceEnvSchema);
+// Initialize logger first
+const logger = createLogger({ service: 'orders' });
+
+// Initialize configuration
+const configResult = await OrderServiceConfig.initialize();
+if (Result.isErr(configResult)) {
+  logger.error('Failed to initialize configuration:', configResult.error);
+  process.exit(1);
+}
+const env = configResult.value;
 
 // Initialize services
 const cacheService = new CacheService(env.REDIS_URL || 'redis://localhost:6379');
@@ -69,6 +90,8 @@ const pubsub = pubSubService.getPubSub();
 
 // Initialize CQRS
 let cqrsIntegration: OrdersCQRSIntegration;
+let monitoringService: OrdersMonitoringService;
+let performanceService: OrdersPerformanceService;
 let prisma: PrismaClient;
 
 // Initialize auth service with same keys as users service
@@ -95,6 +118,7 @@ export interface Context extends AuthContext {
   pubsub: typeof pubsub;
   orderLoader: DataLoader<string, GraphQLOrder | null>;
   cqrs: OrdersCQRSIntegration;
+  logger: ReturnType<typeof createLogger>;
 }
 
 // GraphQL schema
@@ -532,67 +556,73 @@ const mutationResolvers: MutationResolvers<Context> = {
       const orderNumber = `ORD-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
       // Create command for CQRS
-      const aggregateId = generateId();
-      const command = {
-        aggregateId,
-        type: 'CreateOrder' as const,
-        payload: {
+      const command = createOrderCommand(
+        {
           orderNumber,
           customerId: context.user.userId,
-          items: validatedInput.items.map(item => ({
+          items: validatedInput.items.map((item) => ({
             productId: item.productId,
             productName: item.productName,
             productSku: item.productId, // Using productId as SKU for now
             quantity: item.quantity,
             unitPrice: {
               amount: item.unitPrice,
-              currency: 'USD'
-            }
+              currency: 'USD',
+            },
           })),
           shippingAddress: {
             street: validatedInput.shippingStreet,
             city: validatedInput.shippingCity,
             state: validatedInput.shippingState,
             postalCode: validatedInput.shippingPostalCode,
-            country: validatedInput.shippingCountry
+            country: validatedInput.shippingCountry,
           },
-          billingAddress: validatedInput.billingStreet ? {
-            street: validatedInput.billingStreet,
-            city: validatedInput.billingCity || '',
-            state: validatedInput.billingState || '',
-            postalCode: validatedInput.billingPostalCode || '',
-            country: validatedInput.billingCountry || 'US'
-          } : undefined,
+          billingAddress: validatedInput.billingStreet
+            ? {
+                street: validatedInput.billingStreet,
+                city: validatedInput.billingCity || '',
+                state: validatedInput.billingState || '',
+                postalCode: validatedInput.billingPostalCode || '',
+                country: validatedInput.billingCountry || 'US',
+              }
+            : undefined,
           paymentInfo: {
-            method: validatedInput.paymentMethod as 'CREDIT_CARD' | 'DEBIT_CARD' | 'PAYPAL' | 'BANK_TRANSFER',
-            status: 'pending' as const
+            method: validatedInput.paymentMethod as
+              | 'CREDIT_CARD'
+              | 'DEBIT_CARD'
+              | 'PAYPAL'
+              | 'BANK_TRANSFER',
+            status: 'pending' as const,
           },
           shippingInfo: {
             method: 'standard',
             cost: {
               amount: 9.99,
-              currency: 'USD'
-            }
-          }
+              currency: 'USD',
+            },
+          },
+          notes: validatedInput.notes,
         },
-        metadata: {
+        {
           userId: context.user.userId,
-          correlationId: generateId()
+          correlationId: generateId(),
+          source: 'orders-service',
         }
-      };
+      );
 
-      // Execute command
+      // Execute command using modern Result type
       const commandBus = context.cqrs.getCommandBus();
-      const result = await commandBus.execute(command);
+      const result = await commandBus.execute('CreateOrder', command);
 
-      if (!result.success) {
-        throw new InternalServerError(result.error || 'Failed to create order');
+      if (Result.isErr(result)) {
+        logger.error('Failed to execute create order command', result.error);
+        throw new InternalServerError(result.error.message || 'Failed to create order');
       }
 
       // Load the created order
       const order = await context.prisma.order.findUnique({
         where: { orderNumber },
-        include: { items: true }
+        include: { items: true },
       });
 
       if (!order) {
@@ -924,16 +954,28 @@ const resolvers: Resolvers<Context> = {
 
 // Initialize CQRS before starting server
 async function initializeServices() {
+  // Create external services (using mock services for development)
+  const externalServices = createMockExternalServices();
+
   cqrsIntegration = await initializeOrdersCQRS({
     databaseUrl: env.DATABASE_URL,
     redisUrl: env.REDIS_URL,
     enableProjections: true,
+    enableModernProjections: true,
+    enableSagas: true,
     enableOutboxProcessor: true,
+    externalServices,
   });
-  
+
   prisma = cqrsIntegration.getPrisma();
-  
-  console.log('✅ CQRS infrastructure initialized');
+
+  // Initialize monitoring service
+  monitoringService = new OrdersMonitoringService(cqrsIntegration);
+
+  // Initialize performance service
+  performanceService = new OrdersPerformanceService(prisma, defaultPerformanceConfig);
+
+  logger.info('CQRS infrastructure initialized with modern projections and sagas');
 }
 
 // Create Apollo Server with error formatting
@@ -946,38 +988,132 @@ const server = new ApolloServer({
       'orders-service'
     );
   },
+  plugins: [createGraphQLLoggingPlugin(logger)],
 });
 
 // Initialize services before starting
 await initializeServices();
 
-// Start server
-const { url } = await startStandaloneServer(server, {
-  listen: { port: env.PORT },
-  context: async ({ req }) => {
-    const orderLoader = createOrderLoader();
+// Create Express app
+const app = express();
 
-    // Extract and verify user from authorization header
-    const user = await extractAndVerifyUser(authService, req.headers.authorization);
+// Add health and monitoring endpoints
+app.get('/health', async (req, res) => {
+  try {
+    const healthResult = await monitoringService.getHealthStatus();
+    if (healthResult.isOk) {
+      res.status(200).json(healthResult.value);
+    } else {
+      res.status(503).json({ status: 'unhealthy', error: healthResult.error.message });
+    }
+  } catch (error) {
+    res.status(503).json({ status: 'unhealthy', error: 'Health check failed' });
+  }
+});
 
-    return {
-      prisma,
-      cacheService,
-      pubsub,
-      cqrs: cqrsIntegration,
-      orderLoader,
-      user,
-      isAuthenticated: !!user,
-    };
-  },
+app.get('/metrics', async (req, res) => {
+  try {
+    const metricsResult = await monitoringService.getSystemMetrics();
+    if (metricsResult.isOk) {
+      res.status(200).json(metricsResult.value);
+    } else {
+      res.status(500).json({ error: metricsResult.error.message });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Metrics collection failed' });
+  }
+});
+
+app.get('/projections/status', async (req, res) => {
+  try {
+    const statusResult = await monitoringService.getProjectionStatus();
+    if (statusResult.isOk) {
+      res.status(200).json(statusResult.value);
+    } else {
+      res.status(500).json({ error: statusResult.error.message });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Projection status check failed' });
+  }
+});
+
+app.get('/sagas/active', async (req, res) => {
+  try {
+    const sagasResult = await monitoringService.getActiveSagas();
+    if (sagasResult.isOk) {
+      res.status(200).json(sagasResult.value);
+    } else {
+      res.status(500).json({ error: sagasResult.error.message });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Active sagas check failed' });
+  }
+});
+
+app.get('/performance/stats', (req, res) => {
+  try {
+    const stats = performanceService.getPerformanceStats();
+    res.status(200).json(stats);
+  } catch (error) {
+    res.status(500).json({ error: 'Performance stats collection failed' });
+  }
+});
+
+// Start Apollo Server
+await server.start();
+
+// Apply middleware
+app.use(
+  '/graphql',
+  cors<cors.CorsRequest>(),
+  express.json(),
+  expressMiddleware(server, {
+    context: async ({ req }) => {
+      const orderLoader = createOrderLoader();
+
+      // Extract and verify user from authorization header
+      const user = await extractAndVerifyUser(authService, req.headers.authorization);
+
+      return {
+        prisma,
+        cacheService,
+        pubsub,
+        cqrs: cqrsIntegration,
+        orderLoader,
+        user,
+        isAuthenticated: !!user,
+        logger,
+      };
+    },
+  })
+);
+
+// Start HTTP server
+const httpServer = app.listen(env.PORT, () => {
+  logger.info('Orders service ready', {
+    port: env.PORT,
+    graphqlUrl: `http://localhost:${env.PORT}/graphql`,
+    healthUrl: `http://localhost:${env.PORT}/health`,
+    metricsUrl: `http://localhost:${env.PORT}/metrics`,
+  });
 });
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('Shutting down Orders service...');
+const shutdown = async () => {
+  logger.info('Shutting down Orders service...');
+
+  httpServer.close(() => {
+    logger.info('HTTP server closed');
+  });
+
+  await server.stop();
+  logger.info('Apollo server stopped');
+
   await prisma.$disconnect();
   await cacheService.disconnect();
-  process.exit(0);
-});
 
-console.log(`🚀 Orders service ready at ${url}`);
+  process.exit(0);
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

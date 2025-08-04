@@ -160,3 +160,7 @@ export function parseEnv<T>(schema: z.ZodSchema<T>): T {
 
   return result.data;
 }
+
+// Re-export configuration service utilities
+export * from './config-service';
+export * from './typed-config';

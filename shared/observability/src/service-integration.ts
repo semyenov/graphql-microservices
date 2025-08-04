@@ -4,11 +4,12 @@
 
 import { ApolloServer } from '@apollo/server';
 import type { AuthContext } from '@graphql-microservices/shared-auth';
+import type { GraphQLSchema } from 'graphql';
 import {
   addSpanAttributes,
   addSpanEvent,
   createOpenTelemetryPlugin,
-  createSpan,
+  createSpanWithResult,
   extractTraceContext,
   initializeObservability,
   injectTraceContext,
@@ -38,7 +39,7 @@ export const instrumentedResolver = async <TArgs, TResult>(
   args: TArgs,
   attributes?: Record<string, unknown>
 ): Promise<TResult> => {
-  return createSpan(`resolver.${operationName}`, async (_span) => {
+  return createSpanWithResult(`resolver.${operationName}`, async (_span) => {
     // Add custom attributes
     addSpanAttributes({
       'resolver.name': operationName,
@@ -77,14 +78,14 @@ export const instrumentedDatabaseOperation = async <T>(
   return metrics.recordDuration(
     `database.${operation}`,
     async () => {
-      return createSpan(`db.${operation}`, async (_span) => {
+      return createSpanWithResult(`db.${operation}`, async (_span) => {
         addSpanAttributes({
           'db.operation': operation,
           'db.system': 'postgresql',
         });
 
         return query();
-      }) as Promise<T>;
+      });
     },
     { operation }
   );
@@ -99,7 +100,7 @@ export const instrumentedCacheOperation = async <T>(
   fn: () => Promise<T>,
   metrics: MetricsRecorder
 ): Promise<T> => {
-  return createSpan(`cache.${operation}`, async (_span) => {
+  return createSpanWithResult(`cache.${operation}`, async (_span) => {
     addSpanAttributes({
       'cache.operation': operation,
       'cache.key': key,
@@ -122,7 +123,7 @@ export const instrumentedCacheOperation = async <T>(
  * Example of creating an instrumented Apollo Server
  */
 export const createInstrumentedApolloServer = <TContext extends AuthContext>(
-  schema: unknown,
+  schema: GraphQLSchema,
   serviceName: string,
   formatError?: (error: unknown) => unknown
 ) => {
@@ -193,7 +194,7 @@ export const makeInstrumentedRequest = async (
   url: string,
   options: RequestInit = {}
 ): Promise<Response> => {
-  return createSpan('http.request', async (_span): Promise<Response> => {
+  return createSpanWithResult('http.request', async (_span): Promise<Response> => {
     // Add request attributes
     addSpanAttributes({
       'http.url': url,

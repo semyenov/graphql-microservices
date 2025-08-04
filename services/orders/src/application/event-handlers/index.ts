@@ -1,18 +1,16 @@
-import { type IEventHandler } from '@graphql-microservices/event-sourcing';
-import { EventHandler } from '@graphql-microservices/event-sourcing/cqrs';
-import { logError, logInfo } from '@shared/utils';
+import { EventHandler, type IEventHandler } from '@graphql-microservices/event-sourcing/cqrs';
 import { Decimal } from '@prisma/client/runtime/library';
+import { logError, logInfo } from '@shared/utils';
 import type {
   OrderCancelledEvent,
   OrderCreatedEvent,
   OrderItemAddedEvent,
   OrderItemRemovedEvent,
-  OrderRefundedEvent,
   OrderPaymentUpdatedEvent,
+  OrderRefundedEvent,
   OrderShippingUpdatedEvent,
   OrderStatusChangedEvent,
 } from '../../domain/order-aggregate';
-import type { IDomainEvent } from '@graphql-microservices/event-sourcing';
 import type { PrismaClient } from '../../generated/prisma';
 
 /**
@@ -126,7 +124,7 @@ export class OrderCancelledEventHandler implements IEventHandler<OrderCancelledE
 export class OrderStatusChangedEventHandler implements IEventHandler<OrderStatusChangedEvent> {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async handle(event: OrderStatusUpdatedEvent): Promise<void> {
+  async handle(event: OrderStatusChangedEvent): Promise<void> {
     try {
       logInfo('Handling OrderStatusChanged event', {
         orderId: event.aggregateId,
@@ -146,7 +144,7 @@ export class OrderStatusChangedEventHandler implements IEventHandler<OrderStatus
         newStatus: event.data.newStatus,
       });
     } catch (error) {
-      logError('Failed to handle OrderStatusUpdated event', error as Error, { event });
+      logError('Failed to handle OrderStatusChanged event', error as Error, { event });
       throw error;
     }
   }
@@ -174,7 +172,9 @@ export class OrderShippingUpdatedEventHandler implements IEventHandler<OrderShip
           trackingNumber: event.data.trackingNumber,
           carrier: event.data.shippingInfo?.carrier,
           shippedDate: hasTracking ? event.occurredAt : undefined,
-          estimatedDeliveryDate: event.data.shippingInfo?.estimatedDeliveryDate ? new Date(event.data.shippingInfo.estimatedDeliveryDate) : undefined,
+          estimatedDeliveryDate: event.data.shippingInfo?.estimatedDeliveryDate
+            ? new Date(event.data.shippingInfo.estimatedDeliveryDate)
+            : undefined,
           updatedAt: event.occurredAt,
         },
       });
@@ -311,7 +311,9 @@ export class OrderPaymentUpdatedEventHandler implements IEventHandler<OrderPayme
           status: paymentInfo.status === 'captured' ? 'PROCESSING' : undefined,
           paymentMethod: paymentInfo.method,
           paymentTransactionId: paymentInfo.transactionId,
-          paymentProcessedAt: paymentInfo.processedAt ? new Date(paymentInfo.processedAt) : undefined,
+          paymentProcessedAt: paymentInfo.processedAt
+            ? new Date(paymentInfo.processedAt)
+            : undefined,
           updatedAt: event.occurredAt,
         },
       });

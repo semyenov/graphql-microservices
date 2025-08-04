@@ -1,7 +1,7 @@
 import type {
-  DomainEvent,
-  EventPublisher,
-  OutboxEvent,
+  IDomainEvent,
+  IEventPublisher,
+  IOutboxEvent,
 } from '@graphql-microservices/event-sourcing';
 import Redis from 'ioredis';
 
@@ -9,7 +9,7 @@ import Redis from 'ioredis';
  * Redis-based event publisher for Products service
  * Publishes domain events to Redis pub/sub channels
  */
-export class RedisEventPublisher implements EventPublisher {
+export class RedisEventPublisher implements IEventPublisher {
   private redis?: Redis;
   private isConnected: boolean = false;
 
@@ -61,7 +61,7 @@ export class RedisEventPublisher implements EventPublisher {
   /**
    * Publish a single event
    */
-  async publish(event: DomainEvent, routingKey?: string): Promise<void> {
+  async publish(event: IDomainEvent, routingKey?: string): Promise<void> {
     if (!this.redis || !this.isConnected) {
       console.warn('Redis not connected, skipping event publishing');
       return;
@@ -102,7 +102,7 @@ export class RedisEventPublisher implements EventPublisher {
   /**
    * Publish multiple events in batch
    */
-  async publishBatch(events: OutboxEvent[]): Promise<void> {
+  async publishBatch(events: IOutboxEvent[]): Promise<void> {
     if (!this.redis || !this.isConnected) {
       console.warn('Redis not connected, skipping batch event publishing');
       return;
@@ -141,7 +141,7 @@ export class RedisEventPublisher implements EventPublisher {
   /**
    * Get channels to publish event to based on event type and routing key
    */
-  private getChannelsForEvent(event: DomainEvent, routingKey?: string): string[] {
+  private getChannelsForEvent(event: IDomainEvent, routingKey?: string): string[] {
     const channels: string[] = [];
 
     // Default channel based on routing key

@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@graphql-microservices/event-sourcing';
+import type { IDomainEvent } from '@graphql-microservices/event-sourcing';
 import { Redis } from 'ioredis';
 import type { UserEventDispatcher } from '../application/event-handlers';
 
@@ -127,7 +127,7 @@ export class RedisEventSubscriber {
    */
   private async handleMessage(channel: string, message: string): Promise<void> {
     try {
-      const event = JSON.parse(message) as DomainEvent;
+      const event = JSON.parse(message) as IDomainEvent;
 
       console.log(`📨 Received event ${event.type} from channel ${channel}`);
 
@@ -148,7 +148,7 @@ export class RedisEventSubscriber {
   /**
    * Process event with retry logic
    */
-  private async processEventWithRetry(event: DomainEvent, attempt: number = 1): Promise<void> {
+  private async processEventWithRetry(event: IDomainEvent, attempt: number = 1): Promise<void> {
     try {
       // Set processing timeout
       const timeoutPromise = new Promise((_, reject) => {
@@ -224,7 +224,7 @@ export class RedisEventSubscriber {
     metadata: unknown;
     occurredAt: Date;
     version: number;
-  }): event is DomainEvent {
+  }): event is IDomainEvent {
     return (
       event &&
       typeof event.id === 'string' &&
@@ -241,7 +241,7 @@ export class RedisEventSubscriber {
   /**
    * Handle failed events (could implement dead letter queue)
    */
-  private async handleFailedEvent(event: DomainEvent, error: Error | string): Promise<void> {
+  private async handleFailedEvent(event: IDomainEvent, error: Error | string): Promise<void> {
     // Log failed event for monitoring
     console.error('Failed event details:', {
       eventId: event.id,
@@ -339,7 +339,7 @@ export function createUserEventSubscriber(
  */
 export class MockEventSubscriber {
   private isRunning = false;
-  private receivedEvents: DomainEvent[] = [];
+  private receivedEvents: IDomainEvent[] = [];
 
   constructor(private readonly eventDispatcher: UserEventDispatcher) {}
 
@@ -353,7 +353,7 @@ export class MockEventSubscriber {
     console.log('Mock event subscriber stopped');
   }
 
-  async simulateEvent(event: DomainEvent): Promise<void> {
+  async simulateEvent(event: IDomainEvent): Promise<void> {
     if (!this.isRunning) {
       throw new Error('Mock subscriber is not running');
     }
@@ -362,7 +362,7 @@ export class MockEventSubscriber {
     await this.eventDispatcher.dispatch(event);
   }
 
-  getReceivedEvents(): DomainEvent[] {
+  getReceivedEvents(): IDomainEvent[] {
     return [...this.receivedEvents];
   }
 

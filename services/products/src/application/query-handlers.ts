@@ -1,4 +1,4 @@
-import type { EventStore, EventStoreQuery } from '@graphql-microservices/event-sourcing';
+import type { IEventStore, IEventStoreQuery } from '@graphql-microservices/event-sourcing';
 import type { CacheService } from '@graphql-microservices/shared-cache';
 import type { PrismaClient, Product as PrismaProduct } from '../../generated/prisma';
 import { Product } from '../domain/product-aggregate';
@@ -36,7 +36,7 @@ export interface QueryHandler<T extends ProductQuery, R = unknown> {
 abstract class BaseQueryHandler<T extends ProductQuery, R = unknown> implements QueryHandler<T, R> {
   constructor(
     protected readonly prisma: PrismaClient,
-    protected readonly eventStore: EventStore,
+    protected readonly eventStore: IEventStore,
     protected readonly cacheService?: CacheService
   ) {}
 
@@ -487,7 +487,7 @@ export class GetProductEventsQueryHandler extends BaseQueryHandler<
       const { productId, eventTypes, fromDate, toDate, pagination } = query.payload;
 
       // Build event store query
-      const eventQuery: EventStoreQuery = {
+      const eventQuery: IEventStoreQuery = {
         aggregateId: productId,
         aggregateType: 'Product',
       };
@@ -750,7 +750,7 @@ export class GetProductInventorySummaryQueryHandler extends BaseQueryHandler<
 export class ProductQueryBus {
   private readonly handlers = new Map<string, QueryHandler<ProductQuery, unknown>>();
 
-  constructor(prisma: PrismaClient, eventStore: EventStore, cacheService?: CacheService) {
+  constructor(prisma: PrismaClient, eventStore: IEventStore, cacheService?: CacheService) {
     // Register query handlers
     this.handlers.set(
       'GetProductById',

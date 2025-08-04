@@ -54,6 +54,13 @@ export interface IQueryHandler<TQuery extends IQuery = IQuery, TResult = unknown
 }
 
 /**
+ * Event handler interface
+ */
+export interface IEventHandler<TEvent = unknown> {
+  handle(event: TEvent): Promise<void>;
+}
+
+/**
  * Command result interface
  */
 export interface CommandResult<T = unknown> {

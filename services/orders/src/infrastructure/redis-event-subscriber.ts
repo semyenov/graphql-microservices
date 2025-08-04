@@ -1,3 +1,4 @@
+import { Result } from '@graphql-microservices/shared-result';
 import { logError, logInfo } from '@shared/utils';
 import { Redis } from 'ioredis';
 import { getOrdersCQRS } from './cqrs-integration';
@@ -167,17 +168,26 @@ export class OrdersRedisEventSubscriber {
       case 'PaymentSucceeded':
         // Process payment confirmation
         if (event.data.orderId) {
-          await commandBus.execute({
+          const result = await commandBus.execute('ProcessPayment', {
+            id: crypto.randomUUID(),
             type: 'ProcessPayment',
-            aggregateId: event.data.orderId,
-            timestamp: new Date(),
             payload: {
+              orderId: event.data.orderId,
               amount: event.data.amount,
-              paymentMethod: event.data.paymentMethod,
+              method: event.data.paymentMethod,
               transactionId: event.data.transactionId,
               processedBy: 'payment-service',
             },
+            metadata: {
+              source: 'payment-service',
+              correlationId: event.correlationId,
+            },
+            createdAt: new Date(),
           });
+
+          if (Result.isErr(result)) {
+            logError(`Failed to process payment command: ${result.error.message}`);
+          }
         }
         break;
 
@@ -189,17 +199,27 @@ export class OrdersRedisEventSubscriber {
       case 'RefundCompleted':
         // Handle refund completion
         if (event.data.orderId) {
-          await commandBus.execute({
+          const result = await commandBus.execute('RefundOrder', {
+            id: crypto.randomUUID(),
             type: 'RefundOrder',
-            aggregateId: event.data.orderId,
-            timestamp: new Date(),
             payload: {
+              orderId: event.data.orderId,
               amount: event.data.amount,
+              currency: event.data.currency || 'USD',
               reason: event.data.reason,
               refundedBy: 'payment-service',
               transactionId: event.data.transactionId,
             },
+            metadata: {
+              source: 'payment-service',
+              correlationId: event.correlationId,
+            },
+            createdAt: new Date(),
           });
+
+          if (Result.isErr(result)) {
+            logError(`Failed to process refund command: ${result.error.message}`);
+          }
         }
         break;
     }
@@ -213,31 +233,49 @@ export class OrdersRedisEventSubscriber {
       case 'StockReserved':
         // Update order status to confirmed after stock reservation
         if (event.data.orderId) {
-          await commandBus.execute({
+          const result = await commandBus.execute('UpdateOrderStatus', {
+            id: crypto.randomUUID(),
             type: 'UpdateOrderStatus',
-            aggregateId: event.data.orderId,
-            timestamp: new Date(),
             payload: {
+              orderId: event.data.orderId,
               status: 'CONFIRMED',
               updatedBy: 'inventory-service',
               notes: 'Stock reserved successfully',
             },
+            metadata: {
+              source: 'inventory-service',
+              correlationId: event.correlationId,
+            },
+            createdAt: new Date(),
           });
+
+          if (Result.isErr(result)) {
+            logError(`Failed to update order status command: ${result.error.message}`);
+          }
         }
         break;
 
       case 'StockReservationFailed':
         // Cancel order if stock reservation fails
         if (event.data.orderId) {
-          await commandBus.execute({
+          const result = await commandBus.execute('CancelOrder', {
+            id: crypto.randomUUID(),
             type: 'CancelOrder',
-            aggregateId: event.data.orderId,
-            timestamp: new Date(),
             payload: {
+              orderId: event.data.orderId,
               reason: `Stock reservation failed: ${event.data.reason}`,
               cancelledBy: 'inventory-service',
             },
+            metadata: {
+              source: 'inventory-service',
+              correlationId: event.correlationId,
+            },
+            createdAt: new Date(),
           });
+
+          if (Result.isErr(result)) {
+            logError(`Failed to cancel order command: ${result.error.message}`);
+          }
         }
         break;
     }

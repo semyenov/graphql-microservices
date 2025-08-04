@@ -1,6 +1,10 @@
-import { type IQueryHandler, QueryHandler } from '@graphql-microservices/event-sourcing';
-import { logError, logInfo } from '@graphql-microservices/shared-logging';
+import type { IQueryHandler } from '@graphql-microservices/event-sourcing';
+import { createLogger } from '@graphql-microservices/logger';
 import type { PrismaClient } from '../../../generated/prisma';
+
+// Create logger instance
+const logger = createLogger({ service: 'orders-query-handlers' });
+
 import type {
   GetAllOrdersQuery,
   GetOrderByIdQuery,
@@ -19,16 +23,15 @@ import type {
 /**
  * Get Order By ID Query Handler
  */
-@QueryHandler(GetOrderByIdQuery)
 export class GetOrderByIdQueryHandler implements IQueryHandler<GetOrderByIdQuery> {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(query: GetOrderByIdQuery): Promise<OrderViewModel | null> {
     try {
-      logInfo('Fetching order by ID', { orderId: query.payload.orderId });
+      logger.info('Fetching order by ID', { orderId: query.parameters.orderId });
 
       const order = await this.prisma.order.findUnique({
-        where: { id: query.payload.orderId },
+        where: { id: query.parameters.orderId },
         include: {
           items: true,
           customer: true,
@@ -41,7 +44,7 @@ export class GetOrderByIdQueryHandler implements IQueryHandler<GetOrderByIdQuery
 
       return this.mapToViewModel(order);
     } catch (error) {
-      logError('Failed to fetch order by ID', error as Error, { query });
+      logger.error('Failed to fetch order by ID', error as Error, { query });
       throw error;
     }
   }
@@ -103,16 +106,15 @@ export class GetOrderByIdQueryHandler implements IQueryHandler<GetOrderByIdQuery
 /**
  * Get Order By Number Query Handler
  */
-@QueryHandler(GetOrderByNumberQuery)
 export class GetOrderByNumberQueryHandler implements IQueryHandler<GetOrderByNumberQuery> {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(query: GetOrderByNumberQuery): Promise<OrderViewModel | null> {
     try {
-      logInfo('Fetching order by number', { orderNumber: query.payload.orderNumber });
+      logger.info('Fetching order by number', { orderNumber: query.parameters.orderNumber });
 
       const order = await this.prisma.order.findUnique({
-        where: { orderNumber: query.payload.orderNumber },
+        where: { orderNumber: query.parameters.orderNumber },
         include: {
           items: true,
           customer: true,
@@ -125,7 +127,7 @@ export class GetOrderByNumberQueryHandler implements IQueryHandler<GetOrderByNum
 
       return new GetOrderByIdQueryHandler(this.prisma).mapToViewModel(order);
     } catch (error) {
-      logError('Failed to fetch order by number', error as Error, { query });
+      logger.error('Failed to fetch order by number', error as Error, { query });
       throw error;
     }
   }
@@ -134,16 +136,15 @@ export class GetOrderByNumberQueryHandler implements IQueryHandler<GetOrderByNum
 /**
  * Get Orders By Customer Query Handler
  */
-@QueryHandler(GetOrdersByCustomerQuery)
 export class GetOrdersByCustomerQueryHandler implements IQueryHandler<GetOrdersByCustomerQuery> {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(query: GetOrdersByCustomerQuery): Promise<PaginatedResult<OrderViewModel>> {
     try {
       const { customerId, status, fromDate, toDate, limit, offset, sortBy, sortOrder } =
-        query.payload;
+        query.parameters;
 
-      logInfo('Fetching orders by customer', { customerId, status });
+      logger.info('Fetching orders by customer', { customerId, status });
 
       const where: any = { customerId };
 
@@ -184,7 +185,7 @@ export class GetOrdersByCustomerQueryHandler implements IQueryHandler<GetOrdersB
         },
       };
     } catch (error) {
-      logError('Failed to fetch orders by customer', error as Error, { query });
+      logger.error('Failed to fetch orders by customer', error as Error, { query });
       throw error;
     }
   }
@@ -193,7 +194,6 @@ export class GetOrdersByCustomerQueryHandler implements IQueryHandler<GetOrdersB
 /**
  * Get All Orders Query Handler (Admin)
  */
-@QueryHandler(GetAllOrdersQuery)
 export class GetAllOrdersQueryHandler implements IQueryHandler<GetAllOrdersQuery> {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -210,9 +210,9 @@ export class GetAllOrdersQueryHandler implements IQueryHandler<GetAllOrdersQuery
         offset,
         sortBy,
         sortOrder,
-      } = query.payload;
+      } = query.parameters;
 
-      logInfo('Fetching all orders', { status, customerId });
+      logger.info('Fetching all orders', { status, customerId });
 
       const where: any = {};
 
@@ -259,7 +259,7 @@ export class GetAllOrdersQueryHandler implements IQueryHandler<GetAllOrdersQuery
         },
       };
     } catch (error) {
-      logError('Failed to fetch all orders', error as Error, { query });
+      logger.error('Failed to fetch all orders', error as Error, { query });
       throw error;
     }
   }
@@ -268,15 +268,14 @@ export class GetAllOrdersQueryHandler implements IQueryHandler<GetAllOrdersQuery
 /**
  * Get Order Statistics Query Handler
  */
-@QueryHandler(GetOrderStatisticsQuery)
 export class GetOrderStatisticsQueryHandler implements IQueryHandler<GetOrderStatisticsQuery> {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(query: GetOrderStatisticsQuery): Promise<OrderStatisticsViewModel> {
     try {
-      const { customerId, fromDate, toDate, groupBy } = query.payload;
+      const { customerId, fromDate, toDate, groupBy } = query.parameters;
 
-      logInfo('Fetching order statistics', { customerId, fromDate, toDate, groupBy });
+      logger.info('Fetching order statistics', { customerId, fromDate, toDate, groupBy });
 
       const where: any = {
         createdAt: {
@@ -338,7 +337,7 @@ export class GetOrderStatisticsQueryHandler implements IQueryHandler<GetOrderSta
         ),
       };
     } catch (error) {
-      logError('Failed to fetch order statistics', error as Error, { query });
+      logger.error('Failed to fetch order statistics', error as Error, { query });
       throw error;
     }
   }
@@ -347,15 +346,14 @@ export class GetOrderStatisticsQueryHandler implements IQueryHandler<GetOrderSta
 /**
  * Search Orders Query Handler
  */
-@QueryHandler(SearchOrdersQuery)
 export class SearchOrdersQueryHandler implements IQueryHandler<SearchOrdersQuery> {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(query: SearchOrdersQuery): Promise<PaginatedResult<OrderViewModel>> {
     try {
-      const { searchTerm, searchFields, limit, offset } = query.payload;
+      const { searchTerm, searchFields, limit, offset } = query.parameters;
 
-      logInfo('Searching orders', { searchTerm, searchFields });
+      logger.info('Searching orders', { searchTerm, searchFields });
 
       const searchConditions: any[] = [];
 
@@ -418,7 +416,7 @@ export class SearchOrdersQueryHandler implements IQueryHandler<SearchOrdersQuery
         },
       };
     } catch (error) {
-      logError('Failed to search orders', error as Error, { query });
+      logger.error('Failed to search orders', error as Error, { query });
       throw error;
     }
   }
@@ -427,15 +425,14 @@ export class SearchOrdersQueryHandler implements IQueryHandler<SearchOrdersQuery
 /**
  * Get Order Count Query Handler
  */
-@QueryHandler(GetOrderCountQuery)
 export class GetOrderCountQueryHandler implements IQueryHandler<GetOrderCountQuery> {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(query: GetOrderCountQuery): Promise<number> {
     try {
-      const { status, customerId, fromDate, toDate } = query.payload;
+      const { status, customerId, fromDate, toDate } = query.parameters;
 
-      logInfo('Counting orders', { status, customerId });
+      logger.info('Counting orders', { status, customerId });
 
       const where: any = {};
 
@@ -450,7 +447,7 @@ export class GetOrderCountQueryHandler implements IQueryHandler<GetOrderCountQue
 
       return await this.prisma.order.count({ where });
     } catch (error) {
-      logError('Failed to count orders', error as Error, { query });
+      logger.error('Failed to count orders', error as Error, { query });
       throw error;
     }
   }
@@ -459,15 +456,14 @@ export class GetOrderCountQueryHandler implements IQueryHandler<GetOrderCountQue
 /**
  * Get Revenue Report Query Handler
  */
-@QueryHandler(GetRevenueReportQuery)
 export class GetRevenueReportQueryHandler implements IQueryHandler<GetRevenueReportQuery> {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(query: GetRevenueReportQuery): Promise<RevenueReportViewModel> {
     try {
-      const { fromDate, toDate, groupBy, includeRefunds } = query.payload;
+      const { fromDate, toDate, groupBy, includeRefunds } = query.parameters;
 
-      logInfo('Generating revenue report', { fromDate, toDate, groupBy });
+      logger.info('Generating revenue report', { fromDate, toDate, groupBy });
 
       // This is a simplified implementation
       // In a real system, you would use more sophisticated SQL queries
@@ -540,7 +536,7 @@ export class GetRevenueReportQueryHandler implements IQueryHandler<GetRevenueRep
         totals,
       };
     } catch (error) {
-      logError('Failed to generate revenue report', error as Error, { query });
+      logger.error('Failed to generate revenue report', error as Error, { query });
       throw error;
     }
   }

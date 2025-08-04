@@ -1,11 +1,11 @@
-import { parseEnv, queryComplexityEnvSchema } from '@graphql-microservices/shared-config';
-import { createErrorLogger, QueryComplexityError } from '@graphql-microservices/shared-errors';
 import type {
   ApolloServerPlugin,
   BaseContext,
   GraphQLRequestContext,
   GraphQLRequestListener,
-} from 'apollo-server-plugin-base';
+} from '@apollo/server';
+import { parseEnv, queryComplexityEnvSchema } from '@graphql-microservices/shared-config';
+import { createErrorLogger, QueryComplexityError } from '@graphql-microservices/shared-errors';
 import type { GraphQLSchema } from 'graphql';
 import { parse as parseQuery } from 'graphql';
 import type { ValidationRule } from 'graphql/validation/ValidationContext';

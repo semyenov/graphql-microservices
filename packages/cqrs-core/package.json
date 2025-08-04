@@ -1,0 +1,48 @@
+{
+  "name": "@graphql-microservices/cqrs-core",
+  "version": "1.0.0",
+  "description": "Core CQRS infrastructure for GraphQL microservices",
+  "type": "module",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsdown src/index.ts --outDir dist",
+    "build:watch": "tsdown src/index.ts --outDir dist --watch",
+    "clean": "rm -rf dist",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "cqrs",
+    "command-bus",
+    "query-bus",
+    "event-bus",
+    "ddd",
+    "microservices"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@graphql-microservices/shared-result": "workspace:*",
+    "@graphql-microservices/logger": "workspace:*",
+    "@graphql-microservices/shared-errors": "workspace:*",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "tsdown": "^0.2.17",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.8.0"
+  }
+}

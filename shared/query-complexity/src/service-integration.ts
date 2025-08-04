@@ -5,6 +5,7 @@
 import { ApolloServer } from '@apollo/server';
 import { buildSubgraphSchema } from '@apollo/subgraph';
 import type { GraphQLResolverMap } from '@apollo/subgraph/dist/schema-helper';
+import { gql } from 'graphql-tag';
 import {
   addComplexityToSchema,
   createComplexityValidationRules,
@@ -16,7 +17,15 @@ import {
 // Type definitions for GraphQL resolvers with complexity configuration
 interface ResolverWithComplexity {
   [key: string]: unknown;
-  complexity?: number;
+  complexity?:
+    | number
+    | (({
+        args,
+        childComplexity,
+      }: {
+        args: Record<string, unknown>;
+        childComplexity: number;
+      }) => number);
   multipliers?: string[];
 }
 
@@ -149,7 +158,7 @@ export const createServerWithComplexityAnalysis = (
   // Build schema
   const schema = buildSubgraphSchema([
     {
-      typeDefs: addComplexityToSchema(typeDefs),
+      typeDefs: gql(addComplexityToSchema(typeDefs)),
       resolvers: addFieldComplexityToResolvers(resolvers) as GraphQLResolverMap<unknown>,
     },
   ]);

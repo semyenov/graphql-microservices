@@ -1,3 +1,8 @@
+import type {
+  ApolloServerPlugin,
+  GraphQLRequestContext,
+  GraphQLRequestListener,
+} from '@apollo/server';
 import { observabilityEnvSchema, parseEnv } from '@graphql-microservices/shared-config';
 import { createErrorLogger } from '@graphql-microservices/shared-errors';
 import { context, type Span, type SpanContext, SpanStatusCode, trace } from '@opentelemetry/api';
@@ -13,11 +18,6 @@ import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import type {
-  ApolloServerPlugin,
-  GraphQLRequestContext,
-  GraphQLRequestListener,
-} from 'apollo-server-plugin-base';
 import type { GraphQLError } from 'graphql';
 
 const logError = createErrorLogger('observability');
@@ -33,7 +33,7 @@ export const initializeObservability = (serviceName: string): NodeSDK => {
   const resource = new Resource({
     [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
     [SemanticResourceAttributes.SERVICE_VERSION]: process.env.npm_package_version || '1.0.0',
-    [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: env.NODE_ENV,
+    [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
     [SemanticResourceAttributes.SERVICE_NAMESPACE]: 'graphql-microservices',
   });
 
@@ -63,7 +63,7 @@ export const initializeObservability = (serviceName: string): NodeSDK => {
       new GraphQLInstrumentation({
         mergeItems: true,
         ignoreTrivialResolveSpans: true,
-        allowValues: env.NODE_ENV === 'development',
+        allowValues: process.env.NODE_ENV === 'development',
       }),
       new RedisInstrumentation({
         dbStatementSerializer: (cmdName, cmdArgs) => {
@@ -118,6 +118,29 @@ export const createSpan = (
     try {
       await fn(span);
       span.setStatus({ code: SpanStatusCode.OK });
+    } catch (error) {
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+      span.recordException(error as Error);
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
+};
+
+export const createSpanWithResult = <T>(
+  name: string,
+  fn: (span: Span) => Promise<T> | T
+): Promise<T> => {
+  const tracer = trace.getTracer('graphql-microservices');
+  return tracer.startActiveSpan(name, async (span) => {
+    try {
+      const result = await fn(span);
+      span.setStatus({ code: SpanStatusCode.OK });
+      return result;
     } catch (error) {
       span.setStatus({
         code: SpanStatusCode.ERROR,
@@ -328,7 +351,7 @@ export const extractTraceContext = (
   if (traceparent && typeof traceparent === 'string') {
     // Parse traceparent header
     const parts = traceparent.split('-');
-    if (parts.length === 4) {
+    if (parts.length === 4 && parts[1] && parts[2] && parts[3]) {
       return {
         traceId: parts[1],
         spanId: parts[2],
